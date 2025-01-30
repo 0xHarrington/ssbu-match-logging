@@ -10,7 +10,7 @@ A minimalist full-stack web application for tracking Super Smash Bros matches be
 - Local CSV storage with timestamped entries
 - Clean, dark-mode interface inspired by the Gruvbox color scheme
 
-## Getting Started
+## Setup
 
 1. Clone the repository:
 
@@ -19,19 +19,42 @@ git clone https://github.com/yourusername/smash-match-logger.git
 cd smash-match-logger
 ```
 
-2. Install dependencies:
+2. Create and activate a virtual environment:
+
+On Windows:
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+On macOS/Linux:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+3. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+If you're setting up the project for the first time, create `requirements.txt`:
 
 ```bash
 pip install flask
+pip freeze > requirements.txt
 ```
 
-3. Run the application:
+4. Run the application:
 
 ```bash
 python app.py
 ```
 
-4. Open your browser and navigate to `http://localhost:5000`
+5. Open your browser and navigate to `http://localhost:5000`
 
 ## Data Format
 
@@ -42,6 +65,22 @@ The application stores match data in `game_results.csv` with the following colum
 - matt_character: Character selected by Matt
 - winner: Who won the match
 - stocks_remaining: How many stocks the winner had left (optional)
+
+## Development Notes
+
+- The virtual environment (`venv`) is included in `.gitignore`
+- Always activate the virtual environment before running or developing the application
+- After installing new packages, update `requirements.txt`:
+
+```bash
+pip freeze > requirements.txt
+```
+
+- To deactivate the virtual environment when you're done:
+
+```bash
+deactivate
+```
 
 ## Contributing
 
