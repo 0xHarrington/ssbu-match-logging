@@ -1,0 +1,189 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Logger</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 0 20px;
+            background-color: #282828;
+            color: #ebdbb2;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        select,
+        input,
+        button {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            background-color: #3c3836;
+            color: #ebdbb2;
+            border: 1px solid #504945;
+            border-radius: 4px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .winner-button {
+            flex: 1;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .winner-button.selected {
+            background-color: #98971a;
+        }
+
+        #stocksGroup {
+            display: none;
+        }
+
+        .success-message {
+            color: #98971a;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Game Logger</h1>
+
+    <div class="form-group">
+        <label for="shayneCharacter">Shayne's Character:</label>
+        <select id="shayneCharacter" required>
+            <option value="">Select character...</option>
+            <!-- Add your character list here -->
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="mattCharacter">Matt's Character:</label>
+        <select id="mattCharacter" required>
+            <option value="">Select character...</option>
+            <!-- Add your character list here -->
+        </select>
+    </div>
+
+    <div class="button-group">
+        <button class="winner-button" onclick="selectWinner('Shayne')">Shayne Won</button>
+        <button class="winner-button" onclick="selectWinner('Matt')">Matt Won</button>
+    </div>
+
+    <div id="stocksGroup" class="form-group">
+        <label for="stocksRemaining">Stocks Remaining:</label>
+        <input type="number" id="stocksRemaining" min="1" max="3" step="1">
+    </div>
+
+    <button onclick="submitGame()">Log Game</button>
+    <div id="successMessage" class="success-message">Game logged successfully!</div>
+
+    <script>
+        let selectedWinner = null;
+        const characters = [
+            "Mario", "Donkey Kong", "Link", "Samus", "Dark Samus", "Yoshi", "Kirby",
+            "Fox", "Pikachu", "Luigi", "Ness", "Captain Falcon", "Jigglypuff",
+            // Add more characters as needed
+        ];
+
+        // Populate character dropdowns
+        function populateCharacters() {
+            const dropdowns = [document.getElementById('shayneCharacter'),
+            document.getElementById('mattCharacter')];
+
+            dropdowns.forEach(dropdown => {
+                characters.forEach(char => {
+                    const option = document.createElement('option');
+                    option.value = char;
+                    option.textContent = char;
+                    dropdown.appendChild(option);
+                });
+            });
+        }
+
+        function selectWinner(winner) {
+            selectedWinner = winner;
+            document.querySelectorAll('.winner-button').forEach(btn => {
+                btn.classList.remove('selected');
+                if (btn.textContent.includes(winner)) {
+                    btn.classList.add('selected');
+                }
+            });
+
+            const stocksGroup = document.getElementById('stocksGroup');
+            stocksGroup.style.display = 'block';
+        }
+
+        async function submitGame() {
+            if (!selectedWinner) {
+                alert('Please select a winner');
+                return;
+            }
+
+            const shayneCharacter = document.getElementById('shayneCharacter').value;
+            const mattCharacter = document.getElementById('mattCharacter').value;
+
+            if (!shayneCharacter || !mattCharacter) {
+                alert('Please select characters for both players');
+                return;
+            }
+
+            const stocksRemaining = document.getElementById('stocksRemaining').value;
+
+            const response = await fetch('/log_game', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    shayneCharacter,
+                    mattCharacter,
+                    winner: selectedWinner,
+                    stocksRemaining
+                })
+            });
+
+            if (response.ok) {
+                const successMessage = document.getElementById('successMessage');
+                successMessage.style.display = 'block';
+                setTimeout(() => {
+                    successMessage.style.display = 'none';
+                }, 3000);
+
+                // Reset form
+                document.getElementById('shayneCharacter').value = '';
+                document.getElementById('mattCharacter').value = '';
+                document.getElementById('stocksRemaining').value = '';
+                selectedWinner = null;
+                document.querySelectorAll('.winner-button').forEach(btn => {
+                    btn.classList.remove('selected');
+                });
+                document.getElementById('stocksGroup').style.display = 'none';
+            }
+        }
+
+        // Initialize character dropdowns
+        populateCharacters();
+    </script>
+</body>
+
+</html>
