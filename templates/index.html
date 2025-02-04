@@ -169,6 +169,74 @@
                 transform: translateY(0);
             }
         }
+
+        .custom-select {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--bg-light);
+            border-radius: 6px;
+            background-color: var(--bg);
+            color: var(--fg);
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--blue);
+        }
+
+        .character-list {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: var(--bg);
+            border: 1px solid var(--bg-light);
+            border-radius: 6px;
+            margin-top: 4px;
+            z-index: 1000;
+        }
+
+        .character-list.active {
+            display: block;
+        }
+
+        .character-option {
+            padding: 0.75rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .character-option:hover {
+            background-color: var(--bg1);
+        }
+
+        /* Add custom scrollbar styling */
+        .character-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .character-list::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        .character-list::-webkit-scrollbar-thumb {
+            background: var(--bg-light);
+            border-radius: 4px;
+        }
+
+        .character-list::-webkit-scrollbar-thumb:hover {
+            background: var(--blue);
+        }
     </style>
 </head>
 
@@ -177,17 +245,23 @@
         <h1>Smash Match Logger</h1>
 
         <div class="form-group">
-            <label for="shayneCharacter">Shayne's Character</label>
-            <select id="shayneCharacter" required>
-                <option value="">Select character...</option>
-            </select>
+            <label for="shayneCharacterSearch">Shayne's Character</label>
+            <div class="custom-select">
+                <input type="text" id="shayneCharacterSearch" placeholder="Search characters..." class="search-input">
+                <div class="character-list" id="shayneCharacterList">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
         </div>
 
         <div class="form-group">
-            <label for="mattCharacter">Matt's Character</label>
-            <select id="mattCharacter" required>
-                <option value="">Select character...</option>
-            </select>
+            <label for="mattCharacterSearch">Matt's Character</label>
+            <div class="custom-select">
+                <input type="text" id="mattCharacterSearch" placeholder="Search characters..." class="search-input">
+                <div class="character-list" id="mattCharacterList">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
         </div>
 
         <div class="button-group">
@@ -211,6 +285,11 @@
     <script>
         let selectedStocks = null;
         let selectedWinner = null;
+        let selectedShayneCharacter = '';
+        let selectedMattCharacter = '';
+        let updateShayneInput;
+        let updateMattInput;
+
         const characters = [
             // Original 8
             "Mario", "Donkey Kong", "Link", "Samus", "Dark Samus", "Yoshi", "Kirby", "Fox", "Pikachu",
@@ -231,7 +310,7 @@
 
             // Fighters Pass Vol. 2
             "Min Min", "Steve", "Sephiroth", "Pyra/Mythra", "Kazuya", "Sora"
-        ].sort();  // Sort alphabetically for easier selection
+        ].sort();
 
         function selectStocks(stocks) {
             selectedStocks = stocks;
@@ -243,19 +322,61 @@
             });
         }
 
-        function populateCharacters() {
-            const dropdowns = [
-                document.getElementById('shayneCharacter'),
-                document.getElementById('mattCharacter')
-            ];
+        function setupCharacterSelect(searchInputId, characterListId, onSelect) {
+            const searchInput = document.getElementById(searchInputId);
+            const characterList = document.getElementById(characterListId);
 
-            dropdowns.forEach(dropdown => {
-                characters.forEach(char => {
-                    const option = document.createElement('option');
-                    option.value = char;
+            function filterCharacters(searchTerm) {
+                const filtered = characters.filter(char =>
+                    char.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+
+                characterList.innerHTML = '';
+                filtered.forEach(char => {
+                    const option = document.createElement('div');
+                    option.className = 'character-option';
                     option.textContent = char;
-                    dropdown.appendChild(option);
+                    option.onclick = () => {
+                        onSelect(char);
+                        searchInput.value = char;
+                        characterList.classList.remove('active');
+                    };
+                    characterList.appendChild(option);
                 });
+            }
+
+            searchInput.addEventListener('focus', () => {
+                if (!searchInput.value) {
+                    filterCharacters('');
+                } else {
+                    filterCharacters(searchInput.value);
+                }
+                characterList.classList.add('active');
+            });
+
+            searchInput.addEventListener('input', () => {
+                filterCharacters(searchInput.value);
+                characterList.classList.add('active');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!searchInput.contains(e.target) && !characterList.contains(e.target)) {
+                    characterList.classList.remove('active');
+                }
+            });
+
+            return (selectedChar) => {
+                searchInput.value = selectedChar;
+            };
+        }
+
+        function initializeCharacterSelects() {
+            updateShayneInput = setupCharacterSelect('shayneCharacterSearch', 'shayneCharacterList', (char) => {
+                selectedShayneCharacter = char;
+            });
+
+            updateMattInput = setupCharacterSelect('mattCharacterSearch', 'mattCharacterList', (char) => {
+                selectedMattCharacter = char;
             });
         }
 
@@ -278,10 +399,7 @@
                 return;
             }
 
-            const shayneCharacter = document.getElementById('shayneCharacter').value;
-            const mattCharacter = document.getElementById('mattCharacter').value;
-
-            if (!shayneCharacter || !mattCharacter) {
+            if (!selectedShayneCharacter || !selectedMattCharacter) {
                 alert('Please select characters for both players');
                 return;
             }
@@ -298,8 +416,8 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        shayneCharacter,
-                        mattCharacter,
+                        shayneCharacter: selectedShayneCharacter,
+                        mattCharacter: selectedMattCharacter,
                         winner: selectedWinner,
                         stocksRemaining: selectedStocks
                     })
@@ -309,14 +427,16 @@
                     const successMessage = document.getElementById('successMessage');
                     successMessage.style.display = 'block';
 
-                    // Reset form
-                    document.getElementById('shayneCharacter').value = '';
-                    document.getElementById('mattCharacter').value = '';
+                    // Reset only winner and stocks selection, keep characters
                     selectedWinner = null;
                     selectedStocks = null;
+
+                    // Reset button states
                     document.querySelectorAll('.winner-button, .stocks-button').forEach(btn => {
                         btn.classList.remove('selected');
                     });
+
+                    // Hide the stocks group
                     document.getElementById('stocksGroup').style.display = 'none';
 
                     // Hide success message after 3 seconds
@@ -332,8 +452,8 @@
             }
         }
 
-        // Initialize character dropdowns
-        populateCharacters();
+        // Initialize character dropdowns when the page loads
+        document.addEventListener('DOMContentLoaded', initializeCharacterSelects);
     </script>
 </body>
 
