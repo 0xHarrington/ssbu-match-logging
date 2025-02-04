@@ -120,10 +120,6 @@
             opacity: 0.9;
         }
 
-        input[type="number"] {
-            -moz-appearance: textfield;
-        }
-
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button {
             -webkit-appearance: none;
@@ -216,10 +212,26 @@
         let selectedStocks = null;
         let selectedWinner = null;
         const characters = [
-            "Mario", "Donkey Kong", "Link", "Samus", "Dark Samus", "Yoshi", "Kirby",
-            "Fox", "Pikachu", "Luigi", "Ness", "Captain Falcon", "Jigglypuff"
-            // Add more characters as needed
-        ];
+            // Original 8
+            "Mario", "Donkey Kong", "Link", "Samus", "Dark Samus", "Yoshi", "Kirby", "Fox", "Pikachu",
+
+            // Remaining Base Roster
+            "Luigi", "Ness", "Captain Falcon", "Jigglypuff", "Peach", "Daisy", "Bowser", "Ice Climbers",
+            "Sheik", "Zelda", "Dr. Mario", "Pichu", "Falco", "Marth", "Lucina", "Young Link",
+            "Ganondorf", "Mewtwo", "Roy", "Chrom", "Mr. Game & Watch", "Meta Knight", "Pit",
+            "Dark Pit", "Zero Suit Samus", "Wario", "Snake", "Ike", "Pokemon Trainer", "Diddy Kong",
+            "Lucas", "Sonic", "King Dedede", "Olimar", "Lucario", "R.O.B.", "Toon Link", "Wolf",
+            "Villager", "Mega Man", "Wii Fit Trainer", "Rosalina & Luma", "Little Mac", "Greninja",
+            "Mii Brawler", "Mii Swordfighter", "Mii Gunner", "Palutena", "Pac-Man", "Robin",
+            "Shulk", "Bowser Jr.", "Duck Hunt", "Ryu", "Ken", "Cloud", "Corrin", "Bayonetta",
+            "Inkling", "Ridley", "Simon", "Richter", "King K. Rool", "Isabelle", "Incineroar",
+
+            // Fighters Pass Vol. 1
+            "Piranha Plant", "Joker", "Hero", "Banjo & Kazooie", "Terry", "Byleth",
+
+            // Fighters Pass Vol. 2
+            "Min Min", "Steve", "Sephiroth", "Pyra/Mythra", "Kazuya", "Sora"
+        ].sort();  // Sort alphabetically for easier selection
 
         function selectStocks(stocks) {
             selectedStocks = stocks;
