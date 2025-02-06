@@ -237,6 +237,75 @@
         .character-list::-webkit-scrollbar-thumb:hover {
             background: var(--blue);
         }
+
+        .matchup-stats {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--bg-light);
+        }
+
+        .matchup-stats h2 {
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+            color: var(--fg);
+        }
+
+        .matchup-stats h3 {
+            font-size: 1.2rem;
+            margin: 1rem 0;
+            color: var(--fg);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-item {
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-label {
+            display: block;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            color: var(--fg);
+            opacity: 0.8;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--fg);
+        }
+
+        .recent-games {
+            margin-top: 1.5rem;
+        }
+
+        .game-item {
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .game-item .winner {
+            color: var(--green);
+        }
+
+        .game-date {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
     </style>
 </head>
 
@@ -264,6 +333,27 @@
             </div>
         </div>
 
+        <div id="matchupStats" class="matchup-stats" style="display: none;">
+            <h2>Matchup History</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Total Games</span>
+                    <span id="totalGames" class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Shayne Wins</span>
+                    <span id="shayneWins" class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Matt Wins</span>
+                    <span id="mattWins" class="stat-value">0</span>
+                </div>
+            </div>
+            <div id="recentGames" class="recent-games">
+                <h3>Recent Games</h3>
+                <div id="recentGamesList"></div>
+            </div>
+        </div>
         <div class="button-group">
             <button class="winner-button" onclick="selectWinner('Shayne')">Shayne Won</button>
             <button class="winner-button" onclick="selectWinner('Matt')">Matt Won</button>
@@ -340,6 +430,7 @@
                         onSelect(char);
                         searchInput.value = char;
                         characterList.classList.remove('active');
+                        updateMatchupStats();  // Add this line to update stats when character is selected
                     };
                     characterList.appendChild(option);
                 });
@@ -369,7 +460,6 @@
                 searchInput.value = selectedChar;
             };
         }
-
         function initializeCharacterSelects() {
             updateShayneInput = setupCharacterSelect('shayneCharacterSearch', 'shayneCharacterList', (char) => {
                 selectedShayneCharacter = char;
@@ -439,6 +529,9 @@
                     // Hide the stocks group
                     document.getElementById('stocksGroup').style.display = 'none';
 
+                    // Immediately update the matchup stats
+                    await updateMatchupStats();
+
                     // Hide success message after 3 seconds
                     setTimeout(() => {
                         successMessage.style.display = 'none';
@@ -449,6 +542,48 @@
             } catch (error) {
                 console.error('Error:', error);
                 alert('Failed to log game');
+            }
+        }
+
+        async function updateMatchupStats() {
+            if (!selectedShayneCharacter || !selectedMattCharacter) return;
+
+            try {
+                const response = await fetch(`/matchup_stats?shayne_character=${encodeURIComponent(selectedShayneCharacter)}&matt_character=${encodeURIComponent(selectedMattCharacter)}`);
+                const stats = await response.json();
+
+                // Update stats display
+                document.getElementById('totalGames').textContent = stats.total_games;
+                document.getElementById('shayneWins').textContent = stats.shayne_wins;
+                document.getElementById('mattWins').textContent = stats.matt_wins;
+
+                // Update recent games list
+                const recentGamesList = document.getElementById('recentGamesList');
+                recentGamesList.innerHTML = '';
+
+                if (stats.recent_games.length > 0) {
+                    stats.recent_games.forEach(game => {
+                        const gameItem = document.createElement('div');
+                        gameItem.className = 'game-item';
+
+                        const winnerClass = game.winner === 'Shayne' ? 'winner' : '';
+                        gameItem.innerHTML = `
+                    <div>
+                        <span class="${winnerClass}">${game.winner} won</span>
+                        with ${game.stocks_remaining} stocks
+                    </div>
+                    <span class="game-date">${new Date(game.datetime).toLocaleDateString()}</span>
+                `;
+                        recentGamesList.appendChild(gameItem);
+                    });
+                } else {
+                    recentGamesList.innerHTML = '<div class="game-item">No recent games for this matchup</div>';
+                }
+
+                // Show the stats section
+                document.getElementById('matchupStats').style.display = 'block';
+            } catch (error) {
+                console.error('Error fetching matchup stats:', error);
             }
         }
 

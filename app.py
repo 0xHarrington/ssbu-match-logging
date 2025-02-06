@@ -118,9 +118,26 @@ def log_game():
         success = data_manager.add_game(data)
         
         if success:
+            # Get updated matchup stats
+            df = data_manager._load_data()
+            matchup_data = df[
+                (df['shayne_character'] == data['shayneCharacter']) & 
+                (df['matt_character'] == data['mattCharacter'])
+            ]
+            
+            stats = {
+                "total_games": len(matchup_data),
+                "shayne_wins": len(matchup_data[matchup_data['winner'] == 'Shayne']),
+                "matt_wins": len(matchup_data[matchup_data['winner'] == 'Matt']),
+                "recent_games": matchup_data.sort_values('datetime', ascending=False)
+                                      .head(5)
+                                      .to_dict('records')
+            }
+            
             return jsonify({
                 "status": "success",
-                "message": "Game logged successfully"
+                "message": "Game logged successfully",
+                "stats": stats
             })
         else:
             return jsonify({
@@ -166,6 +183,42 @@ def get_recent_games():
             "status": "error",
             "message": str(e)
         }), 500
+
+@app.route('/matchup_stats', methods=['GET'])
+def get_matchup_stats():
+    """Get historical stats for a specific character matchup."""
+    shayne_char = request.args.get('shayne_character')
+    matt_char = request.args.get('matt_character')
+    
+    if not shayne_char or not matt_char:
+        return jsonify({"error": "Both characters must be specified"}), 400
+        
+    df = data_manager._load_data()
+    
+    # Filter for this specific matchup
+    matchup_data = df[
+        (df['shayne_character'] == shayne_char) & 
+        (df['matt_character'] == matt_char)
+    ]
+    
+    if len(matchup_data) == 0:
+        return jsonify({
+            "total_games": 0,
+            "shayne_wins": 0,
+            "matt_wins": 0,
+            "recent_games": []
+        })
+    
+    stats = {
+        "total_games": len(matchup_data),
+        "shayne_wins": len(matchup_data[matchup_data['winner'] == 'Shayne']),
+        "matt_wins": len(matchup_data[matchup_data['winner'] == 'Matt']),
+        "recent_games": matchup_data.sort_values('datetime', ascending=False)
+                                  .head(5)
+                                  .to_dict('records')
+    }
+    
+    return jsonify(stats)
 
 if __name__ == '__main__':
     app.run(debug=True)
