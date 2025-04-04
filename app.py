@@ -153,10 +153,10 @@ class GameDataManager:
         }
         
         # Monthly activity
-        df['month'] = df['date'].dt.to_period('M')
-        monthly_games = df.groupby('month').size().tail(6).to_dict()
+        df['month'] = df['date'].dt.strftime('%Y-%m')
+        monthly_games = df.groupby('month').size().tail(6).to_dict()  # Show last 6 months
         stats['monthly_activity'] = [
-            {'month': str(month), 'games': count}
+            {'month': month, 'games': count}
             for month, count in monthly_games.items()
         ]
         
@@ -174,15 +174,17 @@ class GameDataManager:
         
         # Win rate by character for each player
         shayne_win_rates = df.groupby('shayne_character').agg({
-            'winner': lambda x: (x == 'Shayne').mean() * 100
+            'winner': [lambda x: (x == 'Shayne').mean() * 100, 'count']
         }).round(1).reset_index()
-        shayne_win_rates.columns = ['character', 'win_rate']
+        shayne_win_rates.columns = ['character', 'win_rate', 'games_played']
+        shayne_win_rates = shayne_win_rates.sort_values('games_played', ascending=False)
         stats['shayne_character_win_rates'] = shayne_win_rates.to_dict('records')
         
         matt_win_rates = df.groupby('matt_character').agg({
-            'winner': lambda x: (x == 'Matt').mean() * 100
+            'winner': [lambda x: (x == 'Matt').mean() * 100, 'count']
         }).round(1).reset_index()
-        matt_win_rates.columns = ['character', 'win_rate']
+        matt_win_rates.columns = ['character', 'win_rate', 'games_played']
+        matt_win_rates = matt_win_rates.sort_values('games_played', ascending=False)
         stats['matt_character_win_rates'] = matt_win_rates.to_dict('records')
         
         return stats
