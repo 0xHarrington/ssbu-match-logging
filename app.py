@@ -92,6 +92,7 @@ class GameDataManager:
         if len(df) == 0:
             return {}
             
+        # Basic stats
         stats = {
             'total_games': len(df),
             'shayne_wins': len(df[df['winner'] == 'Shayne']),
@@ -99,6 +100,90 @@ class GameDataManager:
             'most_played_shayne': df['shayne_character'].mode().iloc[0] if not df['shayne_character'].empty else None,
             'most_played_matt': df['matt_character'].mode().iloc[0] if not df['matt_character'].empty else None,
         }
+        
+        # Calculate win rates
+        stats['shayne_win_rate'] = round(stats['shayne_wins'] / stats['total_games'] * 100, 1) if stats['total_games'] > 0 else 0
+        stats['matt_win_rate'] = round(stats['matt_wins'] / stats['total_games'] * 100, 1) if stats['total_games'] > 0 else 0
+        
+        # Character usage stats
+        shayne_chars = df['shayne_character'].value_counts().head(5).to_dict()
+        matt_chars = df['matt_character'].value_counts().head(5).to_dict()
+        
+        stats['top_shayne_chars'] = [
+            {'character': char, 'games': count}
+            for char, count in shayne_chars.items()
+        ]
+        stats['top_matt_chars'] = [
+            {'character': char, 'games': count}
+            for char, count in matt_chars.items()
+        ]
+        
+        # Average stocks remaining
+        stats['avg_stocks_shayne'] = round(df[df['winner'] == 'Shayne']['stocks_remaining'].mean(), 1) if len(df[df['winner'] == 'Shayne']) > 0 else 0
+        stats['avg_stocks_matt'] = round(df[df['winner'] == 'Matt']['stocks_remaining'].mean(), 1) if len(df[df['winner'] == 'Matt']) > 0 else 0
+        
+        # Recent activity
+        stats['last_game_date'] = df['datetime'].max() if not df.empty else None
+        
+        # Convert timestamp to float for comparison
+        df['timestamp'] = pd.to_numeric(df['timestamp'], errors='coerce')
+        one_week_ago = datetime.now().timestamp() - (7 * 24 * 60 * 60)
+        stats['games_this_week'] = len(df[df['timestamp'] > one_week_ago])
+        
+        # Win streak analysis
+        df['date'] = pd.to_datetime(df['datetime'])
+        df = df.sort_values('date')
+        
+        # Calculate current win streaks
+        shayne_streak = 0
+        matt_streak = 0
+        for winner in reversed(df['winner']):
+            if winner == 'Shayne':
+                if matt_streak > 0:
+                    break
+                shayne_streak += 1
+            else:
+                if shayne_streak > 0:
+                    break
+                matt_streak += 1
+                
+        stats['current_streak'] = {
+            'player': 'Shayne' if shayne_streak > 0 else 'Matt',
+            'length': shayne_streak if shayne_streak > 0 else matt_streak
+        }
+        
+        # Monthly activity
+        df['month'] = df['date'].dt.to_period('M')
+        monthly_games = df.groupby('month').size().tail(6).to_dict()
+        stats['monthly_activity'] = [
+            {'month': str(month), 'games': count}
+            for month, count in monthly_games.items()
+        ]
+        
+        # Character matchup stats
+        matchup_stats = df.groupby(['shayne_character', 'matt_character']).agg({
+            'winner': lambda x: (x == 'Shayne').sum(),
+            'datetime': 'count'
+        }).reset_index()
+        matchup_stats.columns = ['shayne_character', 'matt_character', 'shayne_wins', 'total_games']
+        matchup_stats['matt_wins'] = matchup_stats['total_games'] - matchup_stats['shayne_wins']
+        
+        # Get top 5 most played matchups
+        top_matchups = matchup_stats.nlargest(5, 'total_games')
+        stats['top_matchups'] = top_matchups.to_dict('records')
+        
+        # Win rate by character for each player
+        shayne_win_rates = df.groupby('shayne_character').agg({
+            'winner': lambda x: (x == 'Shayne').mean() * 100
+        }).round(1).reset_index()
+        shayne_win_rates.columns = ['character', 'win_rate']
+        stats['shayne_character_win_rates'] = shayne_win_rates.to_dict('records')
+        
+        matt_win_rates = df.groupby('matt_character').agg({
+            'winner': lambda x: (x == 'Matt').mean() * 100
+        }).round(1).reset_index()
+        matt_win_rates.columns = ['character', 'win_rate']
+        stats['matt_character_win_rates'] = matt_win_rates.to_dict('records')
         
         return stats
 
@@ -152,7 +237,12 @@ def log_game():
             "message": str(e)
         }), 500
 
-@app.route('/stats', methods=['GET'])
+@app.route('/stats')
+def stats_page():
+    """Render the statistics page."""
+    return render_template('stats.html')
+
+@app.route('/api/stats', methods=['GET'])
 def get_stats():
     """Return basic statistics about the games."""
     try:
