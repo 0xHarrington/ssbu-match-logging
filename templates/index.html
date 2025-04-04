@@ -1,595 +1,567 @@
-<!-- templates/index.html -->
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smash Match Logger</title>
-    <style>
-        :root {
-            /* Gruvbox colors */
-            --bg: #282828;
-            --bg1: #3c3836;
-            --bg-light: #504945;
-            --fg: #ebdbb2;
-            --green: #98971a;
-            --red: #cc241d;
-            --blue: #458588;
+{% block title %}Smash Match Logger{% endblock %}
+
+{% block styles %}
+<style>
+    .card {
+        background-color: var(--bg1);
+        border-radius: 12px;
+        padding: 2rem;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        margin: 0 auto;
+    }
+
+    .card h1 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+        color: var(--fg);
+        font-size: 1.8rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--fg);
+    }
+
+    select,
+    input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--bg-light);
+        border-radius: 6px;
+        background-color: var(--bg);
+        color: var(--fg);
+        font-size: 1rem;
+        transition: border-color 0.2s;
+    }
+
+    select:focus,
+    input:focus {
+        outline: none;
+        border-color: var(--blue);
+    }
+
+    .button-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    button {
+        padding: 0.75rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .winner-button {
+        background-color: var(--bg-light);
+        color: var(--fg);
+    }
+
+    .winner-button:hover {
+        background-color: var(--bg);
+    }
+
+    .winner-button.selected {
+        background-color: var(--green);
+        color: white;
+    }
+
+    .submit-button {
+        width: 100%;
+        background-color: var(--blue);
+        color: white;
+    }
+
+    .submit-button:hover {
+        opacity: 0.9;
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .success-message {
+        text-align: center;
+        color: var(--green);
+        margin-top: 1rem;
+        display: none;
+    }
+
+    #stocksGroup {
+        display: none;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    .stocks-button-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .stocks-button {
+        background-color: var(--bg-light);
+        color: var(--fg);
+    }
+
+    .stocks-button:hover {
+        background-color: var(--bg);
+    }
+
+    .stocks-button.selected {
+        background-color: var(--green);
+        color: white;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        to {
+            opacity: 1;
+            transform: translateY(0);
         }
+    }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: var(--bg);
-            color: var(--fg);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+    .custom-select {
+        position: relative;
+        width: 100%;
+    }
 
-        .card {
-            background-color: var(--bg1);
-            border-radius: 12px;
-            padding: 2rem;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        }
+    .search-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--bg-light);
+        border-radius: 6px;
+        background-color: var(--bg);
+        color: var(--fg);
+        font-size: 1rem;
+        transition: border-color 0.2s;
+    }
 
-        .card h1 {
-            text-align: center;
-            margin-bottom: 1.5rem;
-            color: var(--fg);
-            font-size: 1.8rem;
-        }
+    .search-input:focus {
+        outline: none;
+        border-color: var(--blue);
+    }
 
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
+    .character-list {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        max-height: 300px;
+        overflow-y: auto;
+        background-color: var(--bg);
+        border: 1px solid var(--bg-light);
+        border-radius: 6px;
+        margin-top: 4px;
+        z-index: 1000;
+    }
 
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            color: var(--fg);
-        }
+    .character-list.active {
+        display: block;
+    }
 
-        select,
-        input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--bg-light);
-            border-radius: 6px;
-            background-color: var(--bg);
-            color: var(--fg);
-            font-size: 1rem;
-            transition: border-color 0.2s;
-        }
+    .character-option {
+        padding: 0.75rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
 
-        select:focus,
-        input:focus {
-            outline: none;
-            border-color: var(--blue);
-        }
+    .character-option:hover {
+        background-color: var(--bg1);
+    }
 
-        .button-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
+    /* Add custom scrollbar styling */
+    .character-list::-webkit-scrollbar {
+        width: 8px;
+    }
 
-        button {
-            padding: 0.75rem;
-            border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+    .character-list::-webkit-scrollbar-track {
+        background: var(--bg);
+    }
 
-        .winner-button {
-            background-color: var(--bg-light);
-            color: var(--fg);
-        }
+    .character-list::-webkit-scrollbar-thumb {
+        background: var(--bg-light);
+        border-radius: 4px;
+    }
 
-        .winner-button:hover {
-            background-color: var(--bg);
-        }
+    .character-list::-webkit-scrollbar-thumb:hover {
+        background: var(--blue);
+    }
 
-        .winner-button.selected {
-            background-color: var(--green);
-            color: white;
-        }
+    .matchup-stats {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--bg-light);
+    }
 
-        .submit-button {
-            width: 100%;
-            background-color: var(--blue);
-            color: white;
-        }
+    .matchup-stats h2 {
+        font-size: 1.4rem;
+        margin-bottom: 1rem;
+        color: var(--fg);
+    }
 
-        .submit-button:hover {
-            opacity: 0.9;
-        }
+    .matchup-stats h3 {
+        font-size: 1.2rem;
+        margin: 1rem 0;
+        color: var(--fg);
+    }
 
-        input[type="number"]::-webkit-outer-spin-button,
-        input[type="number"]::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
 
-        .success-message {
-            text-align: center;
-            color: var(--green);
-            margin-top: 1rem;
-            display: none;
-        }
+    .stat-item {
+        background: var(--bg);
+        padding: 1rem;
+        border-radius: 6px;
+        text-align: center;
+    }
 
-        #stocksGroup {
-            display: none;
-            animation: fadeIn 0.3s ease-in;
-        }
+    .stat-label {
+        display: block;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        color: var(--fg);
+        opacity: 0.8;
+    }
 
-        .stocks-button-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 1rem;
-        }
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--fg);
+    }
 
-        .stocks-button {
-            background-color: var(--bg-light);
-            color: var(--fg);
-        }
+    .recent-games {
+        margin-top: 1.5rem;
+    }
 
-        .stocks-button:hover {
-            background-color: var(--bg);
-        }
+    .game-item {
+        background: var(--bg);
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
 
-        .stocks-button.selected {
-            background-color: var(--green);
-            color: white;
-        }
+    .game-item .winner {
+        color: var(--green);
+    }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
+    .game-date {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+</style>
+{% endblock %}
 
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+{% block content %}
+<div class="card">
+    <h1>Smash Match Logger</h1>
 
-        .custom-select {
-            position: relative;
-            width: 100%;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--bg-light);
-            border-radius: 6px;
-            background-color: var(--bg);
-            color: var(--fg);
-            font-size: 1rem;
-            transition: border-color 0.2s;
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: var(--blue);
-        }
-
-        .character-list {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            max-height: 300px;
-            overflow-y: auto;
-            background-color: var(--bg);
-            border: 1px solid var(--bg-light);
-            border-radius: 6px;
-            margin-top: 4px;
-            z-index: 1000;
-        }
-
-        .character-list.active {
-            display: block;
-        }
-
-        .character-option {
-            padding: 0.75rem;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .character-option:hover {
-            background-color: var(--bg1);
-        }
-
-        /* Add custom scrollbar styling */
-        .character-list::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .character-list::-webkit-scrollbar-track {
-            background: var(--bg);
-        }
-
-        .character-list::-webkit-scrollbar-thumb {
-            background: var(--bg-light);
-            border-radius: 4px;
-        }
-
-        .character-list::-webkit-scrollbar-thumb:hover {
-            background: var(--blue);
-        }
-
-        .matchup-stats {
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid var(--bg-light);
-        }
-
-        .matchup-stats h2 {
-            font-size: 1.4rem;
-            margin-bottom: 1rem;
-            color: var(--fg);
-        }
-
-        .matchup-stats h3 {
-            font-size: 1.2rem;
-            margin: 1rem 0;
-            color: var(--fg);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .stat-item {
-            background: var(--bg);
-            padding: 1rem;
-            border-radius: 6px;
-            text-align: center;
-        }
-
-        .stat-label {
-            display: block;
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-            color: var(--fg);
-            opacity: 0.8;
-        }
-
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--fg);
-        }
-
-        .recent-games {
-            margin-top: 1.5rem;
-        }
-
-        .game-item {
-            background: var(--bg);
-            padding: 1rem;
-            border-radius: 6px;
-            margin-bottom: 0.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .game-item .winner {
-            color: var(--green);
-        }
-
-        .game-date {
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="card">
-        <h1>Smash Match Logger</h1>
-
-        <div class="form-group">
-            <label for="shayneCharacterSearch">Shayne's Character</label>
-            <div class="custom-select">
-                <input type="text" id="shayneCharacterSearch" placeholder="Search characters..." class="search-input">
-                <div class="character-list" id="shayneCharacterList">
-                    <!-- Populated by JavaScript -->
-                </div>
+    <div class="form-group">
+        <label for="shayneCharacterSearch">Shayne's Character</label>
+        <div class="custom-select">
+            <input type="text" id="shayneCharacterSearch" placeholder="Search characters..." class="search-input">
+            <div class="character-list" id="shayneCharacterList">
+                <!-- Populated by JavaScript -->
             </div>
         </div>
-
-        <div class="form-group">
-            <label for="mattCharacterSearch">Matt's Character</label>
-            <div class="custom-select">
-                <input type="text" id="mattCharacterSearch" placeholder="Search characters..." class="search-input">
-                <div class="character-list" id="mattCharacterList">
-                    <!-- Populated by JavaScript -->
-                </div>
-            </div>
-        </div>
-
-        <div id="matchupStats" class="matchup-stats" style="display: none;">
-            <h2>Matchup History</h2>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <span class="stat-label">Total Games</span>
-                    <span id="totalGames" class="stat-value">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Shayne Wins</span>
-                    <span id="shayneWins" class="stat-value">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Matt Wins</span>
-                    <span id="mattWins" class="stat-value">0</span>
-                </div>
-            </div>
-            <div id="recentGames" class="recent-games">
-                <h3>Recent Games</h3>
-                <div id="recentGamesList"></div>
-            </div>
-        </div>
-        <div class="button-group">
-            <button class="winner-button" onclick="selectWinner('Shayne')">Shayne Won</button>
-            <button class="winner-button" onclick="selectWinner('Matt')">Matt Won</button>
-        </div>
-
-        <div id="stocksGroup" class="form-group">
-            <label>Stocks Remaining</label>
-            <div class="stocks-button-group">
-                <button class="stocks-button" onclick="selectStocks(1)">1</button>
-                <button class="stocks-button" onclick="selectStocks(2)">2</button>
-                <button class="stocks-button" onclick="selectStocks(3)">3</button>
-            </div>
-        </div>
-
-        <button class="submit-button" onclick="submitGame()">Log Game</button>
-        <div id="successMessage" class="success-message">Game logged successfully!</div>
     </div>
 
-    <script>
-        let selectedStocks = null;
-        let selectedWinner = null;
-        let selectedShayneCharacter = '';
-        let selectedMattCharacter = '';
-        let updateShayneInput;
-        let updateMattInput;
+    <div class="form-group">
+        <label for="mattCharacterSearch">Matt's Character</label>
+        <div class="custom-select">
+            <input type="text" id="mattCharacterSearch" placeholder="Search characters..." class="search-input">
+            <div class="character-list" id="mattCharacterList">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+    </div>
 
-        const characters = [
-            // Original 8
-            "Mario", "Donkey Kong", "Link", "Samus", "Dark Samus", "Yoshi", "Kirby", "Fox", "Pikachu",
+    <div id="matchupStats" class="matchup-stats" style="display: none;">
+        <h2>Matchup History</h2>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <span class="stat-label">Total Games</span>
+                <span id="totalGames" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Shayne Wins</span>
+                <span id="shayneWins" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Matt Wins</span>
+                <span id="mattWins" class="stat-value">0</span>
+            </div>
+        </div>
+        <div id="recentGames" class="recent-games">
+            <h3>Recent Games</h3>
+            <div id="recentGamesList"></div>
+        </div>
+    </div>
+    <div class="button-group">
+        <button class="winner-button" onclick="selectWinner('Shayne')">Shayne Won</button>
+        <button class="winner-button" onclick="selectWinner('Matt')">Matt Won</button>
+    </div>
 
-            // Remaining Base Roster
-            "Luigi", "Ness", "Captain Falcon", "Jigglypuff", "Peach", "Daisy", "Bowser", "Ice Climbers",
-            "Sheik", "Zelda", "Dr. Mario", "Pichu", "Falco", "Marth", "Lucina", "Young Link",
-            "Ganondorf", "Mewtwo", "Roy", "Chrom", "Mr. Game & Watch", "Meta Knight", "Pit",
-            "Dark Pit", "Zero Suit Samus", "Wario", "Snake", "Ike", "Pokemon Trainer", "Diddy Kong",
-            "Lucas", "Sonic", "King Dedede", "Olimar", "Lucario", "R.O.B.", "Toon Link", "Wolf",
-            "Villager", "Mega Man", "Wii Fit Trainer", "Rosalina & Luma", "Little Mac", "Greninja",
-            "Mii Brawler", "Mii Swordfighter", "Mii Gunner", "Palutena", "Pac-Man", "Robin",
-            "Shulk", "Bowser Jr.", "Duck Hunt", "Ryu", "Ken", "Cloud", "Corrin", "Bayonetta",
-            "Inkling", "Ridley", "Simon", "Richter", "King K. Rool", "Isabelle", "Incineroar",
+    <div id="stocksGroup" class="form-group">
+        <label>Stocks Remaining</label>
+        <div class="stocks-button-group">
+            <button class="stocks-button" onclick="selectStocks(1)">1</button>
+            <button class="stocks-button" onclick="selectStocks(2)">2</button>
+            <button class="stocks-button" onclick="selectStocks(3)">3</button>
+        </div>
+    </div>
 
-            // Fighters Pass Vol. 1
-            "Piranha Plant", "Joker", "Hero", "Banjo & Kazooie", "Terry", "Byleth",
+    <button class="submit-button" onclick="submitGame()">Log Game</button>
+    <div id="successMessage" class="success-message">Game logged successfully!</div>
+</div>
+{% endblock %}
 
-            // Fighters Pass Vol. 2
-            "Min Min", "Steve", "Sephiroth", "Pyra/Mythra", "Kazuya", "Sora"
-        ].sort();
+{% block scripts %}
+<script>
+    let selectedStocks = null;
+    let selectedWinner = null;
+    let selectedShayneCharacter = '';
+    let selectedMattCharacter = '';
+    let updateShayneInput;
+    let updateMattInput;
 
-        function selectStocks(stocks) {
-            selectedStocks = stocks;
-            document.querySelectorAll('.stocks-button').forEach(btn => {
-                btn.classList.remove('selected');
-                if (btn.textContent === stocks.toString()) {
-                    btn.classList.add('selected');
-                }
-            });
-        }
+    const characters = [
+        // Original 8
+        "Mario", "Donkey Kong", "Link", "Samus", "Dark Samus", "Yoshi", "Kirby", "Fox", "Pikachu",
 
-        function setupCharacterSelect(searchInputId, characterListId, onSelect) {
-            const searchInput = document.getElementById(searchInputId);
-            const characterList = document.getElementById(characterListId);
+        // Remaining Base Roster
+        "Luigi", "Ness", "Captain Falcon", "Jigglypuff", "Peach", "Daisy", "Bowser", "Ice Climbers",
+        "Sheik", "Zelda", "Dr. Mario", "Pichu", "Falco", "Marth", "Lucina", "Young Link",
+        "Ganondorf", "Mewtwo", "Roy", "Chrom", "Mr. Game & Watch", "Meta Knight", "Pit",
+        "Dark Pit", "Zero Suit Samus", "Wario", "Snake", "Ike", "Pokemon Trainer", "Diddy Kong",
+        "Lucas", "Sonic", "King Dedede", "Olimar", "Lucario", "R.O.B.", "Toon Link", "Wolf",
+        "Villager", "Mega Man", "Wii Fit Trainer", "Rosalina & Luma", "Little Mac", "Greninja",
+        "Mii Brawler", "Mii Swordfighter", "Mii Gunner", "Palutena", "Pac-Man", "Robin",
+        "Shulk", "Bowser Jr.", "Duck Hunt", "Ryu", "Ken", "Cloud", "Corrin", "Bayonetta",
+        "Inkling", "Ridley", "Simon", "Richter", "King K. Rool", "Isabelle", "Incineroar",
 
-            function filterCharacters(searchTerm) {
-                const filtered = characters.filter(char =>
-                    char.toLowerCase().includes(searchTerm.toLowerCase())
-                );
+        // Fighters Pass Vol. 1
+        "Piranha Plant", "Joker", "Hero", "Banjo & Kazooie", "Terry", "Byleth",
 
-                characterList.innerHTML = '';
-                filtered.forEach(char => {
-                    const option = document.createElement('div');
-                    option.className = 'character-option';
-                    option.textContent = char;
-                    option.onclick = () => {
-                        onSelect(char);
-                        searchInput.value = char;
-                        characterList.classList.remove('active');
-                        updateMatchupStats();  // Add this line to update stats when character is selected
-                    };
-                    characterList.appendChild(option);
-                });
+        // Fighters Pass Vol. 2
+        "Min Min", "Steve", "Sephiroth", "Pyra/Mythra", "Kazuya", "Sora"
+    ].sort();
+
+    function selectStocks(stocks) {
+        selectedStocks = stocks;
+        document.querySelectorAll('.stocks-button').forEach(btn => {
+            btn.classList.remove('selected');
+            if (btn.textContent === stocks.toString()) {
+                btn.classList.add('selected');
             }
+        });
+    }
 
-            searchInput.addEventListener('focus', () => {
-                if (!searchInput.value) {
-                    filterCharacters('');
-                } else {
-                    filterCharacters(searchInput.value);
-                }
-                characterList.classList.add('active');
-            });
+    function setupCharacterSelect(searchInputId, characterListId, onSelect) {
+        const searchInput = document.getElementById(searchInputId);
+        const characterList = document.getElementById(characterListId);
 
-            searchInput.addEventListener('input', () => {
-                filterCharacters(searchInput.value);
-                characterList.classList.add('active');
-            });
+        function filterCharacters(searchTerm) {
+            const filtered = characters.filter(char =>
+                char.toLowerCase().includes(searchTerm.toLowerCase())
+            );
 
-            document.addEventListener('click', (e) => {
-                if (!searchInput.contains(e.target) && !characterList.contains(e.target)) {
+            characterList.innerHTML = '';
+            filtered.forEach(char => {
+                const option = document.createElement('div');
+                option.className = 'character-option';
+                option.textContent = char;
+                option.onclick = () => {
+                    onSelect(char);
+                    searchInput.value = char;
                     characterList.classList.remove('active');
-                }
-            });
-
-            return (selectedChar) => {
-                searchInput.value = selectedChar;
-            };
-        }
-        function initializeCharacterSelects() {
-            updateShayneInput = setupCharacterSelect('shayneCharacterSearch', 'shayneCharacterList', (char) => {
-                selectedShayneCharacter = char;
-            });
-
-            updateMattInput = setupCharacterSelect('mattCharacterSearch', 'mattCharacterList', (char) => {
-                selectedMattCharacter = char;
+                    updateMatchupStats();  // Add this line to update stats when character is selected
+                };
+                characterList.appendChild(option);
             });
         }
 
-        function selectWinner(winner) {
-            selectedWinner = winner;
-            document.querySelectorAll('.winner-button').forEach(btn => {
-                btn.classList.remove('selected');
-                if (btn.textContent.includes(winner)) {
-                    btn.classList.add('selected');
-                }
-            });
+        searchInput.addEventListener('focus', () => {
+            if (!searchInput.value) {
+                filterCharacters('');
+            } else {
+                filterCharacters(searchInput.value);
+            }
+            characterList.classList.add('active');
+        });
 
-            const stocksGroup = document.getElementById('stocksGroup');
-            stocksGroup.style.display = 'block';
+        searchInput.addEventListener('input', () => {
+            filterCharacters(searchInput.value);
+            characterList.classList.add('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !characterList.contains(e.target)) {
+                characterList.classList.remove('active');
+            }
+        });
+
+        return (selectedChar) => {
+            searchInput.value = selectedChar;
+        };
+    }
+
+    function initializeCharacterSelects() {
+        updateShayneInput = setupCharacterSelect('shayneCharacterSearch', 'shayneCharacterList', (char) => {
+            selectedShayneCharacter = char;
+        });
+
+        updateMattInput = setupCharacterSelect('mattCharacterSearch', 'mattCharacterList', (char) => {
+            selectedMattCharacter = char;
+        });
+    }
+
+    function selectWinner(winner) {
+        selectedWinner = winner;
+        document.querySelectorAll('.winner-button').forEach(btn => {
+            btn.classList.remove('selected');
+            if (btn.textContent.includes(winner)) {
+                btn.classList.add('selected');
+            }
+        });
+
+        const stocksGroup = document.getElementById('stocksGroup');
+        stocksGroup.style.display = 'block';
+    }
+
+    async function submitGame() {
+        if (!selectedWinner) {
+            alert('Please select a winner');
+            return;
         }
 
-        async function submitGame() {
-            if (!selectedWinner) {
-                alert('Please select a winner');
-                return;
-            }
+        if (!selectedShayneCharacter || !selectedMattCharacter) {
+            alert('Please select characters for both players');
+            return;
+        }
 
-            if (!selectedShayneCharacter || !selectedMattCharacter) {
-                alert('Please select characters for both players');
-                return;
-            }
+        if (selectedStocks === null) {
+            alert('Please select the number of stocks remaining');
+            return;
+        }
 
-            if (selectedStocks === null) {
-                alert('Please select the number of stocks remaining');
-                return;
-            }
+        try {
+            const response = await fetch('/log_game', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    shayneCharacter: selectedShayneCharacter,
+                    mattCharacter: selectedMattCharacter,
+                    winner: selectedWinner,
+                    stocksRemaining: selectedStocks
+                })
+            });
 
-            try {
-                const response = await fetch('/log_game', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        shayneCharacter: selectedShayneCharacter,
-                        mattCharacter: selectedMattCharacter,
-                        winner: selectedWinner,
-                        stocksRemaining: selectedStocks
-                    })
+            if (response.ok) {
+                const successMessage = document.getElementById('successMessage');
+                successMessage.style.display = 'block';
+
+                // Reset only winner and stocks selection, keep characters
+                selectedWinner = null;
+                selectedStocks = null;
+
+                // Reset button states
+                document.querySelectorAll('.winner-button, .stocks-button').forEach(btn => {
+                    btn.classList.remove('selected');
                 });
 
-                if (response.ok) {
-                    const successMessage = document.getElementById('successMessage');
-                    successMessage.style.display = 'block';
+                // Hide the stocks group
+                document.getElementById('stocksGroup').style.display = 'none';
 
-                    // Reset only winner and stocks selection, keep characters
-                    selectedWinner = null;
-                    selectedStocks = null;
+                // Immediately update the matchup stats
+                await updateMatchupStats();
 
-                    // Reset button states
-                    document.querySelectorAll('.winner-button, .stocks-button').forEach(btn => {
-                        btn.classList.remove('selected');
-                    });
-
-                    // Hide the stocks group
-                    document.getElementById('stocksGroup').style.display = 'none';
-
-                    // Immediately update the matchup stats
-                    await updateMatchupStats();
-
-                    // Hide success message after 3 seconds
-                    setTimeout(() => {
-                        successMessage.style.display = 'none';
-                    }, 3000);
-                } else {
-                    alert('Failed to log game');
-                }
-            } catch (error) {
-                console.error('Error:', error);
+                // Hide success message after 3 seconds
+                setTimeout(() => {
+                    successMessage.style.display = 'none';
+                }, 3000);
+            } else {
                 alert('Failed to log game');
             }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to log game');
         }
+    }
 
-        async function updateMatchupStats() {
-            if (!selectedShayneCharacter || !selectedMattCharacter) return;
+    async function updateMatchupStats() {
+        if (!selectedShayneCharacter || !selectedMattCharacter) return;
 
-            try {
-                const response = await fetch(`/matchup_stats?shayne_character=${encodeURIComponent(selectedShayneCharacter)}&matt_character=${encodeURIComponent(selectedMattCharacter)}`);
-                const stats = await response.json();
+        try {
+            const response = await fetch(`/matchup_stats?shayne_character=${encodeURIComponent(selectedShayneCharacter)}&matt_character=${encodeURIComponent(selectedMattCharacter)}`);
+            const stats = await response.json();
 
-                // Update stats display
-                document.getElementById('totalGames').textContent = stats.total_games;
-                document.getElementById('shayneWins').textContent = stats.shayne_wins;
-                document.getElementById('mattWins').textContent = stats.matt_wins;
+            // Update stats display
+            document.getElementById('totalGames').textContent = stats.total_games;
+            document.getElementById('shayneWins').textContent = stats.shayne_wins;
+            document.getElementById('mattWins').textContent = stats.matt_wins;
 
-                // Update recent games list
-                const recentGamesList = document.getElementById('recentGamesList');
-                recentGamesList.innerHTML = '';
+            // Update recent games list
+            const recentGamesList = document.getElementById('recentGamesList');
+            recentGamesList.innerHTML = '';
 
-                if (stats.recent_games.length > 0) {
-                    stats.recent_games.forEach(game => {
-                        const gameItem = document.createElement('div');
-                        gameItem.className = 'game-item';
+            if (stats.recent_games.length > 0) {
+                stats.recent_games.forEach(game => {
+                    const gameItem = document.createElement('div');
+                    gameItem.className = 'game-item';
 
-                        const winnerClass = game.winner === 'Shayne' ? 'winner' : '';
-                        gameItem.innerHTML = `
-                    <div>
-                        <span class="${winnerClass}">${game.winner} won</span>
-                        with ${game.stocks_remaining} stocks
-                    </div>
-                    <span class="game-date">${new Date(game.datetime).toLocaleDateString()}</span>
-                `;
-                        recentGamesList.appendChild(gameItem);
-                    });
-                } else {
-                    recentGamesList.innerHTML = '<div class="game-item">No recent games for this matchup</div>';
-                }
-
-                // Show the stats section
-                document.getElementById('matchupStats').style.display = 'block';
-            } catch (error) {
-                console.error('Error fetching matchup stats:', error);
+                    const winnerClass = game.winner === 'Shayne' ? 'winner' : '';
+                    gameItem.innerHTML = `
+                        <div>
+                            <span class="${winnerClass}">${game.winner} won</span>
+                            with ${game.stocks_remaining} stocks
+                        </div>
+                        <span class="game-date">${new Date(game.datetime).toLocaleDateString()}</span>
+                    `;
+                    recentGamesList.appendChild(gameItem);
+                });
+            } else {
+                recentGamesList.innerHTML = '<div class="game-item">No recent games for this matchup</div>';
             }
+
+            // Show the stats section
+            document.getElementById('matchupStats').style.display = 'block';
+        } catch (error) {
+            console.error('Error fetching matchup stats:', error);
         }
+    }
 
-        // Initialize character dropdowns when the page loads
-        document.addEventListener('DOMContentLoaded', initializeCharacterSelects);
-    </script>
-</body>
-
-</html>
+    // Initialize character dropdowns when the page loads
+    document.addEventListener('DOMContentLoaded', initializeCharacterSelects);
+</script>
+{% endblock %}
