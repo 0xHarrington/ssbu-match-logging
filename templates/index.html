@@ -220,45 +220,28 @@
     }
 
     .stage-buttons {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        display: flex;
+        flex-direction: column;
         gap: 0.5rem;
         margin-top: 0.5rem;
-        max-height: 200px;
+        max-height: 300px;
         overflow-y: auto;
         padding-right: 0.5rem;
     }
 
-    .stage-buttons::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    .stage-buttons::-webkit-scrollbar-track {
-        background: var(--bg1);
-    }
-
-    .stage-buttons::-webkit-scrollbar-thumb {
-        background: var(--bg-light);
-        border-radius: 4px;
-    }
-
-    .stage-buttons::-webkit-scrollbar-thumb:hover {
-        background: var(--blue);
-    }
-
     .stage-button {
-        padding: 0.75rem;
+        width: 100%;
+        padding: 1rem;
         background-color: var(--bg1);
         border: 1px solid var(--bg-light);
         border-radius: var(--card-radius);
         color: var(--fg);
         cursor: pointer;
         transition: all var(--transition-speed);
-        font-size: 0.9rem;
-        text-align: center;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-size: 1rem;
+        text-align: left;
+        display: flex;
+        align-items: center;
     }
 
     .stage-button:hover {
@@ -334,7 +317,7 @@
                 <div class="player-section">
                     <h3>Shayne</h3>
                     <div class="character-select">
-                        <label for="shayneCharacterSearch">Character:</label>
+                        <label for="shayneCharacterSearch">Character</label>
                         <div class="custom-select">
                             <input type="text" id="shayneCharacterSearch" placeholder="Search characters..."
                                 class="search-input">
@@ -351,7 +334,7 @@
                 <div class="player-section">
                     <h3>Matt</h3>
                     <div class="character-select">
-                        <label for="mattCharacterSearch">Character:</label>
+                        <label for="mattCharacterSearch">Character</label>
                         <div class="custom-select">
                             <input type="text" id="mattCharacterSearch" placeholder="Search characters..."
                                 class="search-input">
@@ -367,17 +350,24 @@
 
                 <div class="match-details">
                     <div class="stage-select">
-                        <label>Stage:</label>
-                        <div class="stage-buttons">
-                            {% for stage in stages %}
-                            <button type="button" class="stage-button" data-stage="{{ stage }}">{{ stage }}</button>
-                            {% endfor %}
+                        <label>Stage</label>
+                        <div class="stage-search-container">
+                            <input type="text" id="stageSearch" placeholder="Search stages..." class="stage-search">
+                        </div>
+                        <div class="stage-buttons-container">
+                            <div class="stage-buttons">
+                                {% for stage in stages %}
+                                <button type="button" class="stage-button" data-stage="{{ stage }}">
+                                    <span class="stage-name">{{ stage }}</span>
+                                </button>
+                                {% endfor %}
+                            </div>
                         </div>
                         <input type="hidden" id="stage" name="stage" required>
                     </div>
 
                     <div class="winner-select">
-                        <label>Winner:</label>
+                        <label>Winner</label>
                         <div class="radio-group">
                             <label class="radio-button">
                                 <input type="radio" name="winner" value="Shayne" required>
@@ -391,7 +381,7 @@
                     </div>
 
                     <div class="stocks-input">
-                        <label for="stocksRemaining">Stocks Remaining:</label>
+                        <label>Stocks Remaining</label>
                         <div class="stocks-buttons">
                             <button type="button" class="stocks-button" data-stocks="0">0</button>
                             <button type="button" class="stocks-button" data-stocks="1">1</button>
@@ -428,6 +418,13 @@
             const characterList = document.getElementById(characterListId);
             const hiddenInput = document.getElementById(hiddenInputId);
 
+            // Load saved character
+            const savedCharacter = localStorage.getItem(hiddenInputId);
+            if (savedCharacter) {
+                searchInput.value = savedCharacter;
+                hiddenInput.value = savedCharacter;
+            }
+
             function filterCharacters(searchTerm) {
                 const options = characterList.querySelectorAll('.character-option');
                 options.forEach(option => {
@@ -451,8 +448,11 @@
 
             characterList.addEventListener('click', (e) => {
                 if (e.target.classList.contains('character-option')) {
-                    searchInput.value = e.target.textContent;
-                    hiddenInput.value = e.target.dataset.value;
+                    const character = e.target.textContent;
+                    searchInput.value = character;
+                    hiddenInput.value = character;
+                    // Save the selected character
+                    localStorage.setItem(hiddenInputId, character);
                     characterList.classList.remove('active');
                 }
             });
@@ -471,6 +471,20 @@
         // Stage selection
         const stageButtons = document.querySelectorAll('.stage-button');
         const stageInput = document.getElementById('stage');
+        const stageSearch = document.getElementById('stageSearch');
+
+        // Stage search functionality
+        stageSearch.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            stageButtons.forEach(button => {
+                const stageName = button.querySelector('.stage-name').textContent.toLowerCase();
+                if (stageName.includes(searchTerm)) {
+                    button.style.display = 'flex';
+                } else {
+                    button.style.display = 'none';
+                }
+            });
+        });
 
         stageButtons.forEach(button => {
             button.addEventListener('click', () => {
@@ -636,7 +650,8 @@
                             </div>
                         </div>
                     `).join('');
-                               throw new Error(data.message || 'Failed to load recent matches');
+                } else {
+                    throw new Error(data.message || 'Failed to load recent matches');
                 }
             } catch (error) {
                 console.error('Error loading recent matches:', error);
