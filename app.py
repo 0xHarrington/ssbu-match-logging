@@ -5,6 +5,7 @@ import pandas as pd
 import os
 import logging
 from typing import Dict, Any, Optional
+import json
 
 app = Flask(__name__)
 
@@ -17,15 +18,18 @@ class GameDataManager:
     
     def __init__(self, csv_path: str):
         self.csv_path = csv_path
+        self.characters_path = 'characters.json'
         self.columns = [
             'datetime', 
             'shayne_character', 
             'matt_character', 
             'winner',
             'stocks_remaining',
+            'stage',
             'timestamp'  # Unix timestamp for easier time-based operations
         ]
         self._ensure_csv_exists()
+        self._ensure_characters_file_exists()
         
     def _ensure_csv_exists(self) -> None:
         """Create CSV file with headers if it doesn't exist."""
@@ -33,10 +37,37 @@ class GameDataManager:
             logger.info(f"Creating new CSV file at {self.csv_path}")
             pd.DataFrame(columns=self.columns).to_csv(self.csv_path, index=False)
             
+    def _ensure_characters_file_exists(self):
+        """Ensure the characters file exists with default characters."""
+        if not os.path.exists(self.characters_path):
+            default_characters = [
+                # Original 8
+                "Mario", "Donkey Kong", "Link", "Samus", "Dark Samus", "Yoshi", "Kirby", "Fox", "Pikachu",
+                # Remaining Base Roster
+                "Luigi", "Ness", "Captain Falcon", "Jigglypuff", "Peach", "Daisy", "Bowser", "Ice Climbers",
+                "Sheik", "Zelda", "Dr. Mario", "Pichu", "Falco", "Marth", "Lucina", "Young Link",
+                "Ganondorf", "Mewtwo", "Roy", "Chrom", "Mr. Game & Watch", "Meta Knight", "Pit",
+                "Dark Pit", "Zero Suit Samus", "Wario", "Snake", "Ike", "Pokemon Trainer", "Diddy Kong",
+                "Lucas", "Sonic", "King Dedede", "Olimar", "Lucario", "R.O.B.", "Toon Link", "Wolf",
+                "Villager", "Mega Man", "Wii Fit Trainer", "Rosalina & Luma", "Little Mac", "Greninja",
+                "Mii Brawler", "Mii Swordfighter", "Mii Gunner", "Palutena", "Pac-Man", "Robin",
+                "Shulk", "Bowser Jr.", "Duck Hunt", "Ryu", "Ken", "Cloud", "Corrin", "Bayonetta",
+                "Inkling", "Ridley", "Simon", "Richter", "King K. Rool", "Isabelle", "Incineroar",
+                # Fighters Pass Vol. 1
+                "Piranha Plant", "Joker", "Hero", "Banjo & Kazooie", "Terry", "Byleth",
+                # Fighters Pass Vol. 2
+                "Min Min", "Steve", "Sephiroth", "Pyra/Mythra", "Kazuya", "Sora"
+            ]
+            with open(self.characters_path, 'w') as f:
+                json.dump(default_characters, f)
+                
     def _load_data(self) -> pd.DataFrame:
         """Load the current CSV data into a pandas DataFrame."""
         try:
-            return pd.read_csv(self.csv_path)
+            df = pd.read_csv(self.csv_path)
+            # Convert datetime column to datetime type
+            df['datetime'] = pd.to_datetime(df['datetime'])
+            return df
         except pd.errors.EmptyDataError:
             return pd.DataFrame(columns=self.columns)
         except Exception as e:
@@ -54,6 +85,25 @@ class GameDataManager:
             bool: True if successful, False otherwise
         """
         try:
+            # Log the incoming game data
+            logger.info(f"Received game data: {game_data}")
+            
+            # Validate required fields
+            required_fields = ['shayneCharacter', 'mattCharacter', 'winner', 'stage']
+            for field in required_fields:
+                if field not in game_data:
+                    logger.error(f"Missing required field: {field}")
+                    return False
+                if not game_data[field]:
+                    logger.error(f"Empty value for required field: {field}")
+                    return False
+            
+            # Additional validation for stage
+            stage_value = str(game_data['stage']).strip()
+            if not stage_value:
+                logger.error("Stage value is empty after stripping")
+                return False
+            
             # Create a new entry
             now = datetime.now()
             new_game = {
@@ -62,8 +112,12 @@ class GameDataManager:
                 'matt_character': game_data['mattCharacter'],
                 'winner': game_data['winner'],
                 'stocks_remaining': game_data['stocksRemaining'] or None,
+                'stage': stage_value,
                 'timestamp': now.timestamp()
             }
+            
+            # Log the processed game data
+            logger.info(f"Processed game data: {new_game}")
             
             # Load existing data
             df = self._load_data()
@@ -79,6 +133,7 @@ class GameDataManager:
             
         except Exception as e:
             logger.error(f"Error adding game: {str(e)}")
+            logger.error(f"Game data that caused error: {game_data}")
             return False
             
     def get_recent_games(self, n: int = 5) -> pd.DataFrame:
@@ -189,13 +244,77 @@ class GameDataManager:
         
         return stats
 
+    def get_character_rankings(self, player: str) -> list:
+        """Get character rankings for a player, sorted by usage."""
+        df = self._load_data()
+        if player == 'shayne':
+            char_counts = df['shayne_character'].value_counts()
+        else:
+            char_counts = df['matt_character'].value_counts()
+        return char_counts.index.tolist()
+
+    def get_stage_rankings(self) -> list:
+        """Get stage rankings sorted by usage."""
+        df = self._load_data()
+        stage_counts = df['stage'].value_counts()
+        return stage_counts.index.tolist()
+
+    def get_characters(self) -> list:
+        """Get the list of characters, sorted by usage."""
+        try:
+            with open(self.characters_path, 'r') as f:
+                characters = json.load(f)
+                
+            # Get character usage from game data
+            df = self._load_data()
+            shayne_chars = df['shayne_character'].value_counts()
+            matt_chars = df['matt_character'].value_counts()
+            
+            # Combine and sort by usage
+            char_usage = {}
+            for char in characters:
+                char_usage[char] = (shayne_chars.get(char, 0) + matt_chars.get(char, 0))
+            
+            # Sort characters by usage, then alphabetically
+            sorted_chars = sorted(
+                characters,
+                key=lambda x: (-char_usage[x], x)
+            )
+            
+            return sorted_chars
+        except Exception as e:
+            logger.error(f"Error loading characters: {str(e)}")
+            return []
+
 # Initialize data manager
 data_manager = GameDataManager('game_results.csv')
 
 @app.route('/')
 def home():
     """Render the main page."""
-    return render_template('index.html')
+    # Get characters sorted by usage
+    characters = data_manager.get_characters()
+    
+    # Get stage rankings
+    stage_rankings = data_manager.get_stage_rankings()
+    
+    # Tournament legal stages
+    competitive_stages = [
+        "Battlefield",
+        "Small Battlefield", 
+        "Final Destination",
+        "Pokemon Stadium 2",  # No accent marks in game
+        "Smashville",
+        "Town & City",  # Uses ampersand
+        "Kalos Pokemon League",  # No accent marks in game
+        "Yoshi's Story",
+        "Northern Cave"  # Sephiroth's stage
+    ]
+    
+    # Combine rankings with remaining stages
+    stages = stage_rankings + [stage for stage in competitive_stages if stage not in stage_rankings]
+    
+    return render_template('index.html', characters=characters, stages=stages)
 
 @app.route('/log_game', methods=['POST'])
 def log_game():
@@ -222,20 +341,20 @@ def log_game():
             }
             
             return jsonify({
-                "status": "success",
+                "success": True,
                 "message": "Game logged successfully",
                 "stats": stats
             })
         else:
             return jsonify({
-                "status": "error",
+                "success": False,
                 "message": "Failed to log game"
             }), 500
             
     except Exception as e:
         logger.error(f"Error in log_game endpoint: {str(e)}")
         return jsonify({
-            "status": "error",
+            "success": False,
             "message": str(e)
         }), 500
 
@@ -250,29 +369,32 @@ def get_stats():
     try:
         stats = data_manager.get_stats()
         return jsonify({
-            "status": "success",
-            "data": stats
+            "success": True,
+            "stats": stats
         })
     except Exception as e:
         logger.error(f"Error in stats endpoint: {str(e)}")
         return jsonify({
-            "status": "error",
+            "success": False,
             "message": str(e)
         }), 500
 
-@app.route('/recent_games', methods=['GET'])
+@app.route('/api/recent_games')
 def get_recent_games():
-    """Return the 5 most recent games."""
+    """Return the most recent games."""
     try:
-        recent_games = data_manager.get_recent_games()
+        df = data_manager.get_recent_games(10)
+        # Replace NaN values with None before converting to dict
+        df = df.fillna('')
+        games = df.to_dict('records')
         return jsonify({
-            "status": "success",
-            "data": recent_games.to_dict('records')
+            "success": True,
+            "games": games
         })
     except Exception as e:
-        logger.error(f"Error in recent_games endpoint: {str(e)}")
+        logger.error(f"Error getting recent games: {str(e)}")
         return jsonify({
-            "status": "error",
+            "success": False,
             "message": str(e)
         }), 500
 

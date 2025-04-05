@@ -4,141 +4,46 @@
 
 {% block styles %}
 <style>
-    .card {
-        background-color: var(--bg1);
-        border-radius: 12px;
-        padding: 2rem;
-        width: 90%;
-        max-width: 500px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        margin: 0 auto;
-    }
-
-    .card h1 {
-        text-align: center;
-        margin-bottom: 1.5rem;
-        color: var(--fg);
-        font-size: 1.8rem;
-    }
-
-    .form-group {
-        margin-bottom: 1.5rem;
-    }
-
-    label {
-        display: block;
-        margin-bottom: 0.5rem;
-        font-weight: 500;
-        color: var(--fg);
-    }
-
-    select,
-    input {
-        width: 100%;
-        padding: 0.75rem;
-        border: 1px solid var(--bg-light);
-        border-radius: 6px;
-        background-color: var(--bg);
-        color: var(--fg);
-        font-size: 1rem;
-        transition: border-color 0.2s;
-    }
-
-    select:focus,
-    input:focus {
-        outline: none;
-        border-color: var(--blue);
-    }
-
-    .button-group {
+    .match-logger {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
+        gap: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
     }
 
-    button {
-        padding: 0.75rem;
-        border: none;
-        border-radius: 6px;
-        font-size: 1rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
+    .match-form {
+        background-color: var(--bg1);
+        border-radius: var(--card-radius);
+        padding: 2rem;
+        border: 1px solid var(--bg-light);
     }
 
-    .winner-button {
-        background-color: var(--bg-light);
-        color: var(--fg);
-    }
-
-    .winner-button:hover {
-        background-color: var(--bg);
-    }
-
-    .winner-button.selected {
-        background-color: var(--green);
-        color: white;
-    }
-
-    .submit-button {
-        width: 100%;
-        background-color: var(--blue);
-        color: white;
-    }
-
-    .submit-button:hover {
-        opacity: 0.9;
-    }
-
-    input[type="number"]::-webkit-outer-spin-button,
-    input[type="number"]::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
-
-    .success-message {
-        text-align: center;
-        color: var(--green);
-        margin-top: 1rem;
-        display: none;
-    }
-
-    #stocksGroup {
-        display: none;
-        animation: fadeIn 0.3s ease-in;
-    }
-
-    .stocks-button-group {
+    .form-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 1rem;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
     }
 
-    .stocks-button {
-        background-color: var(--bg-light);
-        color: var(--fg);
+    .player-section {
+        background-color: var(--bg2);
+        border-radius: var(--card-radius);
+        padding: 1.5rem;
+        border: 1px solid var(--bg-light);
     }
 
-    .stocks-button:hover {
-        background-color: var(--bg);
+    .player-section h3 {
+        color: var(--fg-light);
+        margin-bottom: 1rem;
+        text-align: center;
     }
 
-    .stocks-button.selected {
-        background-color: var(--green);
-        color: white;
-    }
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .character-select,
+    .stage-select,
+    .winner-select,
+    .stocks-input {
+        margin-bottom: 1rem;
     }
 
     .custom-select {
@@ -149,17 +54,11 @@
     .search-input {
         width: 100%;
         padding: 0.75rem;
+        border-radius: var(--card-radius);
+        background-color: var(--bg1);
         border: 1px solid var(--bg-light);
-        border-radius: 6px;
-        background-color: var(--bg);
         color: var(--fg);
         font-size: 1rem;
-        transition: border-color 0.2s;
-    }
-
-    .search-input:focus {
-        outline: none;
-        border-color: var(--blue);
     }
 
     .character-list {
@@ -170,9 +69,9 @@
         right: 0;
         max-height: 300px;
         overflow-y: auto;
-        background-color: var(--bg);
+        background-color: var(--bg1);
         border: 1px solid var(--bg-light);
-        border-radius: 6px;
+        border-radius: var(--card-radius);
         margin-top: 4px;
         z-index: 1000;
     }
@@ -184,20 +83,19 @@
     .character-option {
         padding: 0.75rem;
         cursor: pointer;
-        transition: background-color 0.2s;
+        transition: background-color var(--transition-speed);
     }
 
     .character-option:hover {
-        background-color: var(--bg1);
+        background-color: var(--bg2);
     }
 
-    /* Add custom scrollbar styling */
     .character-list::-webkit-scrollbar {
         width: 8px;
     }
 
     .character-list::-webkit-scrollbar-track {
-        background: var(--bg);
+        background: var(--bg1);
     }
 
     .character-list::-webkit-scrollbar-thumb {
@@ -209,359 +107,542 @@
         background: var(--blue);
     }
 
-    .matchup-stats {
-        margin-top: 1.5rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid var(--bg-light);
-    }
-
-    .matchup-stats h2 {
-        font-size: 1.4rem;
-        margin-bottom: 1rem;
+    .stage-select select {
+        width: 100%;
+        padding: 0.75rem;
+        border-radius: var(--card-radius);
+        background-color: var(--bg1);
+        border: 1px solid var(--bg-light);
         color: var(--fg);
+        font-size: 1rem;
     }
 
-    .matchup-stats h3 {
-        font-size: 1.2rem;
-        margin: 1rem 0;
-        color: var(--fg);
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .stat-item {
-        background: var(--bg);
-        padding: 1rem;
-        border-radius: 6px;
-        text-align: center;
-    }
-
-    .stat-label {
-        display: block;
-        font-size: 0.9rem;
-        margin-bottom: 0.5rem;
-        color: var(--fg);
-        opacity: 0.8;
-    }
-
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: var(--fg);
-    }
-
-    .recent-games {
-        margin-top: 1.5rem;
-    }
-
-    .game-item {
-        background: var(--bg);
-        padding: 1rem;
-        border-radius: 6px;
-        margin-bottom: 0.5rem;
+    .radio-group {
         display: flex;
-        justify-content: space-between;
+        gap: 1rem;
+        margin-top: 0.5rem;
+    }
+
+    .radio-group label {
+        display: flex;
         align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
     }
 
-    .game-item .winner {
-        color: var(--green);
+    .stocks-input input {
+        width: 100%;
+        padding: 0.75rem;
+        border-radius: var(--card-radius);
+        background-color: var(--bg1);
+        border: 1px solid var(--bg-light);
+        color: var(--fg);
+        font-size: 1rem;
     }
 
-    .game-date {
+    .submit-button {
+        width: 100%;
+        padding: 1rem;
+        background-color: var(--blue);
+        color: var(--bg1);
+        border: none;
+        border-radius: var(--card-radius);
+        font-size: 1.1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color var(--transition-speed);
+    }
+
+    .submit-button:hover {
+        background-color: var(--blue-dark);
+    }
+
+    .recent-matches {
+        background-color: var(--bg1);
+        border-radius: var(--card-radius);
+        padding: 2rem;
+        border: 1px solid var(--bg-light);
+    }
+
+    .matches-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .match-item {
+        background-color: var(--bg2);
+        border-radius: var(--card-radius);
+        padding: 1.5rem;
+        border: 1px solid var(--bg-light);
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 1rem;
+    }
+
+    .match-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .match-characters {
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+
+    .match-details {
+        color: var(--fg-light);
         font-size: 0.9rem;
-        opacity: 0.8;
+    }
+
+    .match-winner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem 1rem;
+        background-color: var(--blue);
+        color: var(--bg1);
+        border-radius: var(--card-radius);
+        font-weight: bold;
+    }
+
+    @media (max-width: 1024px) {
+        .match-logger {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .stage-buttons {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        max-height: 200px;
+        overflow-y: auto;
+        padding-right: 0.5rem;
+    }
+
+    .stage-buttons::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .stage-buttons::-webkit-scrollbar-track {
+        background: var(--bg1);
+    }
+
+    .stage-buttons::-webkit-scrollbar-thumb {
+        background: var(--bg-light);
+        border-radius: 4px;
+    }
+
+    .stage-buttons::-webkit-scrollbar-thumb:hover {
+        background: var(--blue);
+    }
+
+    .stage-button {
+        padding: 0.75rem;
+        background-color: var(--bg1);
+        border: 1px solid var(--bg-light);
+        border-radius: var(--card-radius);
+        color: var(--fg);
+        cursor: pointer;
+        transition: all var(--transition-speed);
+        font-size: 0.9rem;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .stage-button:hover {
+        background-color: var(--bg2);
+        border-color: var(--blue);
+    }
+
+    .stage-button.selected {
+        background-color: var(--blue);
+        color: var(--bg0);
+        border-color: var(--blue);
+    }
+
+    .radio-button {
+        flex: 1;
+    }
+
+    .radio-label {
+        display: block;
+        width: 100%;
+        padding: 0.75rem;
+        background-color: var(--bg1);
+        border: 1px solid var(--bg-light);
+        border-radius: var(--card-radius);
+        color: var(--fg);
+        text-align: center;
+        transition: all var(--transition-speed);
+    }
+
+    .radio-button input[type="radio"]:checked+.radio-label {
+        background-color: var(--blue);
+        color: var(--bg0);
+        border-color: var(--blue);
+    }
+
+    .stocks-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .stocks-button {
+        flex: 1;
+        padding: 0.75rem;
+        background-color: var(--bg1);
+        border: 1px solid var(--bg-light);
+        border-radius: var(--card-radius);
+        color: var(--fg);
+        cursor: pointer;
+        transition: all var(--transition-speed);
+        font-size: 1rem;
+    }
+
+    .stocks-button:hover {
+        background-color: var(--bg2);
+        border-color: var(--blue);
+    }
+
+    .stocks-button.selected {
+        background-color: var(--blue);
+        color: var(--bg0);
+        border-color: var(--blue);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="card">
-    <h1>Smash Match Logger</h1>
+<div class="match-logger">
+    <div class="match-form">
+        <h2>Log a Match</h2>
+        <form id="gameForm">
+            <div class="form-grid">
+                <div class="player-section">
+                    <h3>Shayne</h3>
+                    <div class="character-select">
+                        <label for="shayneCharacterSearch">Character:</label>
+                        <div class="custom-select">
+                            <input type="text" id="shayneCharacterSearch" placeholder="Search characters..."
+                                class="search-input">
+                            <div class="character-list" id="shayneCharacterList">
+                                {% for character in characters %}
+                                <div class="character-option" data-value="{{ character }}">{{ character }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <input type="hidden" id="shayneCharacter" name="shayneCharacter" required>
+                    </div>
+                </div>
 
-    <div class="form-group">
-        <label for="shayneCharacterSearch">Shayne's Character</label>
-        <div class="custom-select">
-            <input type="text" id="shayneCharacterSearch" placeholder="Search characters..." class="search-input">
-            <div class="character-list" id="shayneCharacterList">
-                <!-- Populated by JavaScript -->
+                <div class="player-section">
+                    <h3>Matt</h3>
+                    <div class="character-select">
+                        <label for="mattCharacterSearch">Character:</label>
+                        <div class="custom-select">
+                            <input type="text" id="mattCharacterSearch" placeholder="Search characters..."
+                                class="search-input">
+                            <div class="character-list" id="mattCharacterList">
+                                {% for character in characters %}
+                                <div class="character-option" data-value="{{ character }}">{{ character }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <input type="hidden" id="mattCharacter" name="mattCharacter" required>
+                    </div>
+                </div>
+
+                <div class="match-details">
+                    <div class="stage-select">
+                        <label>Stage:</label>
+                        <div class="stage-buttons">
+                            {% for stage in stages %}
+                            <button type="button" class="stage-button" data-stage="{{ stage }}">{{ stage }}</button>
+                            {% endfor %}
+                        </div>
+                        <input type="hidden" id="stage" name="stage" required>
+                    </div>
+
+                    <div class="winner-select">
+                        <label>Winner:</label>
+                        <div class="radio-group">
+                            <label class="radio-button">
+                                <input type="radio" name="winner" value="Shayne" required>
+                                <span class="radio-label">Shayne</span>
+                            </label>
+                            <label class="radio-button">
+                                <input type="radio" name="winner" value="Matt" required>
+                                <span class="radio-label">Matt</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="stocks-input">
+                        <label for="stocksRemaining">Stocks Remaining:</label>
+                        <div class="stocks-buttons">
+                            <button type="button" class="stocks-button" data-stocks="0">0</button>
+                            <button type="button" class="stocks-button" data-stocks="1">1</button>
+                            <button type="button" class="stocks-button" data-stocks="2">2</button>
+                            <button type="button" class="stocks-button" data-stocks="3">3</button>
+                        </div>
+                        <input type="hidden" id="stocksRemaining" name="stocksRemaining" required>
+                    </div>
+                </div>
             </div>
-        </div>
+
+            <button type="submit" class="submit-button">Log Match</button>
+        </form>
     </div>
 
-    <div class="form-group">
-        <label for="mattCharacterSearch">Matt's Character</label>
-        <div class="custom-select">
-            <input type="text" id="mattCharacterSearch" placeholder="Search characters..." class="search-input">
-            <div class="character-list" id="mattCharacterList">
-                <!-- Populated by JavaScript -->
-            </div>
+    <div class="recent-matches">
+        <h2>Recent Matches</h2>
+        <div id="recentMatches" class="matches-list">
+            <!-- Recent matches will be loaded here -->
         </div>
     </div>
-
-    <div id="matchupStats" class="matchup-stats" style="display: none;">
-        <h2>Matchup History</h2>
-        <div class="stats-grid">
-            <div class="stat-item">
-                <span class="stat-label">Total Games</span>
-                <span id="totalGames" class="stat-value">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Shayne Wins</span>
-                <span id="shayneWins" class="stat-value">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Matt Wins</span>
-                <span id="mattWins" class="stat-value">0</span>
-            </div>
-        </div>
-        <div id="recentGames" class="recent-games">
-            <h3>Recent Games</h3>
-            <div id="recentGamesList"></div>
-        </div>
-    </div>
-    <div class="button-group">
-        <button class="winner-button" onclick="selectWinner('Shayne')">Shayne Won</button>
-        <button class="winner-button" onclick="selectWinner('Matt')">Matt Won</button>
-    </div>
-
-    <div id="stocksGroup" class="form-group">
-        <label>Stocks Remaining</label>
-        <div class="stocks-button-group">
-            <button class="stocks-button" onclick="selectStocks(1)">1</button>
-            <button class="stocks-button" onclick="selectStocks(2)">2</button>
-            <button class="stocks-button" onclick="selectStocks(3)">3</button>
-        </div>
-    </div>
-
-    <button class="submit-button" onclick="submitGame()">Log Game</button>
-    <div id="successMessage" class="success-message">Game logged successfully!</div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    let selectedStocks = null;
-    let selectedWinner = null;
-    let selectedShayneCharacter = '';
-    let selectedMattCharacter = '';
-    let updateShayneInput;
-    let updateMattInput;
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('gameForm');
+        const recentMatches = document.getElementById('recentMatches');
 
-    const characters = [
-        // Original 8
-        "Mario", "Donkey Kong", "Link", "Samus", "Dark Samus", "Yoshi", "Kirby", "Fox", "Pikachu",
+        // Character search functionality
+        function setupCharacterSearch(searchInputId, characterListId, hiddenInputId) {
+            const searchInput = document.getElementById(searchInputId);
+            const characterList = document.getElementById(characterListId);
+            const hiddenInput = document.getElementById(hiddenInputId);
 
-        // Remaining Base Roster
-        "Luigi", "Ness", "Captain Falcon", "Jigglypuff", "Peach", "Daisy", "Bowser", "Ice Climbers",
-        "Sheik", "Zelda", "Dr. Mario", "Pichu", "Falco", "Marth", "Lucina", "Young Link",
-        "Ganondorf", "Mewtwo", "Roy", "Chrom", "Mr. Game & Watch", "Meta Knight", "Pit",
-        "Dark Pit", "Zero Suit Samus", "Wario", "Snake", "Ike", "Pokemon Trainer", "Diddy Kong",
-        "Lucas", "Sonic", "King Dedede", "Olimar", "Lucario", "R.O.B.", "Toon Link", "Wolf",
-        "Villager", "Mega Man", "Wii Fit Trainer", "Rosalina & Luma", "Little Mac", "Greninja",
-        "Mii Brawler", "Mii Swordfighter", "Mii Gunner", "Palutena", "Pac-Man", "Robin",
-        "Shulk", "Bowser Jr.", "Duck Hunt", "Ryu", "Ken", "Cloud", "Corrin", "Bayonetta",
-        "Inkling", "Ridley", "Simon", "Richter", "King K. Rool", "Isabelle", "Incineroar",
-
-        // Fighters Pass Vol. 1
-        "Piranha Plant", "Joker", "Hero", "Banjo & Kazooie", "Terry", "Byleth",
-
-        // Fighters Pass Vol. 2
-        "Min Min", "Steve", "Sephiroth", "Pyra/Mythra", "Kazuya", "Sora"
-    ].sort();
-
-    function selectStocks(stocks) {
-        selectedStocks = stocks;
-        document.querySelectorAll('.stocks-button').forEach(btn => {
-            btn.classList.remove('selected');
-            if (btn.textContent === stocks.toString()) {
-                btn.classList.add('selected');
+            function filterCharacters(searchTerm) {
+                const options = characterList.querySelectorAll('.character-option');
+                options.forEach(option => {
+                    const text = option.textContent.toLowerCase();
+                    if (text.includes(searchTerm.toLowerCase())) {
+                        option.style.display = 'block';
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
             }
-        });
-    }
 
-    function setupCharacterSelect(searchInputId, characterListId, onSelect) {
-        const searchInput = document.getElementById(searchInputId);
-        const characterList = document.getElementById(characterListId);
-
-        function filterCharacters(searchTerm) {
-            const filtered = characters.filter(char =>
-                char.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-
-            characterList.innerHTML = '';
-            filtered.forEach(char => {
-                const option = document.createElement('div');
-                option.className = 'character-option';
-                option.textContent = char;
-                option.onclick = () => {
-                    onSelect(char);
-                    searchInput.value = char;
-                    characterList.classList.remove('active');
-                    updateMatchupStats();  // Add this line to update stats when character is selected
-                };
-                characterList.appendChild(option);
-            });
-        }
-
-        searchInput.addEventListener('focus', () => {
-            if (!searchInput.value) {
-                filterCharacters('');
-            } else {
+            searchInput.addEventListener('focus', () => {
+                characterList.classList.add('active');
                 filterCharacters(searchInput.value);
-            }
-            characterList.classList.add('active');
-        });
-
-        searchInput.addEventListener('input', () => {
-            filterCharacters(searchInput.value);
-            characterList.classList.add('active');
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !characterList.contains(e.target)) {
-                characterList.classList.remove('active');
-            }
-        });
-
-        return (selectedChar) => {
-            searchInput.value = selectedChar;
-        };
-    }
-
-    function initializeCharacterSelects() {
-        updateShayneInput = setupCharacterSelect('shayneCharacterSearch', 'shayneCharacterList', (char) => {
-            selectedShayneCharacter = char;
-        });
-
-        updateMattInput = setupCharacterSelect('mattCharacterSearch', 'mattCharacterList', (char) => {
-            selectedMattCharacter = char;
-        });
-    }
-
-    function selectWinner(winner) {
-        selectedWinner = winner;
-        document.querySelectorAll('.winner-button').forEach(btn => {
-            btn.classList.remove('selected');
-            if (btn.textContent.includes(winner)) {
-                btn.classList.add('selected');
-            }
-        });
-
-        const stocksGroup = document.getElementById('stocksGroup');
-        stocksGroup.style.display = 'block';
-    }
-
-    async function submitGame() {
-        if (!selectedWinner) {
-            alert('Please select a winner');
-            return;
-        }
-
-        if (!selectedShayneCharacter || !selectedMattCharacter) {
-            alert('Please select characters for both players');
-            return;
-        }
-
-        if (selectedStocks === null) {
-            alert('Please select the number of stocks remaining');
-            return;
-        }
-
-        try {
-            const response = await fetch('/log_game', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    shayneCharacter: selectedShayneCharacter,
-                    mattCharacter: selectedMattCharacter,
-                    winner: selectedWinner,
-                    stocksRemaining: selectedStocks
-                })
             });
 
-            if (response.ok) {
-                const successMessage = document.getElementById('successMessage');
-                successMessage.style.display = 'block';
+            searchInput.addEventListener('input', () => {
+                filterCharacters(searchInput.value);
+            });
 
-                // Reset only winner and stocks selection, keep characters
-                selectedWinner = null;
-                selectedStocks = null;
+            characterList.addEventListener('click', (e) => {
+                if (e.target.classList.contains('character-option')) {
+                    searchInput.value = e.target.textContent;
+                    hiddenInput.value = e.target.dataset.value;
+                    characterList.classList.remove('active');
+                }
+            });
 
-                // Reset button states
-                document.querySelectorAll('.winner-button, .stocks-button').forEach(btn => {
-                    btn.classList.remove('selected');
+            document.addEventListener('click', (e) => {
+                if (!searchInput.contains(e.target) && !characterList.contains(e.target)) {
+                    characterList.classList.remove('active');
+                }
+            });
+        }
+
+        // Setup character search for both players
+        setupCharacterSearch('shayneCharacterSearch', 'shayneCharacterList', 'shayneCharacter');
+        setupCharacterSearch('mattCharacterSearch', 'mattCharacterList', 'mattCharacter');
+
+        // Stage selection
+        const stageButtons = document.querySelectorAll('.stage-button');
+        const stageInput = document.getElementById('stage');
+
+        stageButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove selected class from all buttons
+                stageButtons.forEach(btn => btn.classList.remove('selected'));
+                // Add selected class to clicked button
+                button.classList.add('selected');
+                // Set the stage value in the hidden input using the data-stage attribute
+                const stageValue = button.getAttribute('data-stage');
+                stageInput.value = stageValue;
+                console.log('Stage selected:', stageValue);
+            });
+        });
+
+        // Stocks selection
+        const stocksButtons = document.querySelectorAll('.stocks-button');
+        const stocksInput = document.getElementById('stocksRemaining');
+
+        stocksButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                stocksButtons.forEach(btn => btn.classList.remove('selected'));
+                button.classList.add('selected');
+                stocksInput.value = button.dataset.stocks;
+            });
+        });
+
+        // Load recent matches
+        loadRecentMatches();
+
+        // Form submission
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            // Get form values
+            const shayneCharacter = document.getElementById('shayneCharacter').value;
+            const mattCharacter = document.getElementById('mattCharacter').value;
+            const stage = document.getElementById('stage').value;
+            const winner = document.querySelector('input[name="winner"]:checked')?.value;
+            const stocksRemaining = document.getElementById('stocksRemaining').value;
+
+            // Validate all fields
+            if (!shayneCharacter) {
+                alert('Please select Shayne\'s character');
+                return;
+            }
+            if (!mattCharacter) {
+                alert('Please select Matt\'s character');
+                return;
+            }
+            if (!stage) {
+                alert('Please select a stage');
+                return;
+            }
+            if (!winner) {
+                alert('Please select a winner');
+                return;
+            }
+            if (!stocksRemaining) {
+                alert('Please select stocks remaining');
+                return;
+            }
+
+            // Ensure stage is a string
+            const stageValue = String(stage).trim();
+            if (!stageValue) {
+                alert('Invalid stage selection');
+                return;
+            }
+
+            // Log form values before submission
+            console.log('Form values:', {
+                shayneCharacter,
+                mattCharacter,
+                stage: stageValue,
+                winner,
+                stocksRemaining
+            });
+
+            const formData = {
+                shayneCharacter,
+                mattCharacter,
+                stage: stageValue,
+                winner,
+                stocksRemaining: parseInt(stocksRemaining)
+            };
+
+            console.log('Submitting form data:', formData);
+
+            try {
+                const response = await fetch('/log_game', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
                 });
 
-                // Hide the stocks group
-                document.getElementById('stocksGroup').style.display = 'none';
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
-                // Immediately update the matchup stats
-                await updateMatchupStats();
+                const data = await response.json();
+                console.log('Server response:', data);
 
-                // Hide success message after 3 seconds
-                setTimeout(() => {
-                    successMessage.style.display = 'none';
-                }, 3000);
-            } else {
-                alert('Failed to log game');
+                if (data.success) {
+                    // Clear form
+                    form.reset();
+
+                    // Clear character search inputs and hidden values
+                    const shayneSearch = document.getElementById('shayneCharacterSearch');
+                    const mattSearch = document.getElementById('mattCharacterSearch');
+                    const shayneHidden = document.getElementById('shayneCharacter');
+                    const mattHidden = document.getElementById('mattCharacter');
+
+                    shayneSearch.value = '';
+                    mattSearch.value = '';
+                    shayneHidden.value = '';
+                    mattHidden.value = '';
+
+                    // Clear stage selection
+                    const stageInput = document.getElementById('stage');
+                    stageInput.value = '';
+                    stageButtons.forEach(btn => btn.classList.remove('selected'));
+
+                    // Clear stocks selection
+                    const stocksInput = document.getElementById('stocksRemaining');
+                    stocksInput.value = '';
+                    stocksButtons.forEach(btn => btn.classList.remove('selected'));
+
+                    // Clear winner selection
+                    const winnerRadios = document.querySelectorAll('input[name="winner"]');
+                    winnerRadios.forEach(radio => radio.checked = false);
+
+                    // Update recent matches
+                    loadRecentMatches();
+                } else {
+                    throw new Error(data.message || 'Failed to log match');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert(`Failed to log match: ${error.message}`);
             }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Failed to log game');
-        }
-    }
+        });
 
-    async function updateMatchupStats() {
-        if (!selectedShayneCharacter || !selectedMattCharacter) return;
+        async function loadRecentMatches() {
+            try {
+                const response = await fetch('/api/recent_games');
+                const data = await response.json();
 
-        try {
-            const response = await fetch(`/matchup_stats?shayne_character=${encodeURIComponent(selectedShayneCharacter)}&matt_character=${encodeURIComponent(selectedMattCharacter)}`);
-            const stats = await response.json();
-
-            // Update stats display
-            document.getElementById('totalGames').textContent = stats.total_games;
-            document.getElementById('shayneWins').textContent = stats.shayne_wins;
-            document.getElementById('mattWins').textContent = stats.matt_wins;
-
-            // Update recent games list
-            const recentGamesList = document.getElementById('recentGamesList');
-            recentGamesList.innerHTML = '';
-
-            if (stats.recent_games.length > 0) {
-                stats.recent_games.forEach(game => {
-                    const gameItem = document.createElement('div');
-                    gameItem.className = 'game-item';
-
-                    const winnerClass = game.winner === 'Shayne' ? 'winner' : '';
-                    gameItem.innerHTML = `
-                        <div>
-                            <span class="${winnerClass}">${game.winner} won</span>
-                            with ${game.stocks_remaining} stocks
+                if (data.success) {
+                    recentMatches.innerHTML = data.games.map(game => `
+                        <div class="match-item">
+                            <div class="match-info">
+                                <div class="match-characters">
+                                    ${game.shayne_character} vs ${game.matt_character}
+                                </div>
+                                <div class="match-details">
+                                    ${new Date(game.datetime).toLocaleString()} • ${game.stage}
+                                </div>
+                            </div>
+                            <div class="match-winner">
+                                ${game.winner} wins
+                            </div>
                         </div>
-                        <span class="game-date">${new Date(game.datetime).toLocaleDateString()}</span>
-                    `;
-                    recentGamesList.appendChild(gameItem);
-                });
-            } else {
-                recentGamesList.innerHTML = '<div class="game-item">No recent games for this matchup</div>';
+                    `).join('');
+                               throw new Error(data.message || 'Failed to load recent matches');
+                }
+            } catch (error) {
+                console.error('Error loading recent matches:', error);
+                recentMatches.innerHTML = `<div class="error">${error.message}</div>`;
             }
-
-            // Show the stats section
-            document.getElementById('matchupStats').style.display = 'block';
-        } catch (error) {
-            console.error('Error fetching matchup stats:', error);
         }
-    }
-
-    // Initialize character dropdowns when the page loads
-    document.addEventListener('DOMContentLoaded', initializeCharacterSelects);
+    });
 </script>
 {% endblock %}
