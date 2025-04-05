@@ -312,84 +312,72 @@
 <div class="match-logger">
     <div class="match-form">
         <h2>Log a Match</h2>
-        <form id="gameForm">
+        <form id="matchForm" method="POST" action="/add_game">
             <div class="form-grid">
                 <div class="player-section">
                     <h3>Shayne</h3>
                     <div class="character-select">
-                        <label for="shayneCharacterSearch">Character</label>
+                        <label for="shayneCharacter">Character</label>
                         <div class="custom-select">
-                            <input type="text" id="shayneCharacterSearch" placeholder="Search characters..."
-                                class="search-input">
-                            <div class="character-list" id="shayneCharacterList">
-                                {% for character in characters %}
-                                <div class="character-option" data-value="{{ character }}">{{ character }}</div>
-                                {% endfor %}
-                            </div>
+                            <input type="text" id="shayneCharacter" name="shayneCharacter" class="search-input"
+                                placeholder="Search character..." autocomplete="off">
+                            <div class="character-list" id="shayneCharacterList"></div>
                         </div>
-                        <input type="hidden" id="shayneCharacter" name="shayneCharacter" required>
                     </div>
                 </div>
 
                 <div class="player-section">
                     <h3>Matt</h3>
                     <div class="character-select">
-                        <label for="mattCharacterSearch">Character</label>
+                        <label for="mattCharacter">Character</label>
                         <div class="custom-select">
-                            <input type="text" id="mattCharacterSearch" placeholder="Search characters..."
-                                class="search-input">
-                            <div class="character-list" id="mattCharacterList">
-                                {% for character in characters %}
-                                <div class="character-option" data-value="{{ character }}">{{ character }}</div>
-                                {% endfor %}
-                            </div>
+                            <input type="text" id="mattCharacter" name="mattCharacter" class="search-input"
+                                placeholder="Search character..." autocomplete="off">
+                            <div class="character-list" id="mattCharacterList"></div>
                         </div>
-                        <input type="hidden" id="mattCharacter" name="mattCharacter" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stage-select">
+                <label for="stage">Stage</label>
+                <div class="stage-search-container">
+                    <input type="text" id="stageSearch" class="stage-search" placeholder="Search stages...">
+                </div>
+                <div class="stage-buttons-container">
+                    <div class="stage-buttons">
+                        <button type="button" class="stage-button" data-stage="Battlefield">
+                            <span class="stage-name">Battlefield</span>
+                        </button>
+                        <!-- ... other stage buttons ... -->
+                    </div>
+                </div>
+                <input type="hidden" id="stage" name="stage" value="">
+            </div>
+
+            <div class="match-details">
+                <div class="winner-select">
+                    <label>Winner</label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="winner" value="shayne" required>
+                            Shayne
+                        </label>
+                        <label>
+                            <input type="radio" name="winner" value="matt" required>
+                            Matt
+                        </label>
                     </div>
                 </div>
 
-                <div class="match-details">
-                    <div class="stage-select">
-                        <label>Stage</label>
-                        <div class="stage-search-container">
-                            <input type="text" id="stageSearch" placeholder="Search stages..." class="stage-search">
-                        </div>
-                        <div class="stage-buttons-container">
-                            <div class="stage-buttons">
-                                {% for stage in stages %}
-                                <button type="button" class="stage-button" data-stage="{{ stage }}">
-                                    <span class="stage-name">{{ stage }}</span>
-                                </button>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        <input type="hidden" id="stage" name="stage" required>
+                <div class="stocks-input">
+                    <label for="stocks">Stocks Remaining</label>
+                    <div class="stocks-buttons">
+                        <button type="button" class="stocks-button" data-stocks="1">1</button>
+                        <button type="button" class="stocks-button" data-stocks="2">2</button>
+                        <button type="button" class="stocks-button" data-stocks="3">3</button>
                     </div>
-
-                    <div class="winner-select">
-                        <label>Winner</label>
-                        <div class="radio-group">
-                            <label class="radio-button">
-                                <input type="radio" name="winner" value="Shayne" required>
-                                <span class="radio-label">Shayne</span>
-                            </label>
-                            <label class="radio-button">
-                                <input type="radio" name="winner" value="Matt" required>
-                                <span class="radio-label">Matt</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="stocks-input">
-                        <label>Stocks Remaining</label>
-                        <div class="stocks-buttons">
-                            <button type="button" class="stocks-button" data-stocks="0">0</button>
-                            <button type="button" class="stocks-button" data-stocks="1">1</button>
-                            <button type="button" class="stocks-button" data-stocks="2">2</button>
-                            <button type="button" class="stocks-button" data-stocks="3">3</button>
-                        </div>
-                        <input type="hidden" id="stocksRemaining" name="stocksRemaining" required>
-                    </div>
+                    <input type="hidden" id="stocks" name="stocks" value="">
                 </div>
             </div>
 
@@ -408,8 +396,8 @@
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const form = document.getElementById('gameForm');
+   t.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('matchForm');
         const recentMatches = document.getElementById('recentMatches');
 
         // Character search functionality
@@ -465,8 +453,8 @@
         }
 
         // Setup character search for both players
-        setupCharacterSearch('shayneCharacterSearch', 'shayneCharacterList', 'shayneCharacter');
-        setupCharacterSearch('mattCharacterSearch', 'mattCharacterList', 'mattCharacter');
+        setupCharacterSearch('shayneCharacter', 'shayneCharacterList', 'shayneCharacter');
+        setupCharacterSearch('mattCharacter', 'mattCharacterList', 'mattCharacter');
 
         // Stage selection
         const stageButtons = document.querySelectorAll('.stage-button');
@@ -505,7 +493,7 @@
 
         // Stocks selection
         const stocksButtons = document.querySelectorAll('.stocks-button');
-        const stocksInput = document.getElementById('stocksRemaining');
+        const stocksInput = document.getElementById('stocks');
 
         stocksButtons.forEach(button => {
             button.addEventListener('click', () => {
@@ -527,7 +515,7 @@
             const mattCharacter = document.getElementById('mattCharacter').value;
             const stage = document.getElementById('stage').value;
             const winner = document.querySelector('input[name="winner"]:checked')?.value;
-            const stocksRemaining = document.getElementById('stocksRemaining').value;
+            const stocksRemaining = document.getElementById('stocks').value;
 
             // Validate all fields
             if (!shayneCharacter) {
@@ -594,27 +582,13 @@
                 console.log('Server response:', data);
 
                 if (data.success) {
-                    // Clear form
-                    form.reset();
-
-                    // Clear character search inputs and hidden values
-                    const shayneSearch = document.getElementById('shayneCharacterSearch');
-                    const mattSearch = document.getElementById('mattCharacterSearch');
-                    const shayneHidden = document.getElementById('shayneCharacter');
-                    const mattHidden = document.getElementById('mattCharacter');
-
-                    shayneSearch.value = '';
-                    mattSearch.value = '';
-                    shayneHidden.value = '';
-                    mattHidden.value = '';
-
-                    // Clear stage selection
+                    // Clear form but keep character selections
                     const stageInput = document.getElementById('stage');
                     stageInput.value = '';
                     stageButtons.forEach(btn => btn.classList.remove('selected'));
 
                     // Clear stocks selection
-                    const stocksInput = document.getElementById('stocksRemaining');
+                    const stocksInput = document.getElementById('stocks');
                     stocksInput.value = '';
                     stocksButtons.forEach(btn => btn.classList.remove('selected'));
 
