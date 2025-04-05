@@ -494,8 +494,12 @@
                 button.classList.add('selected');
                 // Set the stage value in the hidden input using the data-stage attribute
                 const stageValue = button.getAttribute('data-stage');
-                stageInput.value = stageValue;
-                console.log('Stage selected:', stageValue);
+                if (stageValue) {
+                    stageInput.value = stageValue;
+                    console.log('Stage selected:', stageValue);
+                } else {
+                    console.error('No stage value found for button');
+                }
             });
         });
 
@@ -547,7 +551,7 @@
                 return;
             }
 
-            // Ensure stage is a string
+            // Ensure stage is a string and properly formatted
             const stageValue = String(stage).trim();
             if (!stageValue) {
                 alert('Invalid stage selection');
