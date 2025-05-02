@@ -67,6 +67,8 @@ class GameDataManager:
             df = pd.read_csv(self.csv_path)
             # Convert datetime column to datetime type
             df['datetime'] = pd.to_datetime(df['datetime'])
+            # Handle if there are any games with no stages
+            df['stage'] = df['stage'].fillna('No Stage')
             return df
         except pd.errors.EmptyDataError:
             return pd.DataFrame(columns=self.columns)
@@ -286,6 +288,49 @@ class GameDataManager:
             logger.error(f"Error loading characters: {str(e)}")
             return []
 
+    def get_character_win_rates(self) -> Dict[str, Any]:
+        """Calculate win rates for each character."""
+        try:
+            df = self._load_data()
+            if len(df) == 0:
+                return {'success': True, 'shayne': {}, 'matt': {}}
+
+            # Calculate Shayne's character stats
+            shayne_stats = {}
+            for char in df['shayne_character'].unique():
+                char_games = df[df['shayne_character'] == char]
+                total = int(len(char_games))
+                wins = int(len(char_games[char_games['winner'] == 'Shayne']))
+                losses = total - wins
+                shayne_stats[str(char)] = {  # Ensure character name is string
+                    'total': total,
+                    'wins': wins,
+                    'losses': losses
+                }
+
+            # Calculate Matt's character stats
+            matt_stats = {}
+            for char in df['matt_character'].unique():
+                char_games = df[df['matt_character'] == char]
+                total = int(len(char_games))
+                wins = int(len(char_games[char_games['winner'] == 'Matt']))
+                losses = total - wins
+                matt_stats[str(char)] = {  # Ensure character name is string
+                    'total': total,
+                    'wins': wins,
+                    'losses': losses
+                }
+
+            return {
+                'success': True,
+                'shayne': shayne_stats,
+                'matt': matt_stats
+            }
+        except Exception as e:
+            logger.error(f"Error in get_character_win_rates: {str(e)}")
+            logger.error(f"Error type: {type(e)}")
+            return {'success': False, 'message': str(e)}
+
 # Initialize data manager
 data_manager = GameDataManager('game_results.csv')
 
@@ -339,6 +384,7 @@ def log_game():
                                       .head(5)
                                       .to_dict('records')
             }
+
             
             return jsonify({
                 "success": True,
@@ -433,6 +479,16 @@ def get_matchup_stats():
     }
     
     return jsonify(stats)
+
+@app.route('/api/character_win_rates', methods=['GET'])
+def get_character_win_rates():
+    """Get character win rates for both players."""
+    try:
+        win_rates = data_manager.get_character_win_rates()
+        return jsonify(win_rates)
+    except Exception as e:
+        logger.error(f"Error getting character win rates: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)

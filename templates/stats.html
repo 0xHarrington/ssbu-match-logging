@@ -79,15 +79,15 @@
     <!-- Character Win Rates Section -->
     <section class="stats-section">
         <h2>Character Win Rates</h2>
-        <div class="grid">
-            <div class="card">
+        <div class="stats-grid">
+            <div class="stats-card">
                 <h3>Shayne's Characters</h3>
-                <div id="shayneWinRates" class="character-list"></div>
+                <div id="shayneCharacterStats" class="character-list"></div>
             </div>
 
-            <div class="card">
+            <div class="stats-card">
                 <h3>Matt's Characters</h3>
-                <div id="mattWinRates" class="character-list"></div>
+                <div id="mattCharacterStats" class="character-list"></div>
             </div>
         </div>
     </section>
@@ -376,26 +376,6 @@
                             </div>
                         </div>
                     `).join('');
-
-                // Update character win rates
-                const shayneWinRates = document.getElementById('shayneWinRates');
-                const mattWinRates = document.getElementById('mattWinRates');
-
-                shayneWinRates.innerHTML = stats.shayne_character_win_rates
-                    .map(char => `
-                        <div class="character-item">
-                            <span class="character-name">${char.character}</span>
-                            <span class="character-count">${char.win_rate}%</span>
-                        </div>
-                    `).join('');
-
-                mattWinRates.innerHTML = stats.matt_character_win_rates
-                    .map(char => `
-                        <div class="character-item">
-                            <span class="character-name">${char.character}</span>
-                            <span class="character-count">${char.win_rate}%</span>
-                        </div>
-                    `).join('');
             } else {
                 throw new Error(data.message);
             }
@@ -409,7 +389,73 @@
         }
     }
 
+    async function loadCharacterWinRates() {
+        try {
+            const response = await fetch('/api/character_win_rates');
+            const data = await response.json();
+
+            if (data.success) {
+                // Sort characters by total games played and take top 8 for each player
+                const shayneTop8 = Object.entries(data.shayne)
+                    .sort((a, b) => {
+                        const totalA = parseInt(a[1].total);
+                        const totalB = parseInt(b[1].total);
+                        return totalB - totalA;
+                    })
+                    .slice(0, 8);
+
+                const mattTop8 = Object.entries(data.matt)
+                    .sort((a, b) => {
+                        const totalA = parseInt(a[1].total);
+                        const totalB = parseInt(b[1].total);
+                        return totalB - totalA;
+                    })
+                    .slice(0, 8);
+
+                const shayneHtml = shayneTop8.map(([character, stats]) => `
+                    <div class="character-stats">
+                        <div class="character-name">${character}</div>
+                        <div class="stats-bar">
+                            <div class="win-bar" style="width: ${(parseInt(stats.wins) / parseInt(stats.total) * 100)}%">
+                                ${stats.wins}W
+                            </div>
+                            <div class="loss-bar" style="width: ${(parseInt(stats.losses) / parseInt(stats.total) * 100)}%">
+                                ${stats.losses}L
+                            </div>
+                        </div>
+                        <div class="stats-total">${stats.total} games</div>
+                    </div>
+                `).join('');
+
+                const mattHtml = mattTop8.map(([character, stats]) => `
+                    <div class="character-stats">
+                        <div class="character-name">${character}</div>
+                        <div class="stats-bar">
+                            <div class="win-bar" style="width: ${(parseInt(stats.wins) / parseInt(stats.total) * 100)}%">
+                                ${stats.wins}W
+                            </div>
+                            <div class="loss-bar" style="width: ${(parseInt(stats.losses) / parseInt(stats.total) * 100)}%">
+                                ${stats.losses}L
+                            </div>
+                        </div>
+                        <div class="stats-total">${stats.total} games</div>
+                    </div>
+                `).join('');
+
+                document.getElementById('shayneCharacterStats').innerHTML = shayneHtml;
+                document.getElementById('mattCharacterStats').innerHTML = mattHtml;
+            } else {
+                throw new Error(data.message || 'Failed to load character win rates');
+            }
+        } catch (error) {
+            console.error('Error loading character win rates:', error);
+            document.getElementById('shayneCharacterStats').innerHTML = `<div class="error">${error.message}</div>`;
+            document.getElementById('mattCharacterStats').innerHTML = `<div class="error">${error.message}</div>`;
+        }
+    }
+
     // Load stats when the page loads
     document.addEventListener('DOMContentLoaded', loadStats);
+    document.addEventListener('DOMContentLoaded', loadCharacterWinRates);
 </script>
 {% endblock %}
