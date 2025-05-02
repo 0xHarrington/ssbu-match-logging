@@ -67,6 +67,8 @@ class GameDataManager:
             df = pd.read_csv(self.csv_path)
             # Convert datetime column to datetime type
             df['datetime'] = pd.to_datetime(df['datetime'])
+            # Handle if there are any games with no stages
+            df['stage'] = df['stage'].fillna('No Stage')
             return df
         except pd.errors.EmptyDataError:
             return pd.DataFrame(columns=self.columns)
@@ -382,6 +384,7 @@ def log_game():
                                       .head(5)
                                       .to_dict('records')
             }
+
             
             return jsonify({
                 "success": True,
