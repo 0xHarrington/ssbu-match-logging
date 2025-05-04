@@ -189,6 +189,18 @@
         text-align: center;
     }
 
+    .matchup-stats .win-count {
+        color: var(--fg);
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+
+    .matchup-stats .win-percentage {
+        color: var(--fg-dim);
+        font-size: 0.9rem;
+        opacity: 0.7;
+    }
+
     .win-rate-bar {
         background-color: var(--bg-light);
         height: 8px;
@@ -523,7 +535,10 @@
                 // Update top matchups
                 const topMatchups = document.getElementById('topMatchups');
                 topMatchups.innerHTML = stats.top_matchups
-                    .map(matchup => `
+                    .map(matchup => {
+                        const shayneWinRate = Math.round((matchup.shayne_wins / matchup.total_games) * 100);
+                        const mattWinRate = Math.round((matchup.matt_wins / matchup.total_games) * 100);
+                        return `
                         <div class="matchup-item">
                             <div class="matchup-header">
                                 <span>${matchup.shayne_character} vs ${matchup.matt_character}</span>
@@ -532,21 +547,21 @@
                             <div class="matchup-stats">
                                 <div>
                                     <div>Shayne Wins</div>
-                                    <div>${matchup.shayne_wins}</div>
+                                    <div class="win-count">${matchup.shayne_wins}<span class="win-percentage"> (${shayneWinRate}%)</span></div>
                                     <div class="win-rate-bar">
                                         <div class="win-rate-fill" style="width: ${(matchup.shayne_wins / matchup.total_games * 100)}%"></div>
                                     </div>
                                 </div>
                                 <div>
                                     <div>Matt Wins</div>
-                                    <div>${matchup.matt_wins}</div>
+                                    <div class="win-count">${matchup.matt_wins}<span class="win-percentage"> (${mattWinRate}%)</span></div>
                                     <div class="win-rate-bar">
                                         <div class="win-rate-fill" style="width: ${(matchup.matt_wins / matchup.total_games * 100)}%"></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    `).join('');
+                    `}).join('');
             } else {
                 throw new Error(data.message);
             }
