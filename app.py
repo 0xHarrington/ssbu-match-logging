@@ -225,8 +225,8 @@ class GameDataManager:
         matchup_stats.columns = ['shayne_character', 'matt_character', 'shayne_wins', 'total_games']
         matchup_stats['matt_wins'] = matchup_stats['total_games'] - matchup_stats['shayne_wins']
         
-        # Get top 5 most played matchups
-        top_matchups = matchup_stats.nlargest(5, 'total_games')
+        # Get top 6 most played matchups
+        top_matchups = matchup_stats.nlargest(6, 'total_games')
         stats['top_matchups'] = top_matchups.to_dict('records')
         
         # Win rate by character for each player
