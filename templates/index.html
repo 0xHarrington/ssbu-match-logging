@@ -128,6 +128,29 @@
         align-items: center;
         gap: 0.5rem;
         cursor: pointer;
+        padding: 0.75rem 1.5rem;
+        background-color: var(--bg1);
+        border: 1px solid var(--bg-light);
+        border-radius: var(--card-radius);
+        transition: all var(--transition-speed);
+        flex: 1;
+        justify-content: center;
+        font-weight: 500;
+    }
+
+    .radio-group label:hover {
+        background-color: var(--bg2);
+        border-color: var(--blue);
+    }
+
+    .radio-group input[type="radio"] {
+        display: none;
+    }
+
+    .radio-group input[type="radio"]:checked+label {
+        background-color: var(--blue);
+        color: var(--bg0);
+        border-color: var(--blue);
     }
 
     .stocks-input input {
@@ -304,6 +327,43 @@
         background-color: var(--blue);
         color: var(--bg0);
         border-color: var(--blue);
+    }
+
+    .stage-search-container {
+        margin-bottom: 1rem;
+        position: relative;
+    }
+
+    .stage-search {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        padding-left: 2.5rem;
+        border-radius: var(--card-radius);
+        background-color: var(--bg1);
+        border: 1px solid var(--bg-light);
+        color: var(--fg);
+        font-size: 1rem;
+        transition: all var(--transition-speed);
+    }
+
+    .stage-search:focus {
+        outline: none;
+        border-color: var(--blue);
+        box-shadow: 0 0 0 2px rgba(var(--blue-rgb), 0.1);
+    }
+
+    .stage-search::placeholder {
+        color: var(--fg-light);
+    }
+
+    .stage-search-container::before {
+        content: "🔍";
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--fg-light);
+        font-size: 1rem;
     }
 </style>
 {% endblock %}
