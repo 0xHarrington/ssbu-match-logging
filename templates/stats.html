@@ -481,54 +481,91 @@
                     y: stats.monthly_activity.map(item => item.games),
                     type: 'bar',
                     marker: {
-                        color: 'var(--blue)',
+                        color: '#458588', // gruvbox blue
                         line: {
-                            color: 'var(--bg-light)',
+                            color: '#3c3836', // gruvbox bg1
                             width: 1
                         }
                     }
                 };
 
                 const monthlyActivityLayout = {
-                    title: 'Games Played by Month',
+                    title: {
+                        text: 'Games Played by Month',
+                        font: {
+                            color: '#ebdbb2' // gruvbox fg
+                        }
+                    },
                     xaxis: {
-                        title: 'Month',
-                        titlefont: {
-                            color: 'var(--fg)',
-                            size: 14
+                        title: {
+                            text: 'Month',
+                            font: {
+                                color: '#ebdbb2', // gruvbox fg
+                                size: 14
+                            }
                         },
                         tickfont: {
-                            color: 'var(--fg)',
+                            color: '#ebdbb2', // gruvbox fg
                             size: 12
                         },
-                        gridcolor: 'var(--bg-light)',
-                        zerolinecolor: 'var(--bg-light)'
+                        gridcolor: '#3c3836', // gruvbox bg1
+                        zerolinecolor: '#3c3836', // gruvbox bg1
+                        linecolor: '#3c3836', // gruvbox bg1
+                        tickcolor: '#ebdbb2' // gruvbox fg
                     },
                     yaxis: {
-                        title: 'Number of Games',
-                        titlefont: {
-                            color: 'var(--fg)',
-                            size: 14
+                        title: {
+                            text: 'Number of Games',
+                            font: {
+                                color: '#ebdbb2', // gruvbox fg
+                                size: 14
+                            }
                         },
                         tickfont: {
-                            color: 'var(--fg)',
+                            color: '#ebdbb2', // gruvbox fg
                             size: 12
                         },
-                        gridcolor: 'var(--bg-light)',
-                        zerolinecolor: 'var(--bg-light)'
+                        gridcolor: '#3c3836', // gruvbox bg1
+                        zerolinecolor: '#3c3836', // gruvbox bg1
+                        linecolor: '#3c3836', // gruvbox bg1
+                        tickcolor: '#ebdbb2' // gruvbox fg
                     },
-                    paper_bgcolor: 'var(--bg1)',
-                    plot_bgcolor: 'var(--bg1)',
+                    paper_bgcolor: '#282828', // gruvbox bg0
+                    plot_bgcolor: '#282828', // gruvbox bg0
                     font: {
-                        color: 'var(--fg)'
-                    },
-                    titlefont: {
-                        color: 'var(--fg)',
-                        size: 16
+                        color: '#ebdbb2' // gruvbox fg
                     },
                     bargap: 0.2,
-                    bargroupgap: 0.1
+                    bargroupgap: 0.1,
+                    showlegend: false,
+                    margin: {
+                        l: 50,
+                        r: 20,
+                        t: 50,
+                        b: 50
+                    }
                 };
+
+                // Add custom CSS for Plotly
+                const style = document.createElement('style');
+                style.textContent = `
+                    .js-plotly-plot .plotly .modebar {
+                        background-color: #282828 !important;
+                    }
+                    .js-plotly-plot .plotly .modebar-btn {
+                        color: #ebdbb2 !important;
+                    }
+                    .js-plotly-plot .plotly .modebar-btn:hover {
+                        background-color: #3c3836 !important;
+                    }
+                    .js-plotly-plot .plotly .modebar-btn.active {
+                        background-color: #3c3836 !important;
+                    }
+                    .js-plotly-plot .plotly .modebar-group {
+                        background-color: #282828 !important;
+                    }
+                `;
+                document.head.appendChild(style);
 
                 Plotly.newPlot('weeklyActivityChart', [monthlyActivityData], monthlyActivityLayout);
 
