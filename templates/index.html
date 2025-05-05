@@ -123,31 +123,32 @@
         margin-top: 0.5rem;
     }
 
-    .radio-group label {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        cursor: pointer;
+    .radio-button {
+        flex: 1;
+    }
+
+    .radio-button input[type="radio"] {
+        display: none;
+    }
+
+    .radio-button label {
+        display: block;
         padding: 0.75rem 1.5rem;
         background-color: var(--bg1);
         border: 1px solid var(--bg-light);
         border-radius: var(--card-radius);
         transition: all var(--transition-speed);
-        flex: 1;
-        justify-content: center;
+        text-align: center;
+        cursor: pointer;
         font-weight: 500;
     }
 
-    .radio-group label:hover {
+    .radio-button label:hover {
         background-color: var(--bg2);
         border-color: var(--blue);
     }
 
-    .radio-group input[type="radio"] {
-        display: none;
-    }
-
-    .radio-group input[type="radio"]:checked+label {
+    .radio-button input[type="radio"]:checked+label {
         background-color: var(--blue);
         color: var(--bg0);
         border-color: var(--blue);
@@ -276,10 +277,6 @@
         background-color: var(--blue);
         color: var(--bg0);
         border-color: var(--blue);
-    }
-
-    .radio-button {
-        flex: 1;
     }
 
     .radio-label {
@@ -619,14 +616,14 @@
                 <div class="winner-select">
                     <label>Winner</label>
                     <div class="radio-group">
-                        <label>
-                            <input type="radio" name="winner" value="Shayne" required>
-                            Shayne
-                        </label>
-                        <label>
-                            <input type="radio" name="winner" value="Matt" required>
-                            Matt
-                        </label>
+                        <div class="radio-button">
+                            <input type="radio" id="winner-shayne" name="winner" value="Shayne" required>
+                            <label for="winner-shayne">Shayne</label>
+                        </div>
+                        <div class="radio-button">
+                            <input type="radio" id="winner-matt" name="winner" value="Matt" required>
+                            <label for="winner-matt">Matt</label>
+                        </div>
                     </div>
                 </div>
 
