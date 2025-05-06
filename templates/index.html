@@ -706,42 +706,37 @@
 
             <div class="stage-select">
                 <label for="stage">Stage</label>
-                <div class="stage-search-container">
-                    <input type="text" id="stageSearch" class="stage-search" placeholder="Search stages...">
-                </div>
-                <div class="stage-buttons-container">
-                    <div class="stage-buttons">
-                        <button type="button" class="stage-button" data-stage="Battlefield">
-                            <span class="stage-name">Battlefield</span>
-                        </button>
-                        <button type="button" class="stage-button" data-stage="Final Destination">
-                            <span class="stage-name">Final Destination</span>
-                        </button>
-                        <button type="button" class="stage-button" data-stage="Small Battlefield">
-                            <span class="stage-name">Small Battlefield</span>
-                        </button>
-                        <button type="button" class="stage-button" data-stage="Yoshi's Story">
-                            <span class="stage-name">Yoshi's Story</span>
-                        </button>
-                        <button type="button" class="stage-button" data-stage="Pokemon Stadium 2">
-                            <span class="stage-name">Pokemon Stadium 2</span>
-                        </button>
-                        <button type="button" class="stage-button" data-stage="Smashville">
-                            <span class="stage-name">Smashville</span>
-                        </button>
-                        <button type="button" class="stage-button" data-stage="Town & City">
-                            <span class="stage-name">Town & City</span>
-                        </button>
-                        <button type="button" class="stage-button" data-stage="Kalos Pokemon League">
-                            <span class="stage-name">Kalos Pokemon League</span>
-                        </button>
-                        <button type="button" class="stage-button" data-stage="Northern Cave">
-                            <span class="stage-name">Northern Cave</span>
-                        </button>
-                        <button type="button" class="stage-button" data-stage="Hollow Bastion">
-                            <span class="stage-name">Hollow Bastion</span>
-                        </button>
-                    </div>
+                <div class="stage-buttons">
+                    <button type="button" class="stage-button" data-stage="Battlefield">
+                        <span class="stage-name">Battlefield</span>
+                    </button>
+                    <button type="button" class="stage-button" data-stage="Final Destination">
+                        <span class="stage-name">Final Destination</span>
+                    </button>
+                    <button type="button" class="stage-button" data-stage="Small Battlefield">
+                        <span class="stage-name">Small Battlefield</span>
+                    </button>
+                    <button type="button" class="stage-button" data-stage="Yoshi's Story">
+                        <span class="stage-name">Yoshi's Story</span>
+                    </button>
+                    <button type="button" class="stage-button" data-stage="Pokemon Stadium 2">
+                        <span class="stage-name">Pokemon Stadium 2</span>
+                    </button>
+                    <button type="button" class="stage-button" data-stage="Smashville">
+                        <span class="stage-name">Smashville</span>
+                    </button>
+                    <button type="button" class="stage-button" data-stage="Town & City">
+                        <span class="stage-name">Town & City</span>
+                    </button>
+                    <button type="button" class="stage-button" data-stage="Kalos Pokemon League">
+                        <span class="stage-name">Kalos Pokemon League</span>
+                    </button>
+                    <button type="button" class="stage-button" data-stage="Northern Cave">
+                        <span class="stage-name">Northern Cave</span>
+                    </button>
+                    <button type="button" class="stage-button" data-stage="Hollow Bastion">
+                        <span class="stage-name">Hollow Bastion</span>
+                    </button>
                 </div>
                 <input type="hidden" id="stage" name="stage" value="">
             </div>
@@ -891,20 +886,6 @@
         // Stage selection
         const stageButtons = document.querySelectorAll('.stage-button');
         const stageInput = document.getElementById('stage');
-        const stageSearch = document.getElementById('stageSearch');
-
-        // Stage search functionality
-        stageSearch.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            stageButtons.forEach(button => {
-                const stageName = button.querySelector('.stage-name').textContent.toLowerCase();
-                if (stageName.includes(searchTerm)) {
-                    button.style.display = 'flex';
-                } else {
-                    button.style.display = 'none';
-                }
-            });
-        });
 
         stageButtons.forEach(button => {
             button.addEventListener('click', () => {
