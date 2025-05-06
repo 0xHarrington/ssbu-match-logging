@@ -13,6 +13,93 @@
         padding: 2rem;
     }
 
+    .session-stats {
+        background-color: var(--bg1);
+        border-radius: var(--card-radius);
+        padding: 2rem;
+        border: 1px solid var(--bg-light);
+        margin-bottom: 2rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .stat-card {
+        background-color: var(--bg2);
+        border-radius: var(--card-radius);
+        padding: 1.5rem;
+        border: 1px solid var(--bg-light);
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: var(--blue);
+        margin: 0.5rem 0;
+    }
+
+    .stat-label {
+        color: var(--fg-light);
+        font-size: 0.9rem;
+    }
+
+    .character-stats {
+        margin-top: 2rem;
+    }
+
+    .character-stats h3 {
+        color: var(--fg-light);
+        margin-bottom: 1rem;
+    }
+
+    .character-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+
+    .character-stat-card {
+        background-color: var(--bg2);
+        border-radius: var(--card-radius);
+        padding: 1.5rem;
+        border: 1px solid var(--bg-light);
+    }
+
+    .character-stat-card h4 {
+        color: var(--fg-light);
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+
+    .character-stat-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .character-stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem;
+        background-color: var(--bg1);
+        border-radius: var(--card-radius);
+    }
+
+    .character-stat-name {
+        font-weight: 500;
+    }
+
+    .character-stat-value {
+        color: var(--blue);
+        font-weight: bold;
+    }
+
     .match-form {
         background-color: var(--bg1);
         border-radius: var(--card-radius);
@@ -244,13 +331,10 @@
     }
 
     .stage-buttons {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
         gap: 0.5rem;
         margin-top: 0.5rem;
-        max-height: 300px;
-        overflow-y: auto;
-        padding-right: 0.5rem;
     }
 
     .stage-button {
@@ -263,9 +347,10 @@
         cursor: pointer;
         transition: all var(--transition-speed);
         font-size: 1rem;
-        text-align: left;
+        text-align: center;
         display: flex;
         align-items: center;
+        justify-content: center;
     }
 
     .stage-button:hover {
@@ -361,6 +446,49 @@
         transform: translateY(-50%);
         color: var(--fg-light);
         font-size: 1rem;
+    }
+
+    .stage-stats {
+        margin-top: 2rem;
+    }
+
+    .stage-stats h3 {
+        color: var(--fg-light);
+        margin-bottom: 1rem;
+    }
+
+    .stage-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+    }
+
+    .stage-stat-card {
+        background-color: var(--bg2);
+        border: 1px solid var(--bg-light);
+        border-radius: var(--card-radius);
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        transition: all var(--transition-speed);
+    }
+
+    .stage-stat-card:hover {
+        border-color: var(--blue);
+        background-color: var(--bg1);
+    }
+
+    .stage-stat-name {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .stage-stat-value {
+        color: var(--blue);
+        font-weight: bold;
+        font-size: 1.2rem;
     }
 </style>
 {% endblock %}
@@ -642,6 +770,47 @@
         </form>
     </div>
 
+    <div class="session-stats">
+        <h2>Today's Session Stats</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalGames">0</div>
+                <div class="stat-label">Total Games</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="shayneWins">0</div>
+                <div class="stat-label">Shayne Wins</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="mattWins">0</div>
+                <div class="stat-label">Matt Wins</div>
+            </div>
+        </div>
+        <div class="character-stats">
+            <h3>Character Usage</h3>
+            <div class="character-grid">
+                <div class="character-stat-card">
+                    <h4>Shayne's Characters</h4>
+                    <div class="character-stat-list" id="shayneCharacters">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+                <div class="character-stat-card">
+                    <h4>Matt's Characters</h4>
+                    <div class="character-stat-list" id="mattCharacters">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="stage-stats">
+            <h3>Stage Usage</h3>
+            <div class="stage-stats-grid" id="stageStats">
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
     <div class="recent-matches">
         <h2>Recent Matches</h2>
         <div id="recentMatches" class="matches-list">
@@ -855,6 +1024,7 @@
 
                     // Update recent matches
                     loadRecentMatches();
+                    loadSessionStats();
                 } else {
                     throw new Error(data.message || 'Failed to log match');
                 }
@@ -893,6 +1063,63 @@
                 recentMatches.innerHTML = `<div class="error">${error.message}</div>`;
             }
         }
+
+        async function loadSessionStats() {
+            try {
+                const response = await fetch('/api/session_stats');
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update overall stats
+                    document.getElementById('totalGames').textContent = data.total_games;
+                    document.getElementById('shayneWins').textContent = data.shayne_wins;
+                    document.getElementById('mattWins').textContent = data.matt_wins;
+
+                    // Update character stats
+                    const shayneCharacters = document.getElementById('shayneCharacters');
+                    const mattCharacters = document.getElementById('mattCharacters');
+
+                    // Sort characters by usage count
+                    const sortedShayneChars = Object.entries(data.shayne_characters)
+                        .sort(([, a], [, b]) => b - a);
+                    const sortedMattChars = Object.entries(data.matt_characters)
+                        .sort(([, a], [, b]) => b - a);
+
+                    shayneCharacters.innerHTML = sortedShayneChars
+                        .map(([char, count]) => `
+                            <div class="character-stat-item">
+                                <span class="character-stat-name">${char}</span>
+                                <span class="character-stat-value">${count}</span>
+                            </div>
+                        `).join('');
+
+                    mattCharacters.innerHTML = sortedMattChars
+                        .map(([char, count]) => `
+                            <div class="character-stat-item">
+                                <span class="character-stat-name">${char}</span>
+                                <span class="character-stat-value">${count}</span>
+                            </div>
+                        `).join('');
+
+                    // Update stage stats
+                    const stageStats = document.getElementById('stageStats');
+                    stageStats.innerHTML = data.stage_stats.map(stat => `
+                        <div class="stage-stat-card">
+                            <div class="stage-stat-name">${stat.stage}</div>
+                            <div class="stage-stat-value">${stat.count}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    throw new Error(data.message || 'Failed to load session stats');
+                }
+            } catch (error) {
+                console.error('Error loading session stats:', error);
+            }
+        }
+
+        // Load initial data
+        loadRecentMatches();
+        loadSessionStats();
     });
 </script>
 {% endblock %}
