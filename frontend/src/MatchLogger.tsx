@@ -91,7 +91,7 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
   );
 }
 
-export default function MatchLogger() {
+export default function MatchLogger({ onMatchLogged }: { onMatchLogged?: () => void }) {
   const [shayneCharacter, setShayneCharacter] = useState('');
   const [mattCharacter, setMattCharacter] = useState('');
   const [stage, setStage] = useState('');
@@ -136,6 +136,7 @@ export default function MatchLogger() {
       setWinner('');
       setStocks('');
       // Don't clear character selections (per original logic)
+      if (onMatchLogged) onMatchLogged();
     } catch (err: any) {
       setError(err.message);
     } finally {
