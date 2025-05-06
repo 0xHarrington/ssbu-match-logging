@@ -3,6 +3,7 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import MatchLogger from './MatchLogger';
 import RecentMatches, { type RecentMatchesRef } from './RecentMatches';
 import SessionStats, { type SessionStatsRef } from './SessionStats';
+import StatsPage from './StatsPage';
 
 function LoggingHome() {
   const recentMatchesRef = useRef<RecentMatchesRef>(null);
@@ -25,15 +26,6 @@ function LoggingHome() {
       <div className="recent-matches-col">
         <RecentMatches ref={recentMatchesRef} />
       </div>
-    </div>
-  );
-}
-
-function StatsPage() {
-  return (
-    <div className="stats-pane" style={{ padding: '2rem', maxWidth: 900, margin: '0 auto', background: 'var(--bg1, #3c3836)', borderRadius: 12, border: '1px solid var(--bg-light, #665c54)' }}>
-      <h2 style={{ color: 'var(--fg-light, #fbf1c7)' }}>Statistics (Coming Soon)</h2>
-      <p style={{ color: 'var(--fg, #ebdbb2)' }}>This page will show advanced stats and charts.</p>
     </div>
   );
 }
