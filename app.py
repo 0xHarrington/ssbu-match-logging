@@ -524,7 +524,7 @@ def get_stats():
 def get_recent_games():
     """Return the most recent games."""
     try:
-        df = data_manager.get_recent_games(10)
+        df = data_manager.get_recent_games(5)
         # Replace NaN values with None before converting to dict
         df = df.fillna("")
         games = df.to_dict("records")
