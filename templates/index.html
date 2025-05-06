@@ -1074,21 +1074,36 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    recentMatches.innerHTML = data.games.map(game => `
-                        <div class="match-item">
-                            <div class="match-info">
-                                <div class="match-characters">
-                                    ${game.shayne_character} vs ${game.matt_character}
+                    recentMatches.innerHTML = data.games.map(game => {
+                        // Parse the datetime string and create a date object
+                        const date = new Date(game.datetime);
+                        // Format the date without timezone conversion
+                        const options = {
+                            year: 'numeric',
+                            month: 'numeric',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: 'numeric',
+                            hour12: true
+                        };
+                        const formattedDate = date.toLocaleString('en-US', options);
+
+                        return `
+                            <div class="match-item">
+                                <div class="match-info">
+                                    <div class="match-characters">
+                                        ${game.shayne_character} vs ${game.matt_character}
+                                    </div>
+                                    <div class="match-details">
+                                        ${formattedDate} • ${game.stage}
+                                    </div>
                                 </div>
-                                <div class="match-details">
-                                    ${new Date(game.datetime).toLocaleString()} • ${game.stage}
+                                <div class="match-winner ${game.winner.toLowerCase()}">
+                                    ${game.winner} wins
                                 </div>
                             </div>
-                            <div class="match-winner ${game.winner.toLowerCase()}">
-                                ${game.winner} wins
-                            </div>
-                        </div>
-                    `).join('');
+                        `;
+                    }).join('');
                 } else {
                     throw new Error(data.message || 'Failed to load recent matches');
                 }
