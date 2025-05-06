@@ -57,7 +57,7 @@ const SessionStats = forwardRef<SessionStatsRef>((props, ref) => {
       {error && <div className="error">{error}</div>}
       {!loading && !error && stats && (
         <>
-          <div className="stats-grid">
+          <div className="game-stats-grid">
             <div className="stat-card">
               <div className="stat-value" id="totalGames">{stats.total_games}</div>
               <div className="stat-label">Total Games</div>
@@ -71,7 +71,7 @@ const SessionStats = forwardRef<SessionStatsRef>((props, ref) => {
               <div className="stat-label">Matt Wins</div>
             </div>
           </div>
-          <div className="character-stats">
+          <div className="character-stats-grid">
             <h3>Character Usage</h3>
             <div className="character-grid">
               <div className="character-stat-card">
