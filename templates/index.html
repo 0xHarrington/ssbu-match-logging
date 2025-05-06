@@ -40,8 +40,17 @@
     .stat-value {
         font-size: 2rem;
         font-weight: bold;
-        color: var(--blue);
         margin: 0.5rem 0;
+    }
+
+    .stat-value.shayne {
+        color: #d65d0e;
+        /* gruvbox orange */
+    }
+
+    .stat-value.matt {
+        color: #98971a;
+        /* gruvbox green */
     }
 
     .stat-label {
@@ -99,6 +108,16 @@
     .character-stat-value {
         color: var(--blue);
         font-weight: bold;
+    }
+
+    .character-stat-value.shayne {
+        color: #d65d0e;
+        /* gruvbox orange */
+    }
+
+    .character-stat-value.matt {
+        color: #98971a;
+        /* gruvbox green */
     }
 
     .match-form,
@@ -240,10 +259,28 @@
         border-color: var(--blue);
     }
 
-    .radio-button input[type="radio"]:checked+label {
-        background-color: var(--blue);
+    .radio-button input[type="radio"]:checked+label.shayne {
+        background-color: #d65d0e;
+        /* gruvbox orange */
         color: var(--bg0);
-        border-color: var(--blue);
+        border-color: #d65d0e;
+    }
+
+    .radio-button input[type="radio"]:checked+label.matt {
+        background-color: #98971a;
+        /* gruvbox green */
+        color: var(--bg0);
+        border-color: #98971a;
+    }
+
+    .radio-button label.shayne:hover {
+        border-color: #d65d0e;
+        /* gruvbox orange */
+    }
+
+    .radio-button label.matt:hover {
+        border-color: #98971a;
+        /* gruvbox green */
     }
 
     .stocks-input input {
@@ -321,6 +358,16 @@
         border-radius: var(--card-radius);
         font-weight: bold;
         font-size: 0.9rem;
+    }
+
+    .match-winner.shayne {
+        background-color: #d65d0e;
+        /* gruvbox orange */
+    }
+
+    .match-winner.matt {
+        background-color: #98971a;
+        /* gruvbox green */
     }
 
     @media (max-width: 1600px) {
@@ -747,11 +794,11 @@
                     <div class="radio-group">
                         <div class="radio-button">
                             <input type="radio" id="winner-shayne" name="winner" value="Shayne" required>
-                            <label for="winner-shayne">Shayne</label>
+                            <label for="winner-shayne" class="shayne">Shayne</label>
                         </div>
                         <div class="radio-button">
                             <input type="radio" id="winner-matt" name="winner" value="Matt" required>
-                            <label for="winner-matt">Matt</label>
+                            <label for="winner-matt" class="matt">Matt</label>
                         </div>
                     </div>
                 </div>
@@ -1037,7 +1084,7 @@
                                     ${new Date(game.datetime).toLocaleString()} • ${game.stage}
                                 </div>
                             </div>
-                            <div class="match-winner">
+                            <div class="match-winner ${game.winner.toLowerCase()}">
                                 ${game.winner} wins
                             </div>
                         </div>
@@ -1059,8 +1106,16 @@
                 if (data.success) {
                     // Update overall stats
                     document.getElementById('totalGames').textContent = data.total_games;
-                    document.getElementById('shayneWins').textContent = data.shayne_wins;
-                    document.getElementById('mattWins').textContent = data.matt_wins;
+
+                    // Shayne stats with red theme
+                    const shayneWins = document.getElementById('shayneWins');
+                    shayneWins.textContent = data.shayne_wins;
+                    shayneWins.classList.add('shayne');
+
+                    // Matt stats with green theme
+                    const mattWins = document.getElementById('mattWins');
+                    mattWins.textContent = data.matt_wins;
+                    mattWins.classList.add('matt');
 
                     // Update character stats
                     const shayneCharacters = document.getElementById('shayneCharacters');
@@ -1076,7 +1131,7 @@
                         .map(([char, count]) => `
                             <div class="character-stat-item">
                                 <span class="character-stat-name">${char}</span>
-                                <span class="character-stat-value">${count}</span>
+                                <span class="character-stat-value shayne">${count}</span>
                             </div>
                         `).join('');
 
@@ -1084,7 +1139,7 @@
                         .map(([char, count]) => `
                             <div class="character-stat-item">
                                 <span class="character-stat-name">${char}</span>
-                                <span class="character-stat-value">${count}</span>
+                                <span class="character-stat-value matt">${count}</span>
                             </div>
                         `).join('');
 

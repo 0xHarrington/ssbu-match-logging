@@ -100,6 +100,10 @@
         display: flex;
         flex-direction: column;
         gap: 2rem;
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 2rem;
+        box-sizing: border-box;
     }
 
     .stats-section {
@@ -133,6 +137,16 @@
         border-color: var(--blue);
     }
 
+    .stat-card.shayne {
+        border-color: #d65d0e;
+        /* gruvbox orange */
+    }
+
+    .stat-card.matt {
+        border-color: #98971a;
+        /* gruvbox green */
+    }
+
     .stat-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
@@ -141,8 +155,17 @@
     .stat-value {
         font-size: 2.5rem;
         font-weight: bold;
-        color: var(--blue);
         margin: 0.5rem 0;
+    }
+
+    .stat-value.shayne {
+        color: #d65d0e;
+        /* gruvbox orange */
+    }
+
+    .stat-value.matt {
+        color: #98971a;
+        /* gruvbox green */
     }
 
     .stat-label {
@@ -150,6 +173,26 @@
         font-size: 0.9rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+    }
+
+    .win-rate.shayne {
+        color: #d65d0e;
+        /* gruvbox orange */
+    }
+
+    .win-rate.matt {
+        color: #98971a;
+        /* gruvbox green */
+    }
+
+    .win-bar.shayne {
+        background-color: #d65d0e;
+        /* gruvbox orange */
+    }
+
+    .win-bar.matt {
+        background-color: #98971a;
+        /* gruvbox green */
     }
 
     .matchups-grid {
@@ -437,6 +480,20 @@
             margin-bottom: 1.5rem;
         }
     }
+
+    .radio-button input[type="radio"]:checked+label.shayne {
+        background-color: #d65d0e;
+        /* gruvbox orange */
+        color: var(--bg0);
+        border-color: #d65d0e;
+    }
+
+    .radio-button input[type="radio"]:checked+label.matt {
+        background-color: #98971a;
+        /* gruvbox green */
+        color: var(--bg0);
+        border-color: #98971a;
+    }
 </style>
 {% endblock %}
 
@@ -453,10 +510,27 @@
 
                 // Update basic stats
                 document.getElementById('totalGames').textContent = stats.total_games;
-                document.getElementById('shayneWins').textContent = stats.shayne_wins;
-                document.getElementById('mattWins').textContent = stats.matt_wins;
-                document.getElementById('shayneWinRate').textContent = `${stats.shayne_win_rate}% Win Rate`;
-                document.getElementById('mattWinRate').textContent = `${stats.matt_win_rate}% Win Rate`;
+
+                // Shayne stats with red theme
+                const shayneWins = document.getElementById('shayneWins');
+                shayneWins.textContent = stats.shayne_wins;
+                shayneWins.classList.add('shayne');
+                shayneWins.parentElement.classList.add('shayne');
+
+                const shayneWinRate = document.getElementById('shayneWinRate');
+                shayneWinRate.textContent = `${stats.shayne_win_rate}% Win Rate`;
+                shayneWinRate.classList.add('shayne');
+
+                // Matt stats with green theme
+                const mattWins = document.getElementById('mattWins');
+                mattWins.textContent = stats.matt_wins;
+                mattWins.classList.add('matt');
+                mattWins.parentElement.classList.add('matt');
+
+                const mattWinRate = document.getElementById('mattWinRate');
+                mattWinRate.textContent = `${stats.matt_win_rate}% Win Rate`;
+                mattWinRate.classList.add('matt');
+
                 document.getElementById('mostPlayedShayne').textContent = stats.most_played_shayne || '-';
                 document.getElementById('mostPlayedMatt').textContent = stats.most_played_matt || '-';
 
@@ -641,7 +715,7 @@
                     <div class="character-stats">
                         <div class="character-name">${character}</div>
                         <div class="stats-bar">
-                            <div class="win-bar" style="width: ${(parseInt(stats.wins) / parseInt(stats.total) * 100)}%">
+                            <div class="win-bar shayne" style="width: ${(parseInt(stats.wins) / parseInt(stats.total) * 100)}%">
                                 ${stats.wins}W
                             </div>
                             <div class="loss-bar" style="width: ${(parseInt(stats.losses) / parseInt(stats.total) * 100)}%">
@@ -649,7 +723,7 @@
                             </div>
                         </div>
                         <div class="stats-total">
-                            <span class="win-rate">${winRate}% WR</span>
+                            <span class="win-rate shayne">${winRate}% WR</span>
                             <span class="games-played">${stats.total} games</span>
                         </div>
                     </div>
@@ -661,7 +735,7 @@
                     <div class="character-stats">
                         <div class="character-name">${character}</div>
                         <div class="stats-bar">
-                            <div class="win-bar" style="width: ${(parseInt(stats.wins) / parseInt(stats.total) * 100)}%">
+                            <div class="win-bar matt" style="width: ${(parseInt(stats.wins) / parseInt(stats.total) * 100)}%">
                                 ${stats.wins}W
                             </div>
                             <div class="loss-bar" style="width: ${(parseInt(stats.losses) / parseInt(stats.total) * 100)}%">
@@ -669,7 +743,7 @@
                             </div>
                         </div>
                         <div class="stats-total">
-                            <span class="win-rate">${winRate}% WR</span>
+                            <span class="win-rate matt">${winRate}% WR</span>
                             <span class="games-played">${stats.total} games</span>
                         </div>
                     </div>
