@@ -182,8 +182,9 @@ class GameDataManager:
                 logger.error("Stage value is empty after stripping")
                 return False
 
-            # Create a new entry
-            now = datetime.now()
+            # Create a new entry with Eastern time
+            eastern = pytz.timezone("US/Eastern")
+            now = datetime.now(eastern)
             new_game = {
                 "datetime": now.strftime("%Y-%m-%d %H:%M:%S"),
                 "shayne_character": game_data["shayneCharacter"],
