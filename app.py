@@ -458,7 +458,10 @@ def home():
         "Town & City",  # Uses ampersand
         "Kalos Pokemon League",  # No accent marks in game
         "Yoshi's Story",
+        "Hollow Bastion",
         "Northern Cave",  # Sephiroth's stage
+        "Yoshi's Island",
+        "Lylat Cruise",
     ]
 
     # Combine rankings with remaining stages
