@@ -15,12 +15,14 @@ function LoggingHome() {
   };
 
   return (
-    <div className="match-logger-pane" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', justifyContent: 'center', padding: '2rem' }}>
-      <div style={{ flex: 1, minWidth: 350, maxWidth: 600 }}>
+    <div className="match-logger-pane">
+      <div className="match-form-col">
         <MatchLogger onMatchLogged={handleMatchLogged} />
       </div>
-      <div style={{ flex: 1, minWidth: 350, maxWidth: 500, display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <div className="session-stats-col">
         <SessionStats ref={sessionStatsRef} />
+      </div>
+      <div className="recent-matches-col">
         <RecentMatches ref={recentMatchesRef} />
       </div>
     </div>
