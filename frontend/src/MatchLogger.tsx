@@ -101,6 +101,14 @@ export default function MatchLogger({ onMatchLogged }: { onMatchLogged?: () => v
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Make success message disappear after 2 seconds
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -207,7 +215,7 @@ export default function MatchLogger({ onMatchLogged }: { onMatchLogged?: () => v
             </div>
           </div>
           {error && <div className="error" style={{ marginTop: 16 }}>{error}</div>}
-          {success && <div className="success" style={{ marginTop: 16, color: 'var(--green)', fontWeight: 'bold' }}>{success}</div>}
+          {success && <div className="success" style={{ marginTop: 16 }}>{success}</div>}
           <button type="submit" className="submit-button" disabled={submitting}>
             {submitting ? 'Logging...' : 'Log Match'}
           </button>
