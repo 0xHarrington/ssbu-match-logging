@@ -5,10 +5,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': 'http://localhost:5000',
-      '/log_game': 'http://localhost:5000',
-      '/add_game': 'http://localhost:5000',
-      '/matchup_stats': 'http://localhost:5000',
+      '/api': 'http://127.0.0.1:5000',
+      '/log_game': 'http://127.0.0.1:5000',
+      '/add_game': 'http://127.0.0.1:5000',
+      '/matchup_stats': 'http://127.0.0.1:5000',
     }
   }
 })
