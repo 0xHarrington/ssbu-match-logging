@@ -968,13 +968,16 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
 }
 
 .grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
   gap: 1.5rem;
+}
+.grid > * {
+  flex: 1 1 0;
+  min-width: 0;
 }
 @media (max-width: 900px) {
   .grid {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     gap: 1rem;
   }
 }
