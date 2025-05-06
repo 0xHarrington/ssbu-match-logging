@@ -640,5 +640,10 @@ def session_stats():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+@app.route("/api/log_game", methods=["POST"])
+def api_log_game():
+    return log_game()
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0")
