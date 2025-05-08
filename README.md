@@ -1,6 +1,6 @@
 # Smash Bros Match Logger
 
-A minimalist full-stack web application for tracking Super Smash Bros matches between two players. Built with Flask and vanilla JavaScript, using a simple CSV-based storage system.
+A minimalist full-stack web application for tracking Super Smash Bros matches between two players. Built with Flask backend and React frontend, using a simple CSV-based storage system.
 
 ## Features
 
@@ -19,42 +19,54 @@ git clone https://github.com/yourusername/smash-match-logger.git
 cd smash-match-logger
 ```
 
-2. Create and activate a virtual environment:
-
-On Windows:
+2. Set up the backend:
 
 ```bash
-python -m venv venv
-venv\Scripts\activate
-```
+# Create and activate virtual environment
+python3 -m venv backend/venv
+source backend/venv/bin/activate
 
-On macOS/Linux:
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-3. Install dependencies:
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-If you're setting up the project for the first time, create `requirements.txt`:
+3. Set up the frontend:
 
 ```bash
-pip install flask
-pip freeze > requirements.txt
+cd frontend
+
+# Install Node.js dependencies
+npm install
 ```
 
 4. Run the application:
 
+The easiest way to run both the frontend and backend is to use the provided script:
+
 ```bash
-python app.py
+./dev.sh
 ```
 
-5. Open your browser and navigate to `http://localhost:5000`
+This will start:
+
+- Backend server on http://127.0.0.1:5000
+- Frontend development server on http://localhost:5173
+
+Alternatively, you can run them separately:
+
+Backend:
+
+```bash
+source backend/venv/bin/activate
+python3 app.py
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm run dev
+```
 
 ## Data Format
 
@@ -68,9 +80,9 @@ The application stores match data in `game_results.csv` with the following colum
 
 ## Development Notes
 
-- The virtual environment (`venv`) is included in `.gitignore`
-- Always activate the virtual environment before running or developing the application
-- After installing new packages, update `requirements.txt`:
+- The virtual environment (`backend/venv`) is included in `.gitignore`
+- Always activate the virtual environment before running or developing the backend
+- After installing new Python packages, update `requirements.txt`:
 
 ```bash
 pip freeze > requirements.txt
