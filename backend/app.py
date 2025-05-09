@@ -1,5 +1,5 @@
 # app.py
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
 from datetime import datetime, timezone
 import pandas as pd
 import os
@@ -428,39 +428,6 @@ class GameDataManager:
 data_manager = GameDataManager("game_results.csv")
 
 
-@app.route("/")
-def home():
-    """Render the main page."""
-    # Get characters sorted by usage
-    characters = data_manager.get_characters()
-
-    # Get stage rankings
-    stage_rankings = data_manager.get_stage_rankings()
-
-    # Tournament legal stages
-    competitive_stages = [
-        "Battlefield",
-        "Small Battlefield",
-        "Final Destination",
-        "Pokemon Stadium 2",  # No accent marks in game
-        "Smashville",
-        "Town & City",  # Uses ampersand
-        "Kalos Pokemon League",  # No accent marks in game
-        "Yoshi's Story",
-        "Hollow Bastion",
-        "Northern Cave",  # Sephiroth's stage
-        "Yoshi's Island",
-        "Lylat Cruise",
-    ]
-
-    # Combine rankings with remaining stages
-    stages = stage_rankings + [
-        stage for stage in competitive_stages if stage not in stage_rankings
-    ]
-
-    return render_template("index.html", characters=characters, stages=stages)
-
-
 @app.route("/log_game", methods=["POST"])
 def log_game():
     """Handle game logging POST requests."""
@@ -494,12 +461,6 @@ def log_game():
     except Exception as e:
         logger.error(f"Error in log_game endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/stats")
-def stats_page():
-    """Render the statistics page."""
-    return render_template("stats.html")
 
 
 @app.route("/api/stats", methods=["GET"])
