@@ -1,4 +1,5 @@
-import { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useUser } from './App';
 
 interface Game {
   datetime: string;
@@ -12,19 +13,18 @@ export interface RecentMatchesRef {
   refresh: () => void;
 }
 
-const RecentMatches = forwardRef<RecentMatchesRef>((props, ref) => {
-  const [matches, setMatches] = useState<Game[]>([]);
+export default function RecentMatches({ ref }: { ref: React.RefObject<RecentMatchesRef> }) {
+  const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useUser();
 
-  const fetchMatches = async () => {
-    setLoading(true);
-    setError(null);
+  const fetchGames = async () => {
     try {
       const res = await fetch('/api/recent_games');
       const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Failed to load recent matches');
-      setMatches(data.games);
+      if (!data.success) throw new Error(data.message || 'Failed to fetch recent games');
+      setGames(data.games);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -32,52 +32,44 @@ const RecentMatches = forwardRef<RecentMatchesRef>((props, ref) => {
     }
   };
 
-  useImperativeHandle(ref, () => ({
-    refresh: fetchMatches,
+  useEffect(() => {
+    fetchGames();
+  }, []);
+
+  React.useImperativeHandle(ref, () => ({
+    refresh: fetchGames
   }));
 
-  useEffect(() => {
-    fetchMatches();
-  }, []);
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
     <div className="recent-matches">
       <h2>Recent Matches</h2>
-      <div className="matches-list" id="recentMatches">
-        {loading && <div>Loading...</div>}
-        {error && <div className="error">{error}</div>}
-        {!loading && !error && matches.length === 0 && <div>No recent matches.</div>}
-        {!loading && !error && matches.map((game, idx) => {
-          // Format date as in vanilla app
-          const date = new Date(game.datetime);
-          const options: Intl.DateTimeFormatOptions = {
-            year: 'numeric',
-            month: 'numeric',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: 'numeric',
-            hour12: true
-          };
-          const formattedDate = date.toLocaleString('en-US', options);
-          return (
-            <div className="match-item" key={idx}>
-              <div className="match-info">
-                <div className="match-characters">
-                  {game.shayne_character} vs {game.matt_character}
-                </div>
-                <div className="match-details">
-                  {formattedDate} • {game.stage}
-                </div>
+      <div className="matches-list">
+        {games.map((game, index) => (
+          <div key={index} className="match-item">
+            <div className="match-header">
+              <span className="match-date">{new Date(game.datetime).toLocaleString()}</span>
+              <span className="match-winner">{game.winner} won</span>
+            </div>
+            <div className="match-details">
+              <div className="player">
+                <span className="player-name">{user?.username}</span>
+                <span className="character">{game.character}</span>
               </div>
-              <div className={`match-winner ${game.winner.toLowerCase()}`}>
-                {game.winner} wins
+              <div className="player">
+                <span className="player-name">Matt</span>
+                <span className="character">{game.opponent_character}</span>
+              </div>
+              <div className="match-info">
+                <span className="stage">{game.stage}</span>
+                <span className="stocks">{game.stocks_remaining} stocks</span>
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );
-});
-
-export default RecentMatches; 
+} 

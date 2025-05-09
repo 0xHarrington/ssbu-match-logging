@@ -1,4 +1,5 @@
-import { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useUser } from './App';
 
 interface CharacterUsage {
   [character: string]: number;
@@ -22,10 +23,11 @@ export interface SessionStatsRef {
   refresh: () => void;
 }
 
-const SessionStats = forwardRef<SessionStatsRef>((props, ref) => {
+export default function SessionStats({ ref }: { ref: React.RefObject<SessionStatsRef> }) {
   const [stats, setStats] = useState<SessionStatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useUser();
 
   const fetchStats = async () => {
     setLoading(true);
@@ -33,7 +35,7 @@ const SessionStats = forwardRef<SessionStatsRef>((props, ref) => {
     try {
       const res = await fetch('/api/session_stats');
       const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Failed to load session stats');
+      if (!data.success) throw new Error(data.message || 'Failed to fetch session stats');
       setStats(data);
     } catch (err: any) {
       setError(err.message);
@@ -42,77 +44,73 @@ const SessionStats = forwardRef<SessionStatsRef>((props, ref) => {
     }
   };
 
-  useImperativeHandle(ref, () => ({
-    refresh: fetchStats,
-  }));
-
   useEffect(() => {
     fetchStats();
   }, []);
 
+  React.useImperativeHandle(ref, () => ({
+    refresh: fetchStats
+  }));
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (!stats) return <div>No stats available</div>;
+
   return (
     <div className="session-stats">
-      <h2>Today's Session Stats</h2>
-      {loading && <div>Loading...</div>}
-      {error && <div className="error">{error}</div>}
-      {!loading && !error && stats && (
-        <>
-          <div className="game-stats-grid">
-            <div className="stat-card">
-              <div className="stat-value" id="totalGames">{stats.total_games}</div>
-              <div className="stat-label">Total Games</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value shayne" id="shayneWins">{stats.shayne_wins}</div>
-              <div className="stat-label">Shayne Wins</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value matt" id="mattWins">{stats.matt_wins}</div>
-              <div className="stat-label">Matt Wins</div>
-            </div>
-          </div>
-          <div className="character-stats-grid">
-            <h3>Character Usage</h3>
-            <div className="character-grid">
-              <div className="character-stat-card">
-                <h4>Shayne's Characters</h4>
-                <div className="character-stat-list" id="shayneCharacters">
-                  {Object.entries(stats.shayne_characters).sort(([,a],[,b])=>b-a).map(([char, count]) => (
-                    <div className="character-stat-item" key={char}>
-                      <span className="character-stat-name">{char}</span>
-                      <span className="character-stat-value shayne">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="character-stat-card">
-                <h4>Matt's Characters</h4>
-                <div className="character-stat-list" id="mattCharacters">
-                  {Object.entries(stats.matt_characters).sort(([,a],[,b])=>b-a).map(([char, count]) => (
-                    <div className="character-stat-item" key={char}>
-                      <span className="character-stat-name">{char}</span>
-                      <span className="character-stat-value matt">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="stage-stats">
-            <h3>Stage Usage</h3>
-            <div className="stage-stats-grid" id="stageStats">
-              {stats.stage_stats.map(stat => (
-                <div className="stage-stat-card" key={stat.stage}>
-                  <div className="stage-stat-name">{stat.stage}</div>
-                  <div className="stage-stat-value">{stat.count}</div>
-                </div>
+      <h2>Session Stats</h2>
+      <div className="stats-grid">
+        <div className="stat-item">
+          <h3>Total Games</h3>
+          <p>{stats.total_games}</p>
+        </div>
+        <div className="stat-item">
+          <h3>{user?.username} Wins</h3>
+          <p>{stats.shayne_wins}</p>
+        </div>
+        <div className="stat-item">
+          <h3>Matt Wins</h3>
+          <p>{stats.matt_wins}</p>
+        </div>
+      </div>
+      <div className="character-stats">
+        <h3>Character Usage</h3>
+        <div className="character-grid">
+          <div className="character-section">
+            <h4>{user?.username}</h4>
+            <ul>
+              {Object.entries(stats.shayne_characters).map(([char, count]) => (
+                <li key={char}>
+                  <span className="character-name">{char}</span>
+                  <span className="character-count">{count}</span>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
-        </>
-      )}
+          <div className="character-section">
+            <h4>Matt</h4>
+            <ul>
+              {Object.entries(stats.matt_characters).map(([char, count]) => (
+                <li key={char}>
+                  <span className="character-name">{char}</span>
+                  <span className="character-count">{count}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div className="stage-stats">
+        <h3>Stage Usage</h3>
+        <ul>
+          {stats.stage_stats.map((stage: any) => (
+            <li key={stage.stage}>
+              <span className="stage-name">{stage.stage}</span>
+              <span className="stage-count">{stage.count}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
-});
-
-export default SessionStats; 
+} 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useUser } from './App';
 
 // Hardcoded character and stage lists (can be fetched from backend later)
 const characters = [
@@ -92,6 +93,7 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
 }
 
 export default function MatchLogger({ onMatchLogged }: { onMatchLogged?: () => void }) {
+  const { user } = useUser();
   const [shayneCharacter, setShayneCharacter] = useState('');
   const [mattCharacter, setMattCharacter] = useState('');
   const [stage, setStage] = useState('');
@@ -159,7 +161,7 @@ export default function MatchLogger({ onMatchLogged }: { onMatchLogged?: () => v
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="player-section">
-              <h3>Shayne</h3>
+              <h3>{user?.username}</h3>
               <CharacterSearch label="Character" value={shayneCharacter} setValue={setShayneCharacter} localStorageKey="shayneCharacter" />
             </div>
             <div className="player-section">
@@ -188,8 +190,8 @@ export default function MatchLogger({ onMatchLogged }: { onMatchLogged?: () => v
               <label>Winner</label>
               <div className="radio-group">
                 <div className="radio-button">
-                  <input type="radio" id="winner-shayne" name="winner" value="Shayne" checked={winner === 'Shayne'} onChange={() => setWinner('Shayne')} required />
-                  <label htmlFor="winner-shayne" className="shayne">Shayne</label>
+                  <input type="radio" id="winner-shayne" name="winner" value={user?.username} checked={winner === user?.username} onChange={() => setWinner(user?.username || '')} required />
+                  <label htmlFor="winner-shayne" className="shayne">{user?.username}</label>
                 </div>
                 <div className="radio-button">
                   <input type="radio" id="winner-matt" name="winner" value="Matt" checked={winner === 'Matt'} onChange={() => setWinner('Matt')} required />
@@ -199,25 +201,20 @@ export default function MatchLogger({ onMatchLogged }: { onMatchLogged?: () => v
             </div>
             <div className="stocks-input">
               <label>Stocks Remaining</label>
-              <div className="stocks-buttons">
-                {[1, 2, 3].map(n => (
-                  <button
-                    type="button"
-                    key={n}
-                    className={`stocks-button${stocks === String(n) ? ' selected' : ''}`}
-                    onClick={() => setStocks(String(n))}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <input type="hidden" name="stocks" value={stocks} />
+              <input
+                type="number"
+                min="1"
+                max="3"
+                value={stocks}
+                onChange={e => setStocks(e.target.value)}
+                required
+              />
             </div>
           </div>
-          {error && <div className="error" style={{ marginTop: 16 }}>{error}</div>}
-          {success && <div className="success" style={{ marginTop: 16 }}>{success}</div>}
-          <button type="submit" className="submit-button" disabled={submitting}>
-            {submitting ? 'Logging...' : 'Log Match'}
+          {error && <div className="error-message">{error}</div>}
+          {success && <div className="success-message">{success}</div>}
+          <button type="submit" disabled={submitting}>
+            {submitting ? "Logging..." : "Log Match"}
           </button>
         </form>
       </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Plot from 'react-plotly.js';
+import { useUser } from './App';
 
 interface MonthlyActivityItem {
   month: string;
@@ -47,6 +48,7 @@ const StatsPage: React.FC = () => {
   const [charWinRates, setCharWinRates] = useState<CharacterWinRatesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useUser();
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -141,7 +143,7 @@ const StatsPage: React.FC = () => {
             <div className="stat-value" id="totalGames">{stats.total_games}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Shayne Wins</div>
+            <div className="stat-label">{user?.username} Wins</div>
             <div className="stat-value shayne" id="shayneWins">{stats.shayne_wins}</div>
             <div className="stat-label shayne" id="shayneWinRate">{stats.shayne_win_rate}% Win Rate</div>
           </div>
