@@ -91,7 +91,96 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
   );
 }
 
-export default function MatchLogger({ onMatchLogged }: { onMatchLogged?: () => void }) {
+interface MatchupStats {
+  total_games: number;
+  shayne_wins: number;
+  matt_wins: number;
+  recent_games: Array<{
+    datetime: string;
+    winner: string;
+    stocks_remaining: number;
+  }>;
+}
+
+function MatchupStatsDisplay({ shayneCharacter, mattCharacter }: { 
+  shayneCharacter: string; 
+  mattCharacter: string; 
+}) {
+  const [stats, setStats] = useState<MatchupStats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchMatchupStats() {
+      if (!shayneCharacter || !mattCharacter) return;
+      
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/matchup_stats?shayne_character=${encodeURIComponent(shayneCharacter)}&matt_character=${encodeURIComponent(mattCharacter)}`);
+        const data = await res.json();
+        setStats(data);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchMatchupStats();
+  }, [shayneCharacter, mattCharacter]);
+
+  if (!shayneCharacter || !mattCharacter) return null;
+  if (loading) return <div>Loading matchup stats...</div>;
+  if (error) return <div className="error">{error}</div>;
+  if (!stats) return null;
+
+  const shayneWinRate = stats.total_games > 0 
+    ? Math.round((stats.shayne_wins / stats.total_games) * 100) 
+    : 0;
+  const mattWinRate = stats.total_games > 0 
+    ? Math.round((stats.matt_wins / stats.total_games) * 100) 
+    : 0;
+
+  return (
+    <div className="matchup-stats">
+      <h3>Lifetime Matchup Stats</h3>
+      <div className="matchup-stats-grid">
+        <div className="matchup-player-stats shayne">
+          <div className="stat-value shayne">{stats.shayne_wins}</div>
+          <div className="stat-label">Shayne's Wins ({shayneWinRate}%)</div>
+          <div className="win-rate-bar">
+            <div 
+              className="win-rate-fill shayne" 
+              style={{ width: `${shayneWinRate}%` }}
+            />
+          </div>
+        </div>
+        <div className="matchup-player-stats matt">
+          <div className="stat-value matt">{stats.matt_wins}</div>
+          <div className="stat-label">Matt's Wins ({mattWinRate}%)</div>
+          <div className="win-rate-bar">
+            <div 
+              className="win-rate-fill matt" 
+              style={{ width: `${mattWinRate}%` }}
+            />
+          </div>
+        </div>
+      </div>
+      <div className="matchup-total-games">
+        <div className="stat-label">Total Games Played</div>
+        <div className="stat-value">{stats.total_games}</div>
+      </div>
+    </div>
+  );
+}
+
+export interface MatchLoggerProps {
+  onMatchLogged?: () => void;
+  onCharacterSelect?: (shayneChar: string, mattChar: string) => void;
+}
+
+export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchLoggerProps) {
   const [shayneCharacter, setShayneCharacter] = useState('');
   const [mattCharacter, setMattCharacter] = useState('');
   const [stage, setStage] = useState('');
@@ -108,6 +197,13 @@ export default function MatchLogger({ onMatchLogged }: { onMatchLogged?: () => v
       return () => clearTimeout(timer);
     }
   }, [success]);
+
+  // Add effect to notify parent of character selections
+  useEffect(() => {
+    if (onCharacterSelect) {
+      onCharacterSelect(shayneCharacter, mattCharacter);
+    }
+  }, [shayneCharacter, mattCharacter, onCharacterSelect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,6 +248,15 @@ export default function MatchLogger({ onMatchLogged }: { onMatchLogged?: () => v
     }
   };
 
+  // Modify character setters to notify parent
+  const handleShayneCharacterChange = (char: string) => {
+    setShayneCharacter(char);
+  };
+
+  const handleMattCharacterChange = (char: string) => {
+    setMattCharacter(char);
+  };
+
   return (
     <div className="match-logger">
       <div className="match-form">
@@ -160,13 +265,24 @@ export default function MatchLogger({ onMatchLogged }: { onMatchLogged?: () => v
           <div className="form-grid">
             <div className="player-section">
               <h3>Shayne</h3>
-              <CharacterSearch label="Character" value={shayneCharacter} setValue={setShayneCharacter} localStorageKey="shayneCharacter" />
+              <CharacterSearch 
+                label="Character" 
+                value={shayneCharacter} 
+                setValue={handleShayneCharacterChange} 
+                localStorageKey="shayneCharacter" 
+              />
             </div>
             <div className="player-section">
               <h3>Matt</h3>
-              <CharacterSearch label="Character" value={mattCharacter} setValue={setMattCharacter} localStorageKey="mattCharacter" />
+              <CharacterSearch 
+                label="Character" 
+                value={mattCharacter} 
+                setValue={handleMattCharacterChange} 
+                localStorageKey="mattCharacter" 
+              />
             </div>
           </div>
+          
           <div className="stage-select">
             <label>Stage</label>
             <div className="stage-buttons">
