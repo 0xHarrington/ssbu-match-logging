@@ -6,6 +6,7 @@ interface Game {
   matt_character: string;
   winner: string;
   stage: string;
+  stocks_remaining: number;
 }
 
 export interface RecentMatchesRef {
@@ -69,8 +70,11 @@ const RecentMatches = forwardRef<RecentMatchesRef>((props, ref) => {
                   {formattedDate} • {game.stage}
                 </div>
               </div>
-              <div className={`match-winner ${game.winner.toLowerCase()}`}>
-                {game.winner} wins
+              <div className={`match-winner ${game.winner.toLowerCase()}`} style={{
+                background: `linear-gradient(to right, ${game.winner === 'Shayne' ? 'rgba(214, 93, 14, 0.2)' : 'rgba(152, 151, 26, 0.2)'} ${(game.stocks_remaining / 3) * 100}%, transparent ${(game.stocks_remaining / 3) * 100}%)`
+              }}>
+                <div className="winner-text">{game.winner} wins</div>
+                <div className="stocks-remaining">{game.stocks_remaining} stocks</div>
               </div>
             </div>
           );
