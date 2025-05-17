@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import MatchLogger from './MatchLogger';
 import RecentMatches, { type RecentMatchesRef } from './RecentMatches';
@@ -8,6 +8,10 @@ import StatsPage from './StatsPage';
 function LoggingHome() {
   const recentMatchesRef = useRef<RecentMatchesRef>(null);
   const sessionStatsRef = useRef<SessionStatsRef>(null);
+  const [selectedCharacters, setSelectedCharacters] = useState<{
+    shayneCharacter: string;
+    mattCharacter: string;
+  }>({ shayneCharacter: '', mattCharacter: '' });
 
   // Callback to refresh both session stats and recent matches after a match is logged
   const handleMatchLogged = () => {
@@ -15,13 +19,28 @@ function LoggingHome() {
     sessionStatsRef.current?.refresh();
   };
 
+  // Handle character selection changes
+  const handleCharacterSelect = (shayneChar: string, mattChar: string) => {
+    setSelectedCharacters({
+      shayneCharacter: shayneChar,
+      mattCharacter: mattChar
+    });
+  };
+
   return (
     <div className="match-logger-pane">
       <div className="match-form-col">
-        <MatchLogger onMatchLogged={handleMatchLogged} />
+        <MatchLogger 
+          onMatchLogged={handleMatchLogged}
+          onCharacterSelect={handleCharacterSelect}
+        />
       </div>
       <div className="session-stats-col">
-        <SessionStats ref={sessionStatsRef} />
+        <SessionStats 
+          ref={sessionStatsRef}
+          shayneCharacter={selectedCharacters.shayneCharacter}
+          mattCharacter={selectedCharacters.mattCharacter}
+        />
       </div>
       <div className="recent-matches-col">
         <RecentMatches ref={recentMatchesRef} />
