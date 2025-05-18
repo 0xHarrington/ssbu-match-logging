@@ -557,15 +557,19 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
 
 .stage-button {
   width: 100%;
-  padding: 0.75rem;
+  min-height: 100px;
+  padding: 1rem;
   background-color: var(--bg1);
   border: 1px solid var(--bg-light);
   border-radius: var(--card-radius);
   color: var(--fg);
   cursor: pointer;
   transition: all var(--transition-speed);
-  font-size: 0.9rem;
+  font-size: 1rem;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .stage-button:hover {
@@ -750,11 +754,9 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
     padding: 1rem;
   }
   
-  .stage-button,
-  .stocks-button,
-  .radio-button label {
-    padding: 0.6rem;
-    font-size: 0.85rem;
+  .stage-button {
+    height: 48px;
+    font-size: 0.9rem;
   }
 }
 
