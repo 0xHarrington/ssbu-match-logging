@@ -15,7 +15,7 @@ const characters = [
 
 const stages = [
   "Battlefield", "Small Battlefield", "Final Destination", "Pokemon Stadium 2", "Smashville", "Town & City",
-  "Kalos Pokemon League", "Yoshi's Story", "Hollow Bastion", "Northern Cave", "Yoshi's Island", "Lylat Cruise"
+  "Kalos Pokemon League", "Yoshi's Story", "Hollow Bastion"
 ];
 
 function CharacterSearch({ label, value, setValue, localStorageKey }: {
