@@ -378,23 +378,19 @@ h3 {
   text-overflow: ellipsis;
 }
 .match-details {
-  color: var(--gray);
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  background-color: var(--bg2);
+  border-radius: var(--card-radius);
+  padding: 1.5rem;
+  border: 1px solid var(--bg-light);
+  transition: all var(--transition-speed);
+  margin-bottom: 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
 }
-.match-details::before {
-  content: '';
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  min-width: 6px;
-  background-color: var(--gray);
-  border-radius: 50%;
+.match-details:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
 }
 .match-winner {
   background-color: var(--bg1);
@@ -643,21 +639,9 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
   border-color: var(--blue);
 }
 
-.match-details {
-  background-color: var(--bg2);
-  border-radius: var(--card-radius);
-  padding: 1.5rem;
-  border: 1px solid var(--bg-light);
-  transition: all var(--transition-speed);
-}
-
-.match-details:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
-}
-
-.winner-select {
-  margin-bottom: 1.5rem;
+.winner-select,
+.stocks-input {
+  width: 100%;
 }
 
 .winner-select label,
@@ -672,8 +656,10 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
 }
 
 .radio-group {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 1rem;
+  width: 100%;
 }
 
 .radio-button {
@@ -695,6 +681,11 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
   cursor: pointer;
   font-weight: 500;
   font-size: 0.9rem;
+  height: 100%;
+  min-height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .radio-button label:hover {
@@ -716,12 +707,13 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
 }
 
 .stocks-buttons {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem;
+  width: 100%;
 }
 
 .stocks-button {
-  flex: 1;
   padding: 0.75rem;
   background-color: var(--bg1);
   border: 1px solid var(--bg-light);
@@ -729,7 +721,12 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
   color: var(--fg);
   cursor: pointer;
   transition: all var(--transition-speed);
-  font-size: 0.9rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .stocks-button:hover {
@@ -1541,4 +1538,32 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
 
 .character-option:hover {
   background-color: var(--bg2);
+}
+
+/* Match item details (in recent matches) */
+.match-info .match-details {
+  color: var(--gray);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  transform: none;
+}
+
+.match-info .match-details::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  min-width: 6px;
+  background-color: var(--gray);
+  border-radius: 50%;
 }

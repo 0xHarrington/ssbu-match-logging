@@ -223,9 +223,10 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchL
             </div>
           </div>
           <input type="hidden" name="stage" value={stage} />
-          <div className="match-details">
-            <div className="winner-select">
-              <label>Winner</label>
+          
+          <div className="form-grid">
+            <div className="player-section">
+              <h3>Winner</h3>
               <div className="radio-group">
                 <div className="radio-button">
                   <input type="radio" id="winner-shayne" name="winner" value="Shayne" checked={winner === 'Shayne'} onChange={() => setWinner('Shayne')} required />
@@ -237,8 +238,8 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchL
                 </div>
               </div>
             </div>
-            <div className="stocks-input">
-              <label>Stocks Remaining</label>
+            <div className="player-section">
+              <h3>Stocks Remaining</h3>
               <div className="stocks-buttons">
                 {[1, 2, 3].map(n => (
                   <button
@@ -251,9 +252,9 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchL
                   </button>
                 ))}
               </div>
-              <input type="hidden" name="stocks" value={stocks} />
             </div>
           </div>
+
           {error && <div className="error" style={{ marginTop: 16 }}>{error}</div>}
           {success && <div className="success" style={{ marginTop: 16 }}>{success}</div>}
           <button type="submit" className="submit-button" disabled={submitting}>
