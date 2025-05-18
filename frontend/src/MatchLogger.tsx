@@ -24,16 +24,20 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
   setValue: (v: string) => void;
   localStorageKey: string;
 }) {
-  const [search, setSearch] = useState(value || '');
+  const [search, setSearch] = useState(value);
   const [active, setActive] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const initialLoadDone = useRef(false);
 
   useEffect(() => {
-    // Load saved character from localStorage
-    const saved = localStorage.getItem(localStorageKey);
-    if (saved) {
-      setSearch(saved);
-      setValue(saved);
+    // Only load from localStorage on initial mount
+    if (!initialLoadDone.current) {
+      const saved = localStorage.getItem(localStorageKey);
+      if (saved) {
+        setSearch(saved);
+        setValue(saved);
+      }
+      initialLoadDone.current = true;
     }
   }, [localStorageKey, setValue]);
 
@@ -43,15 +47,18 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
         setActive(false);
       }
     }
-    if (active) {
-      document.addEventListener('mousedown', handleClick);
-    } else {
-      document.removeEventListener('mousedown', handleClick);
-    }
+    document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [active]);
+  }, []);
 
-  const filtered = characters.filter(char => char.toLowerCase().includes(search.toLowerCase()));
+  // Update search when value changes externally
+  useEffect(() => {
+    setSearch(value);
+  }, [value]);
+
+  const filtered = characters.filter(char => 
+    char.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="character-select">
@@ -62,30 +69,31 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
           className="search-input"
           placeholder="Search character..."
           value={search}
-          onFocus={() => setActive(true)}
           onChange={e => {
             setSearch(e.target.value);
-            setValue(e.target.value);
+            setActive(true);
           }}
+          onFocus={() => setActive(true)}
           autoComplete="off"
         />
-        <div className={`character-list${active ? ' active' : ''}`}
-          style={{ display: active ? 'block' : 'none' }}>
-          {filtered.map(char => (
-            <div
-              key={char}
-              className="character-option"
-              onClick={() => {
-                setSearch(char);
-                setValue(char);
-                localStorage.setItem(localStorageKey, char);
-                setActive(false);
-              }}
-            >
-              {char}
-            </div>
-          ))}
-        </div>
+        {active && (
+          <div className="character-list">
+            {filtered.map(char => (
+              <div
+                key={char}
+                className="character-option"
+                onClick={() => {
+                  setSearch(char);
+                  setValue(char);
+                  localStorage.setItem(localStorageKey, char);
+                  setActive(false);
+                }}
+              >
+                {char}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
