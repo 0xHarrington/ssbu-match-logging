@@ -130,18 +130,33 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
           )}
 
           {/* Today's Stats */}
-          <div className="game-stats-grid">
-            <div className="stat-card">
-              <div className="stat-value" id="totalGames">{stats.total_games}</div>
-              <div className="stat-label">Today's Games</div>
+          <div className="matchup-stats">
+            <h3>Today's Session</h3>
+            <div className="matchup-stats-grid">
+              <div className="matchup-player-stats shayne">
+                <div className="stat-value shayne">{stats.shayne_wins}</div>
+                <div className="stat-label">Shayne's Wins</div>
+                <div className="win-rate-bar">
+                  <div 
+                    className="win-rate-fill shayne" 
+                    style={{ width: `${stats.total_games > 0 ? (stats.shayne_wins / stats.total_games) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+              <div className="matchup-player-stats matt">
+                <div className="stat-value matt">{stats.matt_wins}</div>
+                <div className="stat-label">Matt's Wins</div>
+                <div className="win-rate-bar">
+                  <div 
+                    className="win-rate-fill matt" 
+                    style={{ width: `${stats.total_games > 0 ? (stats.matt_wins / stats.total_games) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="stat-card">
-              <div className="stat-value shayne" id="shayneWins">{stats.shayne_wins}</div>
-              <div className="stat-label">Shayne's Wins Today</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value matt" id="mattWins">{stats.matt_wins}</div>
-              <div className="stat-label">Matt's Wins Today</div>
+            <div className="matchup-total-games">
+              <div className="stat-label">Games Played Today</div>
+              <div className="stat-value">{stats.total_games}</div>
             </div>
           </div>
 
