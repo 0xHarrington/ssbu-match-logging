@@ -1,109 +1,100 @@
-# Smash Bros Match Logger
+# SSBU Match Logger
 
-A minimalist full-stack web application for tracking Super Smash Bros matches between two players. Built with Flask backend and React frontend, using a simple CSV-based storage system.
+A web application for logging and tracking Super Smash Bros Ultimate matches.
 
-## Features
+## Prerequisites
 
-- Quick character selection via dropdowns for both players
-- Single-click winner selection
-- Optional tracking of remaining stocks for the winner
-- Local CSV storage with timestamped entries
-- Clean, dark-mode interface inspired by the Gruvbox color scheme
+Before running the application, ensure you have:
 
-## Setup
+1. **Node.js and npm** installed
+2. **Python 3.8+** installed
+3. **PostgreSQL** installed and running
+4. **pgAdmin 4** installed and configured
 
-1. Clone the repository:
-
-```bash
-git clone https://github.com/yourusername/smash-match-logger.git
-cd smash-match-logger
-```
-
-2. Set up the backend:
+## Quick Start
 
 ```bash
-# Create and activate virtual environment
-python3 -m venv backend/venv
-source backend/venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
+./run.sh
 ```
 
-3. Set up the frontend:
+The script will guide you through the setup process on first run.
 
-```bash
-cd frontend
+## Manual Database Setup in pgAdmin 4
 
-# Install Node.js dependencies
-npm install
-```
+### 1. Open pgAdmin 4
 
-4. Run the application:
+- On first run, you'll be prompted to set a master password
+- This password is used to access pgAdmin, not your database
 
-The easiest way to run both the frontend and backend is to use the provided script:
+### 2. Create Server Connection
 
-```bash
-./dev.sh
-```
+If this is your first time using pgAdmin, you'll need to create a server connection:
 
-This will start:
+a. Right-click 'Servers' in the left sidebar
+b. Select 'Register' → 'Server...'
+c. In the 'General' tab:
 
-- Backend server on http://127.0.0.1:5000
-- Frontend development server on http://localhost:5173
+- Name: Local PostgreSQL
+  d. In the 'Connection' tab:
+- Host: localhost
+- Port: 5432
+- Username: your_system_username
+- Password: your_postgres_password (if set)
 
-Alternatively, you can run them separately:
+### 3. Create the Database
 
-Backend:
+a. Expand 'Servers' → 'Local PostgreSQL'
+b. Right-click on 'Databases'
+c. Select 'Create' → 'Database...'
+d. Enter the following:
 
-```bash
-source backend/venv/bin/activate
-python3 app.py
-```
+- Database: ssbu_match_logging
+- Owner: your_system_username
+  e. Click 'Save'
 
-Frontend:
+### 4. Verify Database Creation
 
-```bash
-cd frontend
-npm run dev
-```
+- The new database should appear under 'Databases'
+- It should have default schemas and extensions
 
-## Data Format
+### 5. Important Notes
 
-The application stores match data in `game_results.csv` with the following columns:
+- If you get connection errors, ensure PostgreSQL is running
+- The database name MUST be 'ssbu_match_logging'
+- Your system username should have the necessary permissions
 
-- datetime: Timestamp of the match
-- shayne_character: Character selected by Shayne
-- matt_character: Character selected by Matt
-- winner: Who won the match
-- stocks_remaining: How many stocks the winner had left (optional)
+## Application Structure
 
-## Development Notes
+- `frontend/` - React frontend application
+- `backend/` - Flask backend API
+- `run.sh` - Setup and run script
 
-- The virtual environment (`backend/venv`) is included in `.gitignore`
-- Always activate the virtual environment before running or developing the backend
-- After installing new Python packages, update `requirements.txt`:
+## Development
 
-```bash
-pip freeze > requirements.txt
-```
+The application runs two servers:
 
-- To deactivate the virtual environment when you're done:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:5000
 
-```bash
-deactivate
-```
+## Troubleshooting
+
+### Database Connection Issues
+
+1. Ensure PostgreSQL is running
+2. Verify database name is exactly 'ssbu_match_logging'
+3. Check your user has the necessary permissions
+4. Verify connection details in backend/.env file
+
+### Server Issues
+
+1. Check both frontend and backend are running
+2. Look for error messages in the terminal
+3. Verify all dependencies are installed
 
 ## Contributing
 
-Feel free to open issues or submit pull requests. Some ideas for future improvements:
-
-- Match history visualization
-- Statistics dashboard
-- Character win rate tracking
-- Export functionality
-- Support for more than two players
-
-## License
-
-MIT License - feel free to use and modify as needed.
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
