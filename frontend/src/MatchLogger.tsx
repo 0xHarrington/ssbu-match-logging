@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from './context/AuthContext';
 
 // Hardcoded character and stage lists (can be fetched from backend later)
 const characters = [
@@ -101,14 +102,15 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
 
 export interface MatchLoggerProps {
   onMatchLogged?: () => void;
-  onCharacterSelect?: (shayneChar: string, mattChar: string) => void;
+  onCharacterSelect?: (player1Char: string, player2Char: string) => void;
 }
 
 export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchLoggerProps) {
-  const [shayneCharacter, setShayneCharacter] = useState('');
-  const [mattCharacter, setMattCharacter] = useState('');
+  const { user } = useAuth();
+  const [player1Character, setPlayer1Character] = useState('');
+  const [player2Character, setPlayer2Character] = useState('');
   const [stage, setStage] = useState('');
-  const [winner, setWinner] = useState('');
+  const [winner, setWinner] = useState<number | null>(null);
   const [stocks, setStocks] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,29 +127,30 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchL
   // Add effect to notify parent of character selections
   useEffect(() => {
     if (onCharacterSelect) {
-      onCharacterSelect(shayneCharacter, mattCharacter);
+      onCharacterSelect(player1Character, player2Character);
     }
-  }, [shayneCharacter, mattCharacter, onCharacterSelect]);
+  }, [player1Character, player2Character, onCharacterSelect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    if (!shayneCharacter) return setError("Please select Shayne's character");
-    if (!mattCharacter) return setError("Please select Matt's character");
+    if (!player1Character) return setError("Please select your character");
+    if (!player2Character) return setError("Please select opponent's character");
     if (!stage) return setError("Please select a stage");
-    if (!winner) return setError("Please select a winner");
+    if (winner === null) return setError("Please select a winner");
     if (!stocks) return setError("Please select stocks remaining");
     setSubmitting(true);
     try {
       const formData = {
-        shayneCharacter,
-        mattCharacter,
+        player1_character: player1Character,
+        player2_character: player2Character,
         stage: stage.trim(),
-        winner,
-        stocksRemaining: parseInt(stocks)
+        winner_id: winner,
+        stocks_remaining: parseInt(stocks),
+        player2_id: winner === user?.id ? user.id : (user?.id === 1 ? 2 : 1) // Temporary: assumes opponent is the other user
       };
-      const res = await fetch('/api/log_game', {
+      const res = await fetch('/api/matches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -158,10 +161,10 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchL
       } catch (jsonErr) {
         throw new Error('Server returned an invalid response.');
       }
-      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to log match');
+      if (!res.ok) throw new Error(data.error || 'Failed to log match');
       setSuccess('Match logged successfully!');
       setStage('');
-      setWinner('');
+      setWinner(null);
       setStocks('');
       // Don't clear character selections (per original logic)
       if (onMatchLogged) onMatchLogged();
@@ -172,14 +175,9 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchL
     }
   };
 
-  // Modify character setters to notify parent
-  const handleShayneCharacterChange = (char: string) => {
-    setShayneCharacter(char);
-  };
-
-  const handleMattCharacterChange = (char: string) => {
-    setMattCharacter(char);
-  };
+  if (!user) {
+    return <div>Please log in to log matches.</div>;
+  }
 
   return (
     <div className="match-logger">
@@ -188,76 +186,69 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchL
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="player-section">
-              <h3>Shayne</h3>
+              <h3>You ({user.display_name})</h3>
               <CharacterSearch 
                 label="Character" 
-                value={shayneCharacter} 
-                setValue={handleShayneCharacterChange} 
-                localStorageKey="shayneCharacter" 
+                value={player1Character} 
+                setValue={setPlayer1Character} 
+                localStorageKey="player1Character" 
               />
             </div>
             <div className="player-section">
-              <h3>Matt</h3>
+              <h3>Opponent</h3>
               <CharacterSearch 
                 label="Character" 
-                value={mattCharacter} 
-                setValue={handleMattCharacterChange} 
-                localStorageKey="mattCharacter" 
+                value={player2Character} 
+                setValue={setPlayer2Character} 
+                localStorageKey="player2Character" 
               />
-            </div>
-          </div>
-          
-          <div className="stage-select">
-            <label>Stage</label>
-            <div className="stage-buttons">
-              {stages.map(s => (
-                <button
-                  type="button"
-                  key={s}
-                  className={`stage-button${stage === s ? ' selected' : ''}`}
-                  onClick={() => setStage(s)}
-                >
-                  <span className="stage-name">{s}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <input type="hidden" name="stage" value={stage} />
-          
-          <div className="form-grid">
-            <div className="player-section">
-              <h3>Winner</h3>
-              <div className="radio-group">
-                <div className="radio-button">
-                  <input type="radio" id="winner-shayne" name="winner" value="Shayne" checked={winner === 'Shayne'} onChange={() => setWinner('Shayne')} required />
-                  <label htmlFor="winner-shayne" className="shayne">Shayne</label>
-                </div>
-                <div className="radio-button">
-                  <input type="radio" id="winner-matt" name="winner" value="Matt" checked={winner === 'Matt'} onChange={() => setWinner('Matt')} required />
-                  <label htmlFor="winner-matt" className="matt">Matt</label>
-                </div>
-              </div>
-            </div>
-            <div className="player-section">
-              <h3>Stocks Remaining</h3>
-              <div className="stocks-buttons">
-                {[1, 2, 3].map(n => (
-                  <button
-                    type="button"
-                    key={n}
-                    className={`stocks-button${stocks === String(n) ? ' selected' : ''}`}
-                    onClick={() => setStocks(String(n))}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
 
-          {error && <div className="error" style={{ marginTop: 16 }}>{error}</div>}
-          {success && <div className="success" style={{ marginTop: 16 }}>{success}</div>}
-          <button type="submit" className="submit-button" disabled={submitting}>
+          <div className="form-row">
+            <label>Stage</label>
+            <select value={stage} onChange={e => setStage(e.target.value)} required>
+              <option value="">Select stage...</option>
+              {stages.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-row">
+            <label>Winner</label>
+            <div className="winner-buttons">
+              <button
+                type="button"
+                className={winner === user.id ? 'selected' : ''}
+                onClick={() => setWinner(user.id)}
+              >
+                You
+              </button>
+              <button
+                type="button"
+                className={winner === (user.id === 1 ? 2 : 1) ? 'selected' : ''}
+                onClick={() => setWinner(user.id === 1 ? 2 : 1)}
+              >
+                Opponent
+              </button>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <label>Winner's Stocks Remaining</label>
+            <select value={stocks} onChange={e => setStocks(e.target.value)} required>
+              <option value="">Select stocks...</option>
+              {[1, 2, 3].map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+          {success && <div className="success-message">{success}</div>}
+
+          <button type="submit" disabled={submitting} className="submit-button">
             {submitting ? 'Logging...' : 'Log Match'}
           </button>
         </form>
