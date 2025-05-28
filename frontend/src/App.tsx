@@ -19,11 +19,16 @@ function LoggingHome() {
     sessionStatsRef.current?.refresh();
   };
 
-  // Handle character selection changes
+  // Handle character selection changes - only update if values actually changed
   const handleCharacterSelect = (shayneChar: string, mattChar: string) => {
-    setSelectedCharacters({
-      shayneCharacter: shayneChar,
-      mattCharacter: mattChar
+    setSelectedCharacters(prev => {
+      if (prev.shayneCharacter === shayneChar && prev.mattCharacter === mattChar) {
+        return prev;
+      }
+      return {
+        shayneCharacter: shayneChar,
+        mattCharacter: mattChar
+      };
     });
   };
 
@@ -33,6 +38,7 @@ function LoggingHome() {
         <MatchLogger 
           onMatchLogged={handleMatchLogged}
           onCharacterSelect={handleCharacterSelect}
+          selectedCharacters={selectedCharacters}
         />
       </div>
       <div className="session-stats-col">

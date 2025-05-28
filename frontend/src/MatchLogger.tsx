@@ -127,17 +127,33 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
 export interface MatchLoggerProps {
   onMatchLogged?: () => void;
   onCharacterSelect?: (shayneChar: string, mattChar: string) => void;
+  selectedCharacters?: {
+    shayneCharacter: string;
+    mattCharacter: string;
+  };
 }
 
-export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchLoggerProps) {
-  const [shayneCharacter, setShayneCharacter] = useState('');
-  const [mattCharacter, setMattCharacter] = useState('');
+export default function MatchLogger({ onMatchLogged, onCharacterSelect, selectedCharacters }: MatchLoggerProps) {
+  const [shayneCharacter, setShayneCharacter] = useState(selectedCharacters?.shayneCharacter || '');
+  const [mattCharacter, setMattCharacter] = useState(selectedCharacters?.mattCharacter || '');
   const [stage, setStage] = useState('');
   const [winner, setWinner] = useState('');
   const [stocks, setStocks] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Update local state when selectedCharacters prop changes
+  useEffect(() => {
+    if (selectedCharacters) {
+      if (selectedCharacters.shayneCharacter !== shayneCharacter) {
+        setShayneCharacter(selectedCharacters.shayneCharacter);
+      }
+      if (selectedCharacters.mattCharacter !== mattCharacter) {
+        setMattCharacter(selectedCharacters.mattCharacter);
+      }
+    }
+  }, [selectedCharacters]);
 
   // Make success message disappear after 2 seconds
   useEffect(() => {
@@ -147,12 +163,20 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchL
     }
   }, [success]);
 
-  // Add effect to notify parent of character selections
-  useEffect(() => {
-    if (onCharacterSelect) {
-      onCharacterSelect(shayneCharacter, mattCharacter);
+  // Notify parent of character selections, but only when they actually change
+  const handleShayneCharacterChange = (char: string) => {
+    setShayneCharacter(char);
+    if (onCharacterSelect && char !== shayneCharacter) {
+      onCharacterSelect(char, mattCharacter);
     }
-  }, [shayneCharacter, mattCharacter, onCharacterSelect]);
+  };
+
+  const handleMattCharacterChange = (char: string) => {
+    setMattCharacter(char);
+    if (onCharacterSelect && char !== mattCharacter) {
+      onCharacterSelect(shayneCharacter, char);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,15 +219,6 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchL
     } finally {
       setSubmitting(false);
     }
-  };
-
-  // Modify character setters to notify parent
-  const handleShayneCharacterChange = (char: string) => {
-    setShayneCharacter(char);
-  };
-
-  const handleMattCharacterChange = (char: string) => {
-    setMattCharacter(char);
   };
 
   return (
