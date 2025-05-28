@@ -606,5 +606,133 @@ def get_characters():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+@app.route("/api/users/<username>/stats")
+def get_user_stats(username):
+    # Read the CSV file
+    df = pd.read_csv("game_results.csv")
+    df["datetime"] = pd.to_datetime(df["datetime"])
+
+    # Calculate total games and wins for the user
+    total_games = len(df)
+    user_wins = len(df[df["winner"] == username])
+    overall_win_rate = (user_wins / total_games) * 100 if total_games > 0 else 0
+
+    # Calculate average stocks remaining when winning
+    avg_stocks = df[df["winner"] == username]["stocks_remaining"].mean()
+
+    # Calculate win streak
+    df = df.sort_values("datetime")
+    current_streak = 0
+    max_streak = 0
+    current_streak_type = None  # 'win' or 'loss'
+    max_streak_type = None
+
+    for winner in df["winner"]:
+        if winner == username:
+            if current_streak_type == "win" or current_streak_type is None:
+                current_streak += 1
+                current_streak_type = "win"
+            else:
+                current_streak = 1
+                current_streak_type = "win"
+        else:
+            if current_streak_type == "loss" or current_streak_type is None:
+                current_streak += 1
+                current_streak_type = "loss"
+            else:
+                current_streak = 1
+                current_streak_type = "loss"
+
+        if current_streak > max_streak:
+            max_streak = current_streak
+            max_streak_type = current_streak_type
+
+    # Calculate recent performance (last 20 games)
+    recent_games = df.tail(20)
+    recent_wins = len(recent_games[recent_games["winner"] == username])
+    recent_win_rate = (
+        (recent_wins / len(recent_games)) * 100 if len(recent_games) > 0 else 0
+    )
+
+    # Calculate character stats
+    user_char_col = f"{username.lower()}_character"
+    character_stats = []
+
+    if user_char_col in df.columns:
+        char_games = df.groupby(user_char_col).size()
+        char_wins = df[df["winner"] == username].groupby(user_char_col).size()
+
+        for char in char_games.index:
+            games = char_games[char]
+            wins = char_wins.get(char, 0)
+            win_rate = (wins / games) * 100 if games > 0 else 0
+
+            if games >= 10:  # Only include characters with 10+ games
+                character_stats.append(
+                    {"character": char, "winRate": win_rate, "totalGames": int(games)}
+                )
+
+        # Sort by number of games, then win rate
+        character_stats.sort(key=lambda x: (-x["totalGames"], -x["winRate"]))
+
+    # Calculate stage stats
+    stage_stats = []
+    stage_games = df[df["stage"] != "No Stage"].groupby("stage").size()
+    stage_wins = (
+        df[(df["winner"] == username) & (df["stage"] != "No Stage")]
+        .groupby("stage")
+        .size()
+    )
+
+    for stage in stage_games.index:
+        games = stage_games[stage]
+        wins = stage_wins.get(stage, 0)
+        win_rate = (wins / games) * 100 if games > 0 else 0
+
+        if games >= 5:  # Only include stages with 5+ games
+            stage_stats.append(
+                {"stage": stage, "winRate": win_rate, "totalGames": int(games)}
+            )
+
+    # Sort by number of games, then win rate
+    stage_stats.sort(key=lambda x: (-x["totalGames"], -x["winRate"]))
+
+    # Calculate most frequent opponent character matchups
+    opponent_char_col = (
+        "matt_character" if username.lower() == "shayne" else "shayne_character"
+    )
+    opponent_chars = df.groupby(opponent_char_col).size().sort_values(ascending=False)
+    most_faced_chars = [
+        {
+            "character": char,
+            "games": int(count),
+            "wins": int(
+                len(df[(df[opponent_char_col] == char) & (df["winner"] == username)])
+            ),
+        }
+        for char, count in opponent_chars.head(5).items()
+    ]
+
+    return jsonify(
+        {
+            "overallWinRate": overall_win_rate,
+            "totalGames": total_games,
+            "avgStocksWhenWinning": float(avg_stocks) if not pd.isna(avg_stocks) else 0,
+            "currentStreak": {
+                "count": int(current_streak),
+                "type": current_streak_type,
+            },
+            "maxStreak": {"count": int(max_streak), "type": max_streak_type},
+            "recentPerformance": {
+                "games": len(recent_games),
+                "winRate": recent_win_rate,
+            },
+            "characterStats": character_stats,
+            "stageStats": stage_stats,
+            "mostFacedCharacters": most_faced_chars,
+        }
+    )
+
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
