@@ -367,29 +367,29 @@ class GameDataManager:
         stage_counts = df["stage"].value_counts()
         return stage_counts.index.tolist()
 
-    def get_characters(self) -> list:
-        """Get the list of characters, sorted by usage."""
+    def get_characters(self) -> dict:
+        """Get the list of characters with their usage data per player."""
         try:
             with open(self.characters_path, "r") as f:
                 characters = json.load(f)
 
             # Get character usage from game data
             df = self._load_data()
-            shayne_chars = df["shayne_character"].value_counts()
-            matt_chars = df["matt_character"].value_counts()
+            shayne_chars = df["shayne_character"].value_counts().to_dict()
+            matt_chars = df["matt_character"].value_counts().to_dict()
 
-            # Combine and sort by usage
-            char_usage = {}
+            # Create character usage data structure
+            char_data = {"shayne": {}, "matt": {}, "all_characters": characters}
+
+            # Fill in usage data for each character
             for char in characters:
-                char_usage[char] = shayne_chars.get(char, 0) + matt_chars.get(char, 0)
+                char_data["shayne"][char] = shayne_chars.get(char, 0)
+                char_data["matt"][char] = matt_chars.get(char, 0)
 
-            # Sort characters by usage, then alphabetically
-            sorted_chars = sorted(characters, key=lambda x: (-char_usage[x], x))
-
-            return sorted_chars
+            return char_data
         except Exception as e:
             logger.error(f"Error loading characters: {str(e)}")
-            return []
+            return {"shayne": {}, "matt": {}, "all_characters": []}
 
     def get_character_win_rates(self) -> Dict[str, Any]:
         """Calculate and return character win rates for both players."""
@@ -593,6 +593,17 @@ def session_stats():
 @app.route("/api/log_game", methods=["POST"])
 def api_log_game():
     return log_game()
+
+
+@app.route("/api/characters")
+def get_characters():
+    """Get character list with usage data."""
+    try:
+        characters = data_manager.get_characters()
+        return jsonify(characters)
+    except Exception as e:
+        logger.error(f"Error in characters endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 if __name__ == "__main__":
