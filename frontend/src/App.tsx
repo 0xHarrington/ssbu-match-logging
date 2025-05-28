@@ -4,6 +4,7 @@ import MatchLogger from './MatchLogger';
 import RecentMatches, { type RecentMatchesRef } from './RecentMatches';
 import SessionStats, { type SessionStatsRef } from './SessionStats';
 import StatsPage from './StatsPage';
+import { UserStats } from './components/stats/UserStats';
 
 function LoggingHome() {
   const recentMatchesRef = useRef<RecentMatchesRef>(null);
@@ -79,6 +80,22 @@ function Header() {
           background: location.pathname === '/stats' ? 'var(--blue, #83a598)' : 'none',
           color: location.pathname === '/stats' ? 'var(--bg0, #282828)' : 'var(--fg, #ebdbb2)'
         }}>Statistics</Link>
+        <Link to="/users/Shayne" className={`nav-link${location.pathname === '/users/Shayne' ? ' active' : ''}`} style={{
+          textDecoration: 'none',
+          padding: '0.5rem 1rem',
+          borderRadius: 12,
+          transition: 'all 0.2s',
+          background: location.pathname === '/users/Shayne' ? 'var(--blue, #83a598)' : 'none',
+          color: location.pathname === '/users/Shayne' ? 'var(--bg0, #282828)' : 'var(--fg, #ebdbb2)'
+        }}>Shayne's Stats</Link>
+        <Link to="/users/Matt" className={`nav-link${location.pathname === '/users/Matt' ? ' active' : ''}`} style={{
+          textDecoration: 'none',
+          padding: '0.5rem 1rem',
+          borderRadius: 12,
+          transition: 'all 0.2s',
+          background: location.pathname === '/users/Matt' ? 'var(--blue, #83a598)' : 'none',
+          color: location.pathname === '/users/Matt' ? 'var(--bg0, #282828)' : 'var(--fg, #ebdbb2)'
+        }}>Matt's Stats</Link>
       </nav>
     </header>
   );
@@ -92,6 +109,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LoggingHome />} />
           <Route path="/stats" element={<StatsPage />} />
+          <Route path="/users/:username" element={<UserStats />} />
         </Routes>
       </main>
     </div>

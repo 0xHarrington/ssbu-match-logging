@@ -40,3 +40,50 @@
 .read-the-docs {
   color: #888;
 }
+
+.app {
+  min-height: 100vh;
+  background: var(--gruvbox-dark0);
+  color: var(--gruvbox-light0);
+  display: flex;
+  flex-direction: column;
+}
+
+.main-nav {
+  background: var(--gruvbox-dark1);
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-link {
+  color: var(--gruvbox-light2);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.nav-link:hover {
+  background: var(--gruvbox-dark2);
+  color: var(--gruvbox-light0);
+}
+
+.nav-link.active {
+  background: var(--gruvbox-blue);
+  color: var(--gruvbox-dark0);
+}
+
+.main-content {
+  flex: 1;
+  width: 100%;
+  max-width: 1920px;
+  margin: 0 auto;
+  padding: 2rem;
+}
