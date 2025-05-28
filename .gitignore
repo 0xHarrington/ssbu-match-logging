@@ -4,6 +4,9 @@
 # Jupyter notebook checkpoints
 *.ipynb_checkpoints
 
+# Archives of site layouts
+archives/
+
 # data files
 *.csv
 
