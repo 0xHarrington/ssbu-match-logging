@@ -1272,6 +1272,7 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: relative;
   min-height: 36px;
+  justify-content: space-between;
 }
 
 .character-option:last-child {
@@ -1303,9 +1304,25 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
 }
 
 .character-option .character-display {
-  font-size: 0.9rem;
-  color: var(--fg);
-  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.character-usage-count {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  color: var(--fg-light);
+  margin-left: auto;
+  padding-left: 0.5rem;
+}
+
+.character-option.shayne .character-usage-count {
+  color: #fe8019;
+}
+
+.character-option.matt .character-usage-count {
+  color: #b8bb26;
 }
 
 .character-option.selected {

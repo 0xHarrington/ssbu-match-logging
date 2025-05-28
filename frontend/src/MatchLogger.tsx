@@ -51,8 +51,21 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
 }) {
   const [search, setSearch] = useState(value);
   const [active, setActive] = useState(false);
+  const [characterData, setCharacterData] = useState<{
+    shayne: { [key: string]: number };
+    matt: { [key: string]: number };
+    all_characters: string[];
+  } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const initialLoadDone = useRef(false);
+
+  useEffect(() => {
+    // Fetch character data on component mount
+    fetch('/api/characters')
+      .then(res => res.json())
+      .then(data => setCharacterData(data))
+      .catch(err => console.error('Error fetching character data:', err));
+  }, []);
 
   useEffect(() => {
     // Only load from localStorage on initial mount
@@ -81,9 +94,25 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
     setSearch(value);
   }, [value]);
 
-  const filtered = characters.filter(char => 
-    char.toLowerCase().includes(search.toLowerCase())
-  );
+  const getSortedCharacters = () => {
+    if (!characterData) return [];
+
+    const isShayneSearch = localStorageKey === 'shayneCharacter';
+    const playerData = isShayneSearch ? characterData.shayne : characterData.matt;
+    
+    // Filter characters based on search
+    const filtered = characterData.all_characters.filter(char => 
+      char.toLowerCase().includes(search.toLowerCase())
+    );
+
+    // Sort characters: first by usage (descending), then alphabetically for unused characters
+    return filtered.sort((a, b) => {
+      const usageA = playerData[a] || 0;
+      const usageB = playerData[b] || 0;
+      if (usageA !== usageB) return usageB - usageA;
+      return a.localeCompare(b);
+    });
+  };
 
   return (
     <div className="character-select">
@@ -103,20 +132,32 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
         />
         {active && (
           <div className="character-list">
-            {filtered.map(char => (
-              <div
-                key={char}
-                className="character-option"
-                onClick={() => {
-                  setSearch(char);
-                  setValue(char);
-                  localStorage.setItem(localStorageKey, char);
-                  setActive(false);
-                }}
-              >
-                <CharacterDisplay character={char} />
-              </div>
-            ))}
+            {getSortedCharacters().map(char => {
+              const isShayneSearch = localStorageKey === 'shayneCharacter';
+              const usageCount = characterData ? 
+                (isShayneSearch ? characterData.shayne[char] : characterData.matt[char]) || 0 
+                : 0;
+              
+              return (
+                <div
+                  key={char}
+                  className={`character-option ${isShayneSearch ? 'shayne' : 'matt'}`}
+                  onClick={() => {
+                    setSearch(char);
+                    setValue(char);
+                    localStorage.setItem(localStorageKey, char);
+                    setActive(false);
+                  }}
+                >
+                  <CharacterDisplay character={char} />
+                  {usageCount > 0 && (
+                    <span className="character-usage-count">
+                      ({usageCount})
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
