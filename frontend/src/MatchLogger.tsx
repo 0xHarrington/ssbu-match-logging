@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+// Import stage images
+import bfImage from './assets/stages/bf.avif';
+import fdImage from './assets/stages/fd.avif';
+import ps2Image from './assets/stages/ps2.avif';
+import sbfImage from './assets/stages/sbf.avif';
+import tncImage from './assets/stages/tnc.avif';
+import kalosImage from './assets/stages/kalos.avif';
+import hollowImage from './assets/stages/hollow.avif';
+import yoshisImage from './assets/stages/yoshis.avif';
+import smashvilleImage from './assets/stages/smashville.avif';
+
 // Hardcoded character and stage lists (can be fetched from backend later)
 const characters = [
   "Mario", "Donkey Kong", "Link", "Samus", "Dark Samus", "Yoshi", "Kirby", "Fox", "Pikachu",
@@ -17,6 +28,19 @@ const stages = [
   "Battlefield", "Small Battlefield", "Final Destination", "Pokemon Stadium 2", "Smashville", "Town & City",
   "Kalos Pokemon League", "Yoshi's Story", "Hollow Bastion"
 ];
+
+// Stage image mapping
+const stageImages: { [key: string]: string } = {
+  'Battlefield': bfImage,
+  'Small Battlefield': sbfImage,
+  'Final Destination': fdImage,
+  'Pokemon Stadium 2': ps2Image,
+  'Smashville': smashvilleImage,
+  'Town & City': tncImage,
+  'Kalos Pokemon League': kalosImage,
+  'Yoshi\'s Story': yoshisImage,
+  'Hollow Bastion': hollowImage,
+};
 
 function CharacterSearch({ label, value, setValue, localStorageKey }: {
   label: string;
@@ -216,8 +240,24 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect }: MatchL
                   key={s}
                   className={`stage-button${stage === s ? ' selected' : ''}`}
                   onClick={() => setStage(s)}
+                  style={{
+                    backgroundImage: `url(${stageImages[s]})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
                 >
-                  <span className="stage-name">{s}</span>
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    zIndex: 1,
+                  }} />
+                  <span className="stage-name" style={{ position: 'relative', zIndex: 2 }}>{s}</span>
                 </button>
               ))}
             </div>

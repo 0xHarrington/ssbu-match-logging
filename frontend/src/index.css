@@ -297,7 +297,7 @@ h3 {
   background-color: var(--bg1);
 }
 .stage-stat-name {
-  font-weight: 500;
+  font-weight: 700;
   margin-bottom: 0.5rem;
 }
 .stage-stat-value {
@@ -626,18 +626,36 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .stage-button:hover {
-  background-color: var(--bg2);
+  transform: translateY(-2px);
   border-color: var(--blue);
-  transform: translateY(-1px);
 }
 
 .stage-button.selected {
-  background-color: var(--blue);
-  color: var(--bg0);
   border-color: var(--blue);
+}
+
+.stage-button.selected::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--blue);
+  opacity: 0.3;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.stage-name {
+  color: var(--fg-light);
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .winner-select,
