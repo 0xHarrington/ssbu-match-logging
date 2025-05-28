@@ -119,8 +119,8 @@ export const UserStats: React.FC = () => {
       datalabels: {
         display: true,
         color: '#ebdbb2',
-        anchor: 'end',
-        align: 'top',
+        anchor: 'end' as const,
+        align: 'top' as const,
         offset: 4,
         font: {
           weight: 'bold' as const,
@@ -309,7 +309,7 @@ export const UserStats: React.FC = () => {
             <div className={styles['summary-item']}>
               <div className={styles['summary-label']}>Avg Stocks Left</div>
               <div className={styles['summary-value']}>
-                {stats.avgStocksWhenWinning.toFixed(1)}
+                {stats.avgStocksWhenWinning.toFixed(3)}
                 <div className={styles['stat-subtitle']}>
                   When winning
                 </div>
