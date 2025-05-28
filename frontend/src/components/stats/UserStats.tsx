@@ -197,7 +197,7 @@ export const UserStats: React.FC = () => {
             size: 12,
           },
           maxRotation: 45,
-          minRotation: 45,
+          minRotation: 0,
         },
       },
     },
