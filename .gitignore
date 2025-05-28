@@ -1,6 +1,9 @@
 # Mac
 .DS_Store
 
+# Jupyter notebook checkpoints
+*.ipynb_checkpoints
+
 # data files
 *.csv
 
