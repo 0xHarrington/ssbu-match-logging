@@ -3,9 +3,18 @@ import React from 'react';
 interface CharacterDisplayProps {
   character: string;
   className?: string;
+  hideText?: boolean;
+  textClassName?: string;
+  iconClassName?: string;
 }
 
-const CharacterDisplay: React.FC<CharacterDisplayProps> = ({ character, className = '' }) => {
+const CharacterDisplay: React.FC<CharacterDisplayProps> = ({ 
+  character, 
+  className = '',
+  hideText = false,
+  textClassName = '',
+  iconClassName = ''
+}) => {
   // Handle special cases where the character name in the data doesn't match the filename
   const getIconFileName = (char: string) => {
     const specialCases: { [key: string]: string } = {
@@ -35,14 +44,17 @@ const CharacterDisplay: React.FC<CharacterDisplayProps> = ({ character, classNam
       <img 
         src={getIconFileName(character)} 
         alt={character} 
+        className={iconClassName}
         style={{ 
           width: '24px', 
           height: '24px',
           objectFit: 'contain',
-          verticalAlign: 'middle'
+          verticalAlign: 'middle',
+          background: 'none',
+          border: 'none'
         }} 
       />
-      <span>{character}</span>
+      {!hideText && <span className={textClassName}>{character}</span>}
     </div>
   );
 };
