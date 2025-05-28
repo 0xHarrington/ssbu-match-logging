@@ -99,64 +99,104 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
           {/* Matchup Stats */}
           {matchupStats && shayneCharacter && mattCharacter && (
             <div className="matchup-stats">
-              <h3>Current Matchup Stats</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <h3 style={{ margin: 0, border: 'none', padding: 0 }}>
+                  {shayneCharacter} vs {mattCharacter}
+                </h3>
+                <div className="matchup-total-games">
+                  <div className="stat-label">Matchup Games</div>
+                  <div className="stat-value">{matchupStats.total_games}</div>
+                </div>
+              </div>
+
               <div className="matchup-stats-grid">
                 <div className="matchup-player-stats shayne">
                   <div className="stat-value shayne">{matchupStats.shayne_wins}</div>
-                  <div className="stat-label">Shayne's Wins ({Math.round((matchupStats.shayne_wins / matchupStats.total_games) * 100) || 0}%)</div>
+                  <div className="stat-label">
+                    Shayne's Wins ({Math.round((matchupStats.shayne_wins / matchupStats.total_games) * 100) || 0}%)
+                  </div>
                   <div className="win-rate-bar">
                     <div 
                       className="win-rate-fill shayne" 
-                      style={{ width: `${(matchupStats.shayne_wins / matchupStats.total_games) * 100}%` }}
+                      style={{ 
+                        width: `${(matchupStats.shayne_wins / matchupStats.total_games) * 100}%`,
+                        height: '100%',
+                        transition: 'width 0.3s ease',
+                        backgroundColor: '#d65d0e',
+                        boxShadow: '0 1px 2px rgba(214, 93, 14, 0.3)'
+                      }}
                     />
                   </div>
                 </div>
                 <div className="matchup-player-stats matt">
                   <div className="stat-value matt">{matchupStats.matt_wins}</div>
-                  <div className="stat-label">Matt's Wins ({Math.round((matchupStats.matt_wins / matchupStats.total_games) * 100) || 0}%)</div>
+                  <div className="stat-label">
+                    Matt's Wins ({Math.round((matchupStats.matt_wins / matchupStats.total_games) * 100) || 0}%)
+                  </div>
                   <div className="win-rate-bar">
                     <div 
                       className="win-rate-fill matt" 
-                      style={{ width: `${(matchupStats.matt_wins / matchupStats.total_games) * 100}%` }}
+                      style={{ 
+                        width: `${(matchupStats.matt_wins / matchupStats.total_games) * 100}%`,
+                        height: '100%',
+                        transition: 'width 0.3s ease',
+                        backgroundColor: '#98971a',
+                        boxShadow: '0 1px 2px rgba(152, 151, 26, 0.3)'
+                      }}
                     />
                   </div>
                 </div>
               </div>
-              <div className="matchup-total-games">
-                <div className="stat-label">Total Games Played</div>
-                <div className="stat-value">{matchupStats.total_games}</div>
-              </div>
             </div>
           )}
 
-          {/* Today's Stats */}
+          {/* Today's Session Stats */}
           <div className="matchup-stats">
-            <h3>Today's Session</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Today's Session</h3>
+              <div className="matchup-total-games">
+                <div className="stat-label">Total Games</div>
+                <div className="stat-value">{stats.total_games}</div>
+              </div>
+            </div>
+
             <div className="matchup-stats-grid">
               <div className="matchup-player-stats shayne">
                 <div className="stat-value shayne">{stats.shayne_wins}</div>
-                <div className="stat-label">Shayne's Wins</div>
+                <div className="stat-label">
+                  Shayne's Wins ({Math.round((stats.shayne_wins / stats.total_games) * 100) || 0}%)
+                </div>
                 <div className="win-rate-bar">
                   <div 
                     className="win-rate-fill shayne" 
-                    style={{ width: `${stats.total_games > 0 ? (stats.shayne_wins / stats.total_games) * 100 : 0}%` }}
+                    style={{ 
+                      width: `${(stats.shayne_wins / stats.total_games) * 100}%`,
+                      height: '100%',
+                      transition: 'width 0.3s ease',
+                      backgroundColor: '#d65d0e',
+                      boxShadow: '0 1px 2px rgba(214, 93, 14, 0.3)'
+                    }}
                   />
                 </div>
               </div>
               <div className="matchup-player-stats matt">
                 <div className="stat-value matt">{stats.matt_wins}</div>
-                <div className="stat-label">Matt's Wins</div>
+                <div className="stat-label">
+                  Matt's Wins ({Math.round((stats.matt_wins / stats.total_games) * 100) || 0}%)
+                </div>
                 <div className="win-rate-bar">
                   <div 
                     className="win-rate-fill matt" 
-                    style={{ width: `${stats.total_games > 0 ? (stats.matt_wins / stats.total_games) * 100 : 0}%` }}
+                    style={{ 
+                      width: `${(stats.matt_wins / stats.total_games) * 100}%`,
+                      height: '100%',
+                      transition: 'width 0.3s ease',
+                      backgroundColor: '#98971a',
+                      boxShadow: '0 1px 2px rgba(152, 151, 26, 0.3)'
+                    }}
                   />
                 </div>
               </div>
-            </div>
-            <div className="matchup-total-games">
-              <div className="stat-label">Games Played Today</div>
-              <div className="stat-value">{stats.total_games}</div>
             </div>
           </div>
 
