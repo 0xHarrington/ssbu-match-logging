@@ -1,4 +1,5 @@
 import { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import CharacterDisplay from './components/CharacterDisplay';
 
 interface CharacterUsage {
   [character: string]: number;
@@ -101,7 +102,7 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
             <div className="matchup-stats">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                 <h3 style={{ margin: 0, border: 'none', padding: 0 }}>
-                  {shayneCharacter} vs {mattCharacter}
+                  <CharacterDisplay character={shayneCharacter} /> vs <CharacterDisplay character={mattCharacter} />
                 </h3>
                 <div className="matchup-total-games">
                   <div className="stat-label">Matchup Games</div>
@@ -209,7 +210,7 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
                 <div className="character-stat-list" id="shayneCharacters">
                   {Object.entries(stats.shayne_characters).sort(([,a],[,b])=>b-a).map(([char, count]) => (
                     <div className="character-stat-item" key={char}>
-                      <span className="character-stat-name">{char}</span>
+                      <CharacterDisplay character={char} />
                       <span className="character-stat-value shayne">{count}</span>
                     </div>
                   ))}
@@ -220,7 +221,7 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
                 <div className="character-stat-list" id="mattCharacters">
                   {Object.entries(stats.matt_characters).sort(([,a],[,b])=>b-a).map(([char, count]) => (
                     <div className="character-stat-item" key={char}>
-                      <span className="character-stat-name">{char}</span>
+                      <CharacterDisplay character={char} />
                       <span className="character-stat-value matt">{count}</span>
                     </div>
                   ))}

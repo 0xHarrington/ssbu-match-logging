@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import CharacterDisplay from './components/CharacterDisplay';
 
 // Import stage images
 import bfImage from './assets/stages/bf.avif';
@@ -113,7 +114,7 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
                   setActive(false);
                 }}
               >
-                {char}
+                <CharacterDisplay character={char} />
               </div>
             ))}
           </div>

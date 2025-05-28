@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Plot from 'react-plotly.js';
+import CharacterDisplay from './components/CharacterDisplay';
 
 interface MonthlyActivityItem {
   month: string;
@@ -173,11 +174,15 @@ const StatsPage: React.FC = () => {
         <div className="grid">
           <div className="stat-card">
             <div className="stat-label">Most Played (Shayne)</div>
-            <div className="stat-value" id="mostPlayedShayne">{stats.most_played_shayne || '-'}</div>
+            <div className="stat-value" id="mostPlayedShayne">
+              {stats.most_played_shayne ? <CharacterDisplay character={stats.most_played_shayne} /> : '-'}
+            </div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Most Played (Matt)</div>
-            <div className="stat-value" id="mostPlayedMatt">{stats.most_played_matt || '-'}</div>
+            <div className="stat-value" id="mostPlayedMatt">
+              {stats.most_played_matt ? <CharacterDisplay character={stats.most_played_matt} /> : '-'}
+            </div>
           </div>
         </div>
       </section>
@@ -201,7 +206,9 @@ const StatsPage: React.FC = () => {
               return (
                 <div className="matchup-item" key={i}>
                   <div className="matchup-header">
-                    <span>{matchup.shayne_character} vs {matchup.matt_character}</span>
+                    <span>
+                      <CharacterDisplay character={matchup.shayne_character} /> vs <CharacterDisplay character={matchup.matt_character} />
+                    </span>
                     <span>{matchup.total_games} games</span>
                   </div>
                   <div className="matchup-stats">
@@ -237,7 +244,9 @@ const StatsPage: React.FC = () => {
                 const winRate = Math.round((stats.wins / stats.total) * 100);
                 return (
                   <div className="character-stats" key={character}>
-                    <div className="character-name">{character}</div>
+                    <div className="character-name">
+                      <CharacterDisplay character={character} />
+                    </div>
                     <div className="stats-bar">
                       <div className="win-bar shayne" style={{ width: `${(stats.wins / stats.total) * 100}%` }}>{stats.wins}W</div>
                       <div className="loss-bar" style={{ width: `${(stats.losses / stats.total) * 100}%` }}>{stats.losses}L</div>
@@ -258,7 +267,9 @@ const StatsPage: React.FC = () => {
                 const winRate = Math.round((stats.wins / stats.total) * 100);
                 return (
                   <div className="character-stats" key={character}>
-                    <div className="character-name">{character}</div>
+                    <div className="character-name">
+                      <CharacterDisplay character={character} />
+                    </div>
                     <div className="stats-bar">
                       <div className="win-bar matt" style={{ width: `${(stats.wins / stats.total) * 100}%` }}>{stats.wins}W</div>
                       <div className="loss-bar" style={{ width: `${(stats.losses / stats.total) * 100}%` }}>{stats.losses}L</div>

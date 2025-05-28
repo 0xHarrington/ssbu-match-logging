@@ -1445,3 +1445,40 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
         gap: 1rem;
     }
 }
+
+/* Character Display Component */
+.character-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.character-display img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
+.character-option .character-display {
+  padding: 0.25rem 0;
+}
+
+.character-stats .character-name .character-display {
+  font-size: 1.1rem;
+}
+
+.matchup-header .character-display {
+  font-size: 0.9rem;
+}
+
+.stat-value .character-display {
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .character-display img {
+    width: 20px;
+    height: 20px;
+  }
+}
