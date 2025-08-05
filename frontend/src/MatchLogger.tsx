@@ -32,11 +32,25 @@ const stageImages: { [key: string]: string } = {
   'Hollow Bastion': hollowImage,
 };
 
-function CharacterSearch({ label, value, setValue, localStorageKey }: {
+interface CharacterWinRates {
+  [character: string]: {
+    wins: number;
+    losses: number;
+    total: number;
+  };
+}
+
+interface CharacterWinRatesData {
+  shayne: CharacterWinRates;
+  matt: CharacterWinRates;
+}
+
+function CharacterSearch({ label, value, setValue, localStorageKey, characterWinRates }: {
   label: string;
   value: string;
   setValue: (v: string) => void;
   localStorageKey: string;
+  characterWinRates: CharacterWinRatesData | null;
 }) {
   const [search, setSearch] = useState(value);
   const [active, setActive] = useState(false);
@@ -103,22 +117,51 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
     });
   };
 
+  // Get win rate for a character
+  const getWinRate = (character: string) => {
+    if (!characterWinRates) return null;
+    
+    const isShayneSearch = localStorageKey === 'shayneCharacter';
+    const playerData = isShayneSearch ? characterWinRates.shayne : characterWinRates.matt;
+    const charStats = playerData[character];
+    
+    if (!charStats || charStats.total === 0) return null;
+    
+    return {
+      winRate: Math.round((charStats.wins / charStats.total) * 100),
+      total: charStats.total,
+      wins: charStats.wins,
+      losses: charStats.losses
+    };
+  };
+
   return (
     <div className="character-select">
       <label>{label}</label>
       <div className="custom-select" ref={ref}>
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search character..."
-          value={search}
-          onChange={e => {
-            setSearch(e.target.value);
-            setActive(true);
-          }}
-          onFocus={() => setActive(true)}
-          autoComplete="off"
-        />
+        <div className="search-input-container">
+          {value && (
+            <div className="selected-character-icon">
+              <img 
+                src={`/src/assets/characters/${value.replace(/\s+/g, '')}.png`} 
+                alt={value}
+                style={{ width: '20px', height: '20px', objectFit: 'contain' }}
+              />
+            </div>
+          )}
+          <input
+            type="text"
+            className={`search-input ${value ? 'has-character' : ''}`}
+            placeholder="Search character..."
+            value={search}
+            onChange={e => {
+              setSearch(e.target.value);
+              setActive(true);
+            }}
+            onFocus={() => setActive(true)}
+            autoComplete="off"
+          />
+        </div>
         {active && (
           <div className="character-list">
             {getSortedCharacters().map(char => {
@@ -126,6 +169,7 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
               const usageCount = characterData ? 
                 (isShayneSearch ? characterData.shayne[char] : characterData.matt[char]) || 0 
                 : 0;
+              const winRateData = getWinRate(char);
               
               return (
                 <div
@@ -139,17 +183,57 @@ function CharacterSearch({ label, value, setValue, localStorageKey }: {
                   }}
                 >
                   <CharacterDisplay character={char} />
-                  {usageCount > 0 && (
-                    <span className="character-usage-count">
-                      ({usageCount})
-                    </span>
-                  )}
+                  <div className="character-stats-info">
+                    {usageCount > 0 && (
+                      <span className="character-usage-count">
+                        ({usageCount})
+                      </span>
+                    )}
+                    {winRateData && (
+                      <span className="character-win-rate">
+                        {winRateData.winRate}% WR ({winRateData.total} games)
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+      {/* Display win rate for selected character */}
+      {value && characterWinRates && (
+        <div className="selected-character-win-rate">
+          {(() => {
+            const winRateData = getWinRate(value);
+            if (!winRateData) return null;
+            
+            const isShayneSearch = localStorageKey === 'shayneCharacter';
+            return (
+              <div className={`win-rate-display ${isShayneSearch ? 'shayne' : 'matt'}`}>
+                <div className="win-rate-header">
+                  <CharacterDisplay character={value} />
+                  <div className="win-rate-summary">
+                    <span className="win-rate-percentage">{winRateData.winRate}%</span>
+                    <span className="win-rate-details">
+                      {winRateData.wins}W - {winRateData.losses}L ({winRateData.total} games)
+                    </span>
+                  </div>
+                </div>
+                <div className="win-rate-bar">
+                  <div 
+                    className="win-rate-fill" 
+                    style={{ 
+                      width: `${winRateData.winRate}%`,
+                      background: isShayneSearch ? '#d65d0e' : '#98971a'
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
     </div>
   );
 }
@@ -172,6 +256,19 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [characterWinRates, setCharacterWinRates] = useState<CharacterWinRatesData | null>(null);
+
+  // Fetch character win rates
+  useEffect(() => {
+    fetch('/api/character_win_rates')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setCharacterWinRates(data);
+        }
+      })
+      .catch(err => console.error('Error fetching character win rates:', err));
+  }, []);
 
   // Update local state when selectedCharacters prop changes
   useEffect(() => {
@@ -264,6 +361,7 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
                 value={shayneCharacter} 
                 setValue={handleShayneCharacterChange} 
                 localStorageKey="shayneCharacter" 
+                characterWinRates={characterWinRates}
               />
             </div>
             <div className="player-section">
@@ -273,6 +371,7 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
                 value={mattCharacter} 
                 setValue={handleMattCharacterChange} 
                 localStorageKey="mattCharacter" 
+                characterWinRates={characterWinRates}
               />
             </div>
           </div>
