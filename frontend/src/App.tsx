@@ -5,6 +5,8 @@ import RecentMatches, { type RecentMatchesRef } from './RecentMatches';
 import SessionStats, { type SessionStatsRef } from './SessionStats';
 import StatsPage from './StatsPage';
 import { UserStats } from './components/stats/UserStats';
+import CharacterAnalytics from './CharacterAnalytics';
+import CharacterDetail from './CharacterDetail';
 
 function LoggingHome() {
   const recentMatchesRef = useRef<RecentMatchesRef>(null);
@@ -96,6 +98,14 @@ function Header() {
           background: location.pathname === '/users/Matt' ? 'var(--blue, #83a598)' : 'none',
           color: location.pathname === '/users/Matt' ? 'var(--bg0, #282828)' : 'var(--fg, #ebdbb2)'
         }}>Matt's Stats</Link>
+        <Link to="/characters" className={`nav-link${location.pathname === '/characters' ? ' active' : ''}`} style={{
+          textDecoration: 'none',
+          padding: '0.5rem 1rem',
+          borderRadius: 12,
+          transition: 'all 0.2s',
+          background: location.pathname === '/characters' ? 'var(--blue, #83a598)' : 'none',
+          color: location.pathname === '/characters' ? 'var(--bg0, #282828)' : 'var(--fg, #ebdbb2)'
+        }}>Character Analytics</Link>
       </nav>
     </header>
   );
@@ -110,6 +120,8 @@ function App() {
           <Route path="/" element={<LoggingHome />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/users/:username" element={<UserStats />} />
+          <Route path="/characters" element={<CharacterAnalytics />} />
+          <Route path="/characters/:character" element={<CharacterDetail />} />
         </Routes>
       </main>
     </div>
