@@ -127,22 +127,41 @@ h3 {
 
 .stage-stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.4rem;
 }
 
 .stage-stat-card {
-  background-color: var(--bg2);
   border: 1px solid var(--bg-light);
   border-radius: var(--card-radius);
-  padding: 1.5rem;
+  padding: 0.5rem;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   text-align: center;
   transition: all var(--transition-speed);
-  min-height: 120px;
+  min-height: 60px;
+  position: relative;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+}
+
+.stage-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 1;
+}
+
+.stage-stat-card > * {
+  position: relative;
+  z-index: 2;
 }
 
 .stage-stat-card:hover {
@@ -150,13 +169,12 @@ h3 {
   box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
 }
 
-.stage-stat-card h4 {
+.stage-stat-card .stage-name {
   color: var(--fg-light);
-  margin-bottom: 1rem;
-  text-align: center;
-  font-size: 1.2rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--bg-light);
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .stage-stat-list {
@@ -187,15 +205,9 @@ h3 {
 
 .stage-stat-value {
   font-weight: bold;
-  font-size: 1.1rem;
-}
-
-.stage-stat-value.shayne {
-  color: var(--orange);
-}
-
-.stage-stat-value.matt {
-  color: var(--green);
+  font-size: 1rem;
+  color: var(--fg-light);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .session-stats {
