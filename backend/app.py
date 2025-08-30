@@ -145,6 +145,19 @@ class GameDataManager:
             df["datetime"] = pd.to_datetime(df["datetime"])
             # Handle if there are any games with no stages
             df["stage"] = df["stage"].fillna("No Stage")
+
+            # Clean up character names - remove any NaN or empty values
+            df["shayne_character"] = df["shayne_character"].fillna("").astype(str)
+            df["matt_character"] = df["matt_character"].fillna("").astype(str)
+
+            # Filter out rows with missing character data
+            df = df[
+                (df["shayne_character"] != "")
+                & (df["matt_character"] != "")
+                & (df["shayne_character"] != "nan")
+                & (df["matt_character"] != "nan")
+            ]
+
             return df
         except pd.errors.EmptyDataError:
             return pd.DataFrame(columns=self.columns)
@@ -324,8 +337,8 @@ class GameDataManager:
         # Monthly activity
         df["month"] = df["date"].dt.strftime("%Y-%m")
         monthly_games = (
-            df.groupby("month").size().tail(6).to_dict()
-        )  # Show last 6 months
+            df.groupby("month").size().sort_index().to_dict()
+        )  # Show all months with data, sorted chronologically
         stats["monthly_activity"] = [
             {"month": month, "games": count} for month, count in monthly_games.items()
         ]
@@ -603,6 +616,292 @@ def get_characters():
         return jsonify(characters)
     except Exception as e:
         logger.error(f"Error in characters endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/characters/<character>/stats")
+def get_character_stats(character):
+    """Get comprehensive statistics for a specific character across all players."""
+    try:
+        df = data_manager._load_data()
+
+        if len(df) == 0:
+            return jsonify({"success": False, "message": "No data available"})
+
+        # Filter games where this character was played by either player
+        character_games = df[
+            (df["shayne_character"] == character) | (df["matt_character"] == character)
+        ]
+
+        if len(character_games) == 0:
+            return jsonify(
+                {
+                    "success": True,
+                    "character": character,
+                    "total_games": 0,
+                    "global_win_rate": 0,
+                    "shayne_stats": {"games": 0, "wins": 0, "win_rate": 0},
+                    "matt_stats": {"games": 0, "wins": 0, "win_rate": 0},
+                    "best_matchups": [],
+                    "worst_matchups": [],
+                    "stage_performance": [],
+                    "recent_performance": [],
+                }
+            )
+
+        total_games = len(character_games)
+
+        # Global win rate (when this character is played, how often do they win)
+        wins_with_character = len(
+            character_games[
+                (
+                    (character_games["shayne_character"] == character)
+                    & (character_games["winner"] == "Shayne")
+                )
+                | (
+                    (character_games["matt_character"] == character)
+                    & (character_games["winner"] == "Matt")
+                )
+            ]
+        )
+        global_win_rate = (
+            (wins_with_character / total_games * 100) if total_games > 0 else 0
+        )
+
+        # Per-player stats
+        shayne_games = character_games[character_games["shayne_character"] == character]
+        shayne_wins = len(shayne_games[shayne_games["winner"] == "Shayne"])
+        shayne_stats = {
+            "games": len(shayne_games),
+            "wins": shayne_wins,
+            "win_rate": (shayne_wins / len(shayne_games) * 100)
+            if len(shayne_games) > 0
+            else 0,
+        }
+
+        matt_games = character_games[character_games["matt_character"] == character]
+        matt_wins = len(matt_games[matt_games["winner"] == "Matt"])
+        matt_stats = {
+            "games": len(matt_games),
+            "wins": matt_wins,
+            "win_rate": (matt_wins / len(matt_games) * 100)
+            if len(matt_games) > 0
+            else 0,
+        }
+
+        # Matchup analysis
+        def get_matchup_stats(is_shayne_char=True):
+            if is_shayne_char:
+                games = shayne_games
+                char_col = "matt_character"
+                win_condition = games["winner"] == "Shayne"
+            else:
+                games = matt_games
+                char_col = "shayne_character"
+                win_condition = games["winner"] == "Matt"
+
+            matchups = []
+            for opponent in games[char_col].unique():
+                opponent_games = games[games[char_col] == opponent]
+                wins = len(opponent_games[win_condition])
+                total = len(opponent_games)
+                if total >= 3:  # Minimum 3 games for statistical relevance
+                    matchups.append(
+                        {
+                            "opponent": opponent,
+                            "games": total,
+                            "wins": wins,
+                            "losses": total - wins,
+                            "win_rate": (wins / total * 100) if total > 0 else 0,
+                        }
+                    )
+            return sorted(matchups, key=lambda x: x["win_rate"], reverse=True)
+
+        shayne_matchups = get_matchup_stats(True)
+        matt_matchups = get_matchup_stats(False)
+
+        # Combine and get best/worst overall matchups
+        all_matchups = {}
+        for matchup in shayne_matchups + matt_matchups:
+            opp = matchup["opponent"]
+            if opp in all_matchups:
+                all_matchups[opp]["games"] += matchup["games"]
+                all_matchups[opp]["wins"] += matchup["wins"]
+                all_matchups[opp]["losses"] += matchup["losses"]
+            else:
+                all_matchups[opp] = matchup.copy()
+
+        # Recalculate win rates for combined matchups
+        for opp in all_matchups:
+            total = all_matchups[opp]["games"]
+            wins = all_matchups[opp]["wins"]
+            all_matchups[opp]["win_rate"] = (wins / total * 100) if total > 0 else 0
+
+        sorted_matchups = sorted(
+            all_matchups.values(), key=lambda x: x["win_rate"], reverse=True
+        )
+        best_matchups = sorted_matchups[:5]
+        worst_matchups = sorted_matchups[-5:]
+
+        # Stage performance
+        stage_performance = []
+        for stage in character_games["stage"].unique():
+            stage_games = character_games[character_games["stage"] == stage]
+            stage_wins = len(
+                stage_games[
+                    (
+                        (stage_games["shayne_character"] == character)
+                        & (stage_games["winner"] == "Shayne")
+                    )
+                    | (
+                        (stage_games["matt_character"] == character)
+                        & (stage_games["winner"] == "Matt")
+                    )
+                ]
+            )
+            total = len(stage_games)
+            if total >= 2:  # Minimum 2 games
+                stage_performance.append(
+                    {
+                        "stage": stage,
+                        "games": total,
+                        "wins": stage_wins,
+                        "win_rate": (stage_wins / total * 100) if total > 0 else 0,
+                    }
+                )
+
+        stage_performance = sorted(
+            stage_performance, key=lambda x: x["win_rate"], reverse=True
+        )
+
+        # Recent performance (last 20 games with this character)
+        recent_games = character_games.sort_values("timestamp", ascending=False).head(
+            20
+        )
+        recent_wins = len(
+            recent_games[
+                (
+                    (recent_games["shayne_character"] == character)
+                    & (recent_games["winner"] == "Shayne")
+                )
+                | (
+                    (recent_games["matt_character"] == character)
+                    & (recent_games["winner"] == "Matt")
+                )
+            ]
+        )
+        recent_performance = {
+            "games": len(recent_games),
+            "wins": recent_wins,
+            "win_rate": (recent_wins / len(recent_games) * 100)
+            if len(recent_games) > 0
+            else 0,
+        }
+
+        return jsonify(
+            {
+                "success": True,
+                "character": character,
+                "total_games": total_games,
+                "global_win_rate": round(global_win_rate, 1),
+                "shayne_stats": {
+                    "games": shayne_stats["games"],
+                    "wins": shayne_stats["wins"],
+                    "win_rate": round(shayne_stats["win_rate"], 1),
+                },
+                "matt_stats": {
+                    "games": matt_stats["games"],
+                    "wins": matt_stats["wins"],
+                    "win_rate": round(matt_stats["win_rate"], 1),
+                },
+                "best_matchups": best_matchups,
+                "worst_matchups": worst_matchups,
+                "stage_performance": stage_performance,
+                "recent_performance": recent_performance,
+                "shayne_matchups": shayne_matchups,
+                "matt_matchups": matt_matchups,
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error in character stats endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/characters/overview")
+def get_all_characters_stats():
+    """Get basic stats for all characters to create a tier list / overview."""
+    try:
+        df = data_manager._load_data()
+
+        if len(df) == 0:
+            return jsonify({"success": False, "message": "No data available"})
+
+        characters_data = {}
+
+        # Get all unique characters (data is already cleaned in _load_data)
+        all_characters = set(df["shayne_character"].unique()) | set(
+            df["matt_character"].unique()
+        )
+
+        for character in all_characters:
+            character_games = df[
+                (df["shayne_character"] == character)
+                | (df["matt_character"] == character)
+            ]
+
+            total_games = len(character_games)
+            wins = len(
+                character_games[
+                    (
+                        (character_games["shayne_character"] == character)
+                        & (character_games["winner"] == "Shayne")
+                    )
+                    | (
+                        (character_games["matt_character"] == character)
+                        & (character_games["winner"] == "Matt")
+                    )
+                ]
+            )
+
+            # Usage frequency
+            shayne_usage = len(df[df["shayne_character"] == character])
+            matt_usage = len(df[df["matt_character"] == character])
+            total_usage = shayne_usage + matt_usage
+
+            characters_data[character] = {
+                "total_games": total_games,
+                "total_usage": total_usage,
+                "wins": wins,
+                "win_rate": round(
+                    (wins / total_games * 100) if total_games > 0 else 0, 1
+                ),
+                "usage_rate": round(
+                    (total_usage / len(df) * 100) if len(df) > 0 else 0, 1
+                ),
+                "shayne_usage": shayne_usage,
+                "matt_usage": matt_usage,
+            }
+
+        # Sort by usage rate, with safety check for numeric values
+        def safe_sort_key(item):
+            usage_rate = item[1]["usage_rate"]
+            return float(usage_rate) if usage_rate is not None else 0.0
+
+        sorted_characters = sorted(
+            characters_data.items(), key=safe_sort_key, reverse=True
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "characters": dict(sorted_characters),
+                "total_matches": len(df),
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error in all characters stats endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
