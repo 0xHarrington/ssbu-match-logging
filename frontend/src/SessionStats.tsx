@@ -1,6 +1,30 @@
 import { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import CharacterDisplay from './components/CharacterDisplay';
 
+// Import stage images
+import bfImage from './assets/stages/bf.avif';
+import fdImage from './assets/stages/fd.avif';
+import ps2Image from './assets/stages/ps2.avif';
+import sbfImage from './assets/stages/sbf.avif';
+import tncImage from './assets/stages/tnc.avif';
+import kalosImage from './assets/stages/kalos.avif';
+import hollowImage from './assets/stages/hollow.avif';
+import yoshisImage from './assets/stages/yoshis.avif';
+import smashvilleImage from './assets/stages/smashville.avif';
+
+// Stage image mapping
+const stageImages: { [key: string]: string } = {
+  'Battlefield': bfImage,
+  'Small Battlefield': sbfImage,
+  'Final Destination': fdImage,
+  'Pokemon Stadium 2': ps2Image,
+  'Smashville': smashvilleImage,
+  'Town & City': tncImage,
+  'Kalos Pokemon League': kalosImage,
+  'Yoshi\'s Story': yoshisImage,
+  'Hollow Bastion': hollowImage,
+};
+
 interface CharacterUsage {
   [character: string]: number;
 }
@@ -235,8 +259,14 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
             <h3>Today's Stage Usage</h3>
             <div className="stage-stats-grid" id="stageStats">
               {stats.stage_stats.map(stat => (
-                <div className="stage-stat-card" key={stat.stage}>
-                  <div className="stage-stat-name">{stat.stage}</div>
+                <div 
+                  className="stage-stat-card" 
+                  key={stat.stage}
+                  style={{
+                    backgroundImage: stageImages[stat.stage] ? `url(${stageImages[stat.stage]})` : 'none'
+                  }}
+                >
+                  <div className="stage-name">{stat.stage}</div>
                   <div className="stage-stat-value">{stat.count}</div>
                 </div>
               ))}
