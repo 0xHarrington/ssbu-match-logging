@@ -1033,5 +1033,322 @@ def get_user_stats(username):
     )
 
 
+@app.route("/api/head_to_head_stats")
+def get_head_to_head_stats():
+    """Get comprehensive head-to-head statistics between players."""
+    try:
+        df = data_manager._load_data()
+        
+        if len(df) == 0:
+            return jsonify({"success": False, "message": "No data available"})
+        
+        df = df.sort_values("datetime")
+        
+        # Recent form analysis
+        recent_form = {}
+        for n in [10, 20, 50]:
+            recent_df = df.tail(n)
+            recent_form[f"last_{n}"] = {
+                "shayne_wins": int(len(recent_df[recent_df["winner"] == "Shayne"])),
+                "matt_wins": int(len(recent_df[recent_df["winner"] == "Matt"])),
+                "total_games": len(recent_df)
+            }
+        
+        # Monthly breakdown
+        df["month"] = pd.to_datetime(df["datetime"]).dt.strftime("%Y-%m")
+        monthly_data = []
+        for month in df["month"].unique():
+            month_df = df[df["month"] == month]
+            monthly_data.append({
+                "month": month,
+                "shayne_wins": int(len(month_df[month_df["winner"] == "Shayne"])),
+                "matt_wins": int(len(month_df[month_df["winner"] == "Matt"])),
+                "total_games": len(month_df)
+            })
+        monthly_data.sort(key=lambda x: x["month"], reverse=True)
+        
+        # Streak analysis
+        current_streak_player = None
+        current_streak_length = 0
+        longest_win_streaks = {"Shayne": {"length": 0, "date": None}, "Matt": {"length": 0, "date": None}}
+        longest_loss_streaks = {"Shayne": {"length": 0, "date": None}, "Matt": {"length": 0, "date": None}}
+        
+        temp_streak = {"player": None, "length": 0, "start_date": None}
+        
+        for idx, row in df.iterrows():
+            winner = row["winner"]
+            date = row["datetime"]
+            
+            # Track current streak
+            if current_streak_player == winner:
+                current_streak_length += 1
+            else:
+                current_streak_player = winner
+                current_streak_length = 1
+            
+            # Track temp streak for longest calculations
+            if temp_streak["player"] == winner:
+                temp_streak["length"] += 1
+            else:
+                # Save previous streak if it was a record
+                if temp_streak["player"] and temp_streak["length"] > 0:
+                    prev_player = temp_streak["player"]
+                    if temp_streak["length"] > longest_win_streaks[prev_player]["length"]:
+                        longest_win_streaks[prev_player] = {
+                            "length": temp_streak["length"],
+                            "date": str(temp_streak["start_date"])
+                        }
+                
+                temp_streak = {"player": winner, "length": 1, "start_date": date}
+        
+        # Check final streak
+        if temp_streak["player"] and temp_streak["length"] > longest_win_streaks[temp_streak["player"]]["length"]:
+            longest_win_streaks[temp_streak["player"]] = {
+                "length": temp_streak["length"],
+                "date": str(temp_streak["start_date"])
+            }
+        
+        # Calculate longest loss streaks (inverse of win streaks)
+        loser_streaks = {"Shayne": [], "Matt": []}
+        current_loser = None
+        current_loss_streak = 0
+        loss_start_date = None
+        
+        for idx, row in df.iterrows():
+            winner = row["winner"]
+            loser = "Matt" if winner == "Shayne" else "Shayne"
+            date = row["datetime"]
+            
+            if current_loser == loser:
+                current_loss_streak += 1
+            else:
+                if current_loser and current_loss_streak > 0:
+                    loser_streaks[current_loser].append({
+                        "length": current_loss_streak,
+                        "date": loss_start_date
+                    })
+                current_loser = loser
+                current_loss_streak = 1
+                loss_start_date = date
+        
+        # Add final loss streak
+        if current_loser and current_loss_streak > 0:
+            loser_streaks[current_loser].append({
+                "length": current_loss_streak,
+                "date": loss_start_date
+            })
+        
+        for player in ["Shayne", "Matt"]:
+            if loser_streaks[player]:
+                longest = max(loser_streaks[player], key=lambda x: x["length"])
+                longest_loss_streaks[player] = {
+                    "length": longest["length"],
+                    "date": str(longest["date"])
+                }
+        
+        # Average stock differential when winning
+        avg_stock_diff = {}
+        for player in ["Shayne", "Matt"]:
+            player_wins = df[df["winner"] == player]
+            if len(player_wins) > 0:
+                avg_stocks = player_wins["stocks_remaining"].mean()
+                avg_stock_diff[player.lower()] = round(float(avg_stocks), 2) if not pd.isna(avg_stocks) else 0
+            else:
+                avg_stock_diff[player.lower()] = 0
+        
+        return jsonify({
+            "success": True,
+            "recent_form": recent_form,
+            "monthly_breakdown": monthly_data[:12],  # Last 12 months
+            "streaks": {
+                "current_streak": {
+                    "player": current_streak_player,
+                    "length": current_streak_length
+                },
+                "longest_win_streaks": longest_win_streaks,
+                "longest_loss_streaks": longest_loss_streaks
+            },
+            "avg_stock_differential": avg_stock_diff
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in head_to_head_stats endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/advanced_metrics")
+def get_advanced_metrics():
+    """Get advanced performance metrics."""
+    try:
+        df = data_manager._load_data()
+        
+        if len(df) == 0:
+            return jsonify({"success": False, "message": "No data available"})
+        
+        df = df.sort_values("datetime")
+        
+        # Two-stock wins (solid victories)
+        two_stock_wins = {}
+        for player in ["Shayne", "Matt"]:
+            player_wins = df[df["winner"] == player]
+            two_stock_count = len(player_wins[player_wins["stocks_remaining"] == 2])
+            total_wins = len(player_wins)
+            
+            two_stock_wins[player.lower()] = {
+                "two_stock_wins": two_stock_count,
+                "total_wins": total_wins,
+                "two_stock_rate": round((two_stock_count / total_wins * 100), 1) if total_wins > 0 else 0
+            }
+        
+        # Dominance factor (3-stock wins)
+        dominance_factor = {}
+        for player in ["Shayne", "Matt"]:
+            player_wins = df[df["winner"] == player]
+            three_stock_wins = len(player_wins[player_wins["stocks_remaining"] == 3])
+            total_wins = len(player_wins)
+            
+            dominance_factor[player.lower()] = {
+                "three_stock_wins": three_stock_wins,
+                "total_wins": total_wins,
+                "dominance_rate": round((three_stock_wins / total_wins * 100), 1) if total_wins > 0 else 0
+            }
+        
+        # Consistency score (std dev of stocks remaining)
+        consistency_score = {}
+        for player in ["Shayne", "Matt"]:
+            player_wins = df[df["winner"] == player]
+            if len(player_wins) > 0:
+                std_dev = player_wins["stocks_remaining"].std()
+                consistency_score[player.lower()] = round(float(std_dev), 2) if not pd.isna(std_dev) else 0
+            else:
+                consistency_score[player.lower()] = 0
+        
+        # Momentum analysis (win after win vs win after loss)
+        momentum_analysis = {}
+        for player in ["Shayne", "Matt"]:
+            wins_after_win = 0
+            games_after_win = 0
+            wins_after_loss = 0
+            games_after_loss = 0
+            
+            prev_winner = None
+            for idx, row in df.iterrows():
+                current_winner = row["winner"]
+                
+                if prev_winner is not None:
+                    if prev_winner == player:
+                        games_after_win += 1
+                        if current_winner == player:
+                            wins_after_win += 1
+                    else:
+                        games_after_loss += 1
+                        if current_winner == player:
+                            wins_after_loss += 1
+                
+                prev_winner = current_winner
+            
+            momentum_analysis[player.lower()] = {
+                "win_after_win": round((wins_after_win / games_after_win * 100), 1) if games_after_win > 0 else 0,
+                "win_after_loss": round((wins_after_loss / games_after_loss * 100), 1) if games_after_loss > 0 else 0
+            }
+        
+        # Close game record (1 stock differential)
+        close_game_record = {}
+        for player in ["Shayne", "Matt"]:
+            close_wins = len(df[(df["winner"] == player) & (df["stocks_remaining"] == 1)])
+            close_losses = len(df[(df["winner"] != player) & (df["stocks_remaining"] == 1)])
+            total_close = close_wins + close_losses
+            
+            close_game_record[player.lower()] = {
+                "wins": close_wins,
+                "losses": close_losses,
+                "win_rate": round((close_wins / total_close * 100), 1) if total_close > 0 else 0
+            }
+        
+        return jsonify({
+            "success": True,
+            "two_stock_wins": two_stock_wins,
+            "dominance_factor": dominance_factor,
+            "consistency_score": consistency_score,
+            "momentum_analysis": momentum_analysis,
+            "close_game_record": close_game_record
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in advanced_metrics endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/matchup_matrix")
+def get_matchup_matrix():
+    """Get character matchup matrix with win rates."""
+    try:
+        df = data_manager._load_data()
+        
+        if len(df) == 0:
+            return jsonify({"success": False, "message": "No data available"})
+        
+        # Build matchup matrix
+        matchup_matrix = {}
+        matchup_list = []
+        
+        for _, row in df.iterrows():
+            shayne_char = row["shayne_character"]
+            matt_char = row["matt_character"]
+            winner = row["winner"]
+            
+            matchup_key = f"{shayne_char}_vs_{matt_char}"
+            
+            if matchup_key not in matchup_matrix:
+                matchup_matrix[matchup_key] = {
+                    "shayne_character": shayne_char,
+                    "matt_character": matt_char,
+                    "total_games": 0,
+                    "shayne_wins": 0,
+                    "matt_wins": 0
+                }
+            
+            matchup_matrix[matchup_key]["total_games"] += 1
+            if winner == "Shayne":
+                matchup_matrix[matchup_key]["shayne_wins"] += 1
+            else:
+                matchup_matrix[matchup_key]["matt_wins"] += 1
+        
+        # Calculate win rates and create list
+        for key, data in matchup_matrix.items():
+            data["shayne_win_rate"] = round((data["shayne_wins"] / data["total_games"] * 100), 1)
+            data["matt_win_rate"] = round((data["matt_wins"] / data["total_games"] * 100), 1)
+            matchup_list.append(data)
+        
+        # Sort by total games
+        matchup_list.sort(key=lambda x: x["total_games"], reverse=True)
+        
+        # Get best/worst matchups for each player (min 5 games)
+        qualified_matchups = [m for m in matchup_list if m["total_games"] >= 5]
+        
+        best_matchups_shayne = sorted(qualified_matchups, key=lambda x: x["shayne_win_rate"], reverse=True)[:10]
+        worst_matchups_shayne = sorted(qualified_matchups, key=lambda x: x["shayne_win_rate"])[:10]
+        best_matchups_matt = sorted(qualified_matchups, key=lambda x: x["matt_win_rate"], reverse=True)[:10]
+        worst_matchups_matt = sorted(qualified_matchups, key=lambda x: x["matt_win_rate"])[:10]
+        
+        return jsonify({
+            "success": True,
+            "matrix": matchup_matrix,
+            "top_matchups": matchup_list[:20],  # Top 20 most played
+            "best_matchups": {
+                "shayne": best_matchups_shayne,
+                "matt": best_matchups_matt
+            },
+            "worst_matchups": {
+                "shayne": worst_matchups_shayne,
+                "matt": worst_matchups_matt
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in matchup_matrix endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")

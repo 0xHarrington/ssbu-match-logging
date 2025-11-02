@@ -232,26 +232,62 @@ h3 {
 
 .match-logger-pane {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 2rem;
-  max-width: 1920px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 2rem;
-  padding-bottom: 0rem;
+  padding: 1rem;
   align-items: flex-start;
 }
+
 .match-form-col, .session-stats-col, .recent-matches-col {
   min-width: 0;
   width: 100%;
-  max-width: 600px;
+  overflow: hidden;
 }
 
-@media (max-width: 1200px) {
+.match-form, .session-stats, .recent-matches {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Large screens - 3 columns */
+@media (min-width: 1400px) {
   .match-logger-pane {
-    grid-template-columns: 1fr;
-    gap: 2rem;
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+}
+
+/* Medium-large screens - 3 columns but tighter */
+@media (max-width: 1399px) and (min-width: 1100px) {
+  .match-logger-pane {
+    gap: 1rem;
     padding: 1rem;
   }
+}
+
+/* Medium screens - 2 columns */
+@media (max-width: 1099px) and (min-width: 768px) {
+  .match-logger-pane {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .recent-matches-col {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Small screens - 1 column */
+@media (max-width: 767px) {
+  .match-logger-pane {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 0.75rem;
+  }
+  
   .match-form-col, .session-stats-col, .recent-matches-col {
     max-width: 100%;
   }
@@ -707,6 +743,13 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
   gap: 0.75rem;
 }
 
+@media (max-width: 767px) {
+  .stage-buttons {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+}
+
 .stage-button {
   width: 100%;
   min-height: 100px;
@@ -908,26 +951,55 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
 @media (max-width: 900px) {
   .form-grid {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 0.75rem;
   }
   
   .match-form {
-    padding: 1.5rem;
-  }
-  
-  .stage-buttons {
-    grid-template-columns: repeat(2, 1fr);
+    padding: 1rem;
   }
   
   .player-section,
   .stage-select,
   .match-details {
-    padding: 1rem;
+    padding: 0.75rem;
   }
   
   .stage-button {
-    height: 48px;
-    font-size: 0.9rem;
+    min-height: 48px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .match-form {
+    padding: 0.75rem;
+  }
+  
+  .form-grid {
+    gap: 0.5rem;
+  }
+  
+  .player-section,
+  .stage-select {
+    padding: 0.6rem;
+  }
+  
+  .player-section h3,
+  .stage-select label {
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+  }
+  
+  .stage-button {
+    min-height: 44px;
+    padding: 0.4rem;
+    font-size: 0.7rem;
+  }
+  
+  .radio-button label,
+  .stocks-button {
+    font-size: 0.8rem;
+    padding: 0.5rem;
   }
 }
 
@@ -1335,6 +1407,13 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
   padding: 0.4rem;
   scrollbar-width: thin;
   scrollbar-color: var(--bg-light) var(--bg1);
+}
+
+@media (max-width: 767px) {
+  .character-options {
+    max-height: 200px;
+    padding: 0.3rem;
+  }
 }
 
 .character-options::-webkit-scrollbar {
