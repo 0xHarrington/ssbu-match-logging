@@ -69,32 +69,59 @@ const CharacterAnalytics: React.FC = () => {
         backgroundColor: 'transparent',
         tooltip: {
           trigger: 'axis',
-          axisPointer: { type: 'shadow' },
+          axisPointer: { 
+            type: 'shadow',
+            shadowStyle: {
+              color: 'rgba(131, 165, 152, 0.1)'
+            }
+          },
           backgroundColor: '#3c3836',
-          borderColor: '#504945',
-          textStyle: { color: '#ebdbb2' },
+          borderColor: '#83a598',
+          borderWidth: 2,
+          textStyle: { color: '#ebdbb2', fontSize: 12 },
+          padding: 12,
           formatter: (params: any) => {
             const p = params[0];
-            return `${p.name}<br/>Usage: ${p.value}%`;
+            const charData = activeChars[p.dataIndex];
+            const games = charData[1].total_games;
+            return `<div style="font-weight: bold; margin-bottom: 4px;">${p.name}</div>` +
+                   `<div style="color: #83a598;">Usage: ${p.value.toFixed(1)}%</div>` +
+                   `<div style="color: #a89984; font-size: 11px;">${games} games</div>`;
           }
         },
         grid: { left: '3%', right: '4%', top: '8%', bottom: '25%', containLabel: true },
         xAxis: {
           type: 'category',
           data: activeChars.map(([name]) => name),
-          axisLine: { lineStyle: { color: '#504945' } },
+          axisLine: { lineStyle: { color: '#504945', width: 2 } },
           axisLabel: { 
             color: '#a89984', 
             fontSize: 9, 
             rotate: 45,
-            interval: 0
+            interval: 0,
+            fontWeight: 500
+          },
+          axisTick: {
+            show: true,
+            lineStyle: { color: '#504945' }
           }
         },
         yAxis: {
           type: 'value',
-          axisLine: { lineStyle: { color: '#504945' } },
-          axisLabel: { color: '#a89984', fontSize: 10, formatter: '{value}%' },
-          splitLine: { lineStyle: { color: '#3c3836', type: 'dashed' } }
+          axisLine: { show: true, lineStyle: { color: '#504945', width: 2 } },
+          axisLabel: { 
+            color: '#a89984', 
+            fontSize: 10, 
+            formatter: '{value}%',
+            fontWeight: 500
+          },
+          splitLine: { 
+            lineStyle: { 
+              color: '#3c3836', 
+              type: 'dashed',
+              width: 1
+            } 
+          }
         },
         series: [{
           data: activeChars.map(([_, stats]) => stats.usage_rate),
@@ -102,10 +129,28 @@ const CharacterAnalytics: React.FC = () => {
           itemStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
               { offset: 0, color: '#83a598' },
+              { offset: 0.5, color: '#689d6a' },
               { offset: 1, color: '#458588' }
-            ])
+            ]),
+            borderRadius: [4, 4, 0, 0],
+            shadowColor: 'rgba(131, 165, 152, 0.3)',
+            shadowBlur: 8,
+            shadowOffsetY: 2
           },
-          barWidth: '60%'
+          emphasis: {
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#8ec07c' },
+                { offset: 0.5, color: '#83a598' },
+                { offset: 1, color: '#689d6a' }
+              ]),
+              shadowColor: 'rgba(131, 165, 152, 0.5)',
+              shadowBlur: 12,
+              shadowOffsetY: 4
+            }
+          },
+          barWidth: '65%',
+          animationDelay: (idx: number) => idx * 30
         }]
       });
 
@@ -139,38 +184,93 @@ const CharacterAnalytics: React.FC = () => {
         backgroundColor: 'transparent',
         tooltip: {
           trigger: 'axis',
-          axisPointer: { type: 'shadow' },
+          axisPointer: { 
+            type: 'shadow',
+            shadowStyle: {
+              color: 'rgba(251, 73, 52, 0.1)'
+            }
+          },
           backgroundColor: '#3c3836',
-          borderColor: '#504945',
-          textStyle: { color: '#ebdbb2' },
+          borderColor: '#fe8019',
+          borderWidth: 2,
+          textStyle: { color: '#ebdbb2', fontSize: 12 },
+          padding: 12,
           formatter: (params: any) => {
             const p = params[0];
-            return `${p.name}<br/>Characters: ${p.value}`;
+            const range = p.name;
+            const count = p.value;
+            const total = binCounts.reduce((a: number, b: number) => a + b, 0);
+            const percent = ((count / total) * 100).toFixed(1);
+            return `<div style="font-weight: bold; margin-bottom: 4px;">${range} Win Rate</div>` +
+                   `<div style="color: #fe8019;">${count} characters (${percent}%)</div>`;
           }
         },
         grid: { left: '8%', right: '4%', top: '8%', bottom: '15%', containLabel: true },
         xAxis: {
           type: 'category',
           data: ['0-20%', '20-40%', '40-50%', '50-60%', '60-80%', '80-100%'],
-          axisLine: { lineStyle: { color: '#504945' } },
-          axisLabel: { color: '#a89984', fontSize: 10 }
+          axisLine: { lineStyle: { color: '#504945', width: 2 } },
+          axisLabel: { 
+            color: '#a89984', 
+            fontSize: 10,
+            fontWeight: 500
+          },
+          axisTick: {
+            show: true,
+            lineStyle: { color: '#504945' }
+          }
         },
         yAxis: {
           type: 'value',
-          axisLine: { lineStyle: { color: '#504945' } },
-          axisLabel: { color: '#a89984', fontSize: 10 },
-          splitLine: { lineStyle: { color: '#3c3836', type: 'dashed' } }
+          axisLine: { show: true, lineStyle: { color: '#504945', width: 2 } },
+          axisLabel: { 
+            color: '#a89984', 
+            fontSize: 10,
+            fontWeight: 500
+          },
+          splitLine: { 
+            lineStyle: { 
+              color: '#3c3836', 
+              type: 'dashed',
+              width: 1
+            } 
+          }
         },
         series: [{
           data: binCounts,
           type: 'bar',
           itemStyle: {
             color: (params: any) => {
-              const colors = ['#fb4934', '#fabd2f', '#fe8019', '#b8bb26', '#8ec07c', '#83a598'];
-              return colors[params.dataIndex];
+              const colors = [
+                { start: '#fb4934', end: '#cc241d' },
+                { start: '#fabd2f', end: '#d79921' },
+                { start: '#fe8019', end: '#d65d0e' },
+                { start: '#b8bb26', end: '#98971a' },
+                { start: '#8ec07c', end: '#689d6a' },
+                { start: '#83a598', end: '#458588' }
+              ];
+              const colorPair = colors[params.dataIndex];
+              return new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: colorPair.start },
+                { offset: 1, color: colorPair.end }
+              ]);
+            },
+            borderRadius: [4, 4, 0, 0],
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+            shadowBlur: 8,
+            shadowOffsetY: 2
+          },
+          emphasis: {
+            itemStyle: {
+              shadowColor: 'rgba(0, 0, 0, 0.5)',
+              shadowBlur: 12,
+              shadowOffsetY: 4,
+              borderColor: '#ebdbb2',
+              borderWidth: 2
             }
           },
-          barWidth: '70%'
+          barWidth: '75%',
+          animationDelay: (idx: number) => idx * 50
         }]
       });
 
