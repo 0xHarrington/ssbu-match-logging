@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import MatchLogger from './MatchLogger';
 import RecentMatches, { type RecentMatchesRef } from './RecentMatches';
@@ -111,9 +111,38 @@ function Header() {
   );
 }
 
+// Component to update page title based on route
+function PageTitle() {
+  const location = useLocation();
+  
+  useEffect(() => {
+    const path = location.pathname;
+    let title = 'Smash Match Logger';
+    
+    if (path === '/') {
+      title = 'Game Logger - Smash Match Logger';
+    } else if (path === '/stats') {
+      title = 'Statistics - Smash Match Logger';
+    } else if (path.startsWith('/users/')) {
+      const username = path.split('/')[2];
+      title = `${username}'s Stats - Smash Match Logger`;
+    } else if (path === '/characters') {
+      title = 'Character Analytics - Smash Match Logger';
+    } else if (path.startsWith('/characters/')) {
+      const character = decodeURIComponent(path.split('/')[2]);
+      title = `${character} - Smash Match Logger`;
+    }
+    
+    document.title = title;
+  }, [location]);
+  
+  return null;
+}
+
 function App() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg0, #282828)', color: 'var(--fg, #ebdbb2)', display: 'flex', flexDirection: 'column' }}>
+      <PageTitle />
       <Header />
       <main style={{ flex: 1, width: '100%', maxWidth: 1920, margin: '0 auto' }}>
         <Routes>
