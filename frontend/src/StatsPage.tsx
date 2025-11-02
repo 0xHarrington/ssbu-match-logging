@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import Plot from 'react-plotly.js';
+import React, { useEffect, useState, useRef } from 'react';
+import * as echarts from 'echarts';
 import CharacterDisplay from './components/CharacterDisplay';
 
 interface MonthlyActivityItem {
@@ -48,6 +48,10 @@ const StatsPage: React.FC = () => {
   const [charWinRates, setCharWinRates] = useState<CharacterWinRatesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Chart ref for eCharts - must be declared before any conditional returns
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartInstanceRef = useRef<echarts.ECharts | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -73,57 +77,124 @@ const StatsPage: React.FC = () => {
     fetchStats();
   }, []);
 
+  // Initialize eCharts chart
+  useEffect(() => {
+    if (!chartRef.current || !stats) return;
+
+    // Initialize chart instance
+    const chartInstance = echarts.init(chartRef.current);
+    chartInstanceRef.current = chartInstance;
+
+    // Prepare chart data
+    const months = stats.monthly_activity.map(item => {
+      const [year, month] = item.month.split('-');
+      const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('default', { month: 'short' });
+      const yearShort = year.slice(-2);
+      return `${monthName}. '${yearShort}`;
+    });
+    const gamesData = stats.monthly_activity.map(item => item.games);
+
+    // Configure chart options
+    const option = {
+      title: {
+        text: 'Games Played by Month',
+        textStyle: {
+          color: '#ebdbb2',
+          fontSize: 16,
+          fontWeight: 'bold'
+        },
+        left: 'center',
+        top: 10
+      },
+      backgroundColor: '#282828',
+      grid: {
+        left: '10%',
+        right: '10%',
+        top: '15%',
+        bottom: stats.monthly_activity.length > 12 ? '20%' : '15%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        data: months,
+        axisLine: {
+          lineStyle: { color: '#3c3836' }
+        },
+        axisLabel: {
+          color: '#ebdbb2',
+          fontSize: 12,
+          rotate: stats.monthly_activity.length > 12 ? -45 : 0
+        },
+        axisTick: {
+          lineStyle: { color: '#ebdbb2' }
+        }
+      },
+      yAxis: {
+        type: 'value',
+        name: 'Number of Games',
+        nameTextStyle: {
+          color: '#ebdbb2',
+          fontSize: 14
+        },
+        axisLine: {
+          lineStyle: { color: '#3c3836' }
+        },
+        axisLabel: {
+          color: '#ebdbb2',
+          fontSize: 12
+        },
+        splitLine: {
+          lineStyle: { color: '#3c3836' }
+        }
+      },
+      series: [{
+        type: 'bar',
+        data: gamesData,
+        itemStyle: {
+          color: '#458588',
+          borderColor: '#3c3836',
+          borderWidth: 1
+        },
+        barWidth: '60%',
+        label: {
+          show: true,
+          position: 'top',
+          color: '#ebdbb2',
+          fontSize: 12,
+          fontWeight: 'bold'
+        }
+      }],
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'rgba(40, 40, 40, 0.9)',
+        borderColor: '#3c3836',
+        textStyle: {
+          color: '#ebdbb2'
+        },
+        formatter: (params: any) => {
+          const param = params[0];
+          return `${param.name}<br/>Games: ${param.value}`;
+        }
+      }
+    };
+
+    chartInstance.setOption(option);
+
+    // Handle resize
+    const handleResize = () => {
+      chartInstance.resize();
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chartInstance.dispose();
+    };
+  }, [stats]);
+
   if (loading) return <div className="stats-container"><div>Loading...</div></div>;
   if (error) return <div className="stats-container"><div className="error">{error}</div></div>;
   if (!stats || !charWinRates) return null;
-
-  // Prepare chart data
-  const chartData = [{
-    x: stats.monthly_activity.map(item => item.month),
-    y: stats.monthly_activity.map(item => item.games),
-    type: 'bar',
-    marker: {
-      color: '#458588',
-      line: { color: '#3c3836', width: 1 },
-    },
-  }];
-  const chartLayout = {
-    title: {
-      text: 'Games Played by Month',
-      font: { color: '#ebdbb2' },
-    },
-    xaxis: {
-      title: { text: 'Month', font: { color: '#ebdbb2', size: 14 } },
-      tickfont: { color: '#ebdbb2', size: 12 },
-      gridcolor: '#3c3836',
-      zerolinecolor: '#3c3836',
-      linecolor: '#3c3836',
-      tickcolor: '#ebdbb2',
-      tickmode: 'array',
-      ticktext: stats.monthly_activity.map(item => {
-        const [year, month] = item.month.split('-');
-        const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('default', { month: 'short' });
-        const yearShort = year.slice(-2);
-        return `${monthName}. '${yearShort}`;
-      }),
-      tickvals: stats.monthly_activity.map(item => item.month),
-    },
-    yaxis: {
-      title: { text: 'Number of Games', font: { color: '#ebdbb2', size: 14 } },
-      tickfont: { color: '#ebdbb2', size: 12 },
-      gridcolor: '#3c3836',
-      zerolinecolor: '#3c3836',
-      linecolor: '#3c3836',
-      tickcolor: '#ebdbb2',
-    },
-    paper_bgcolor: '#282828',
-    plot_bgcolor: '#282828',
-    font: { color: '#ebdbb2' },
-    bargap: 0.2,
-    bargroupgap: 0.1,
-    showlegend: false,
-    margin: { l: 50, r: 20, t: 50, b: 50 },
-  };
 
   // Top 8 characters by games played for each player
   const getTop8 = (data: CharacterWinRates) =>
@@ -191,7 +262,13 @@ const StatsPage: React.FC = () => {
         <h2>Games Played by Month</h2>
         <div className="card">
           <div id="weeklyActivityChart" className="chart">
-            <Plot data={chartData} layout={chartLayout} config={{ displayModeBar: false, responsive: true }} style={{ width: '100%', height: 400 }} />
+            <div 
+              ref={chartRef} 
+              style={{ 
+                width: '100%', 
+                height: stats.monthly_activity.length > 12 ? 500 : 400 
+              }} 
+            />
           </div>
         </div>
       </section>
