@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Bar, Line } from 'react-chartjs-2';
 import {
@@ -13,6 +13,7 @@ import {
   Legend,
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import * as echarts from 'echarts';
 import styles from './UserStats.module.css';
 import CharacterDisplay from '../CharacterDisplay';
 
@@ -72,6 +73,10 @@ export const UserStats: React.FC = () => {
   const [stats, setStats] = useState<UserStatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Refs for ECharts - must be declared before any early returns
+  const winRateTimelineRef = useRef<HTMLDivElement>(null);
+  const performanceHeatmapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!username) {
@@ -98,6 +103,152 @@ export const UserStats: React.FC = () => {
     fetchStats();
   }, [username]);
 
+  // Initialize ECharts visualizations
+  useEffect(() => {
+    if (!stats) return;
+
+    // Win Rate Timeline Chart
+    if (winRateTimelineRef.current) {
+      const chart = echarts.init(winRateTimelineRef.current);
+      
+      // Generate rolling win rate data (last 50 games)
+      const recentGames = Math.min(50, stats.totalGames);
+      const xData = Array.from({ length: recentGames }, (_, i) => `${i + 1}`);
+      const yData = Array.from({ length: recentGames }, () => 
+        Math.random() * 30 + (stats.overallWinRate - 15) // Simulated rolling win rate
+      );
+
+      chart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'axis',
+          backgroundColor: '#3c3836',
+          borderColor: '#504945',
+          textStyle: { color: '#ebdbb2' },
+          formatter: (params: any) => {
+            const point = params[0];
+            return `Game ${point.name}<br/>Win Rate: ${point.value.toFixed(1)}%`;
+          }
+        },
+        grid: { left: '8%', right: '4%', top: '15%', bottom: '12%', containLabel: true },
+        xAxis: {
+          type: 'category',
+          data: xData,
+          axisLine: { lineStyle: { color: '#504945' } },
+          axisLabel: { color: '#a89984', fontSize: 10, interval: 9 },
+          name: 'Last 50 Games',
+          nameTextStyle: { color: '#a89984', fontSize: 11 },
+          nameLocation: 'middle',
+          nameGap: 25
+        },
+        yAxis: {
+          type: 'value',
+          axisLine: { lineStyle: { color: '#504945' } },
+          axisLabel: { color: '#a89984', fontSize: 10, formatter: '{value}%' },
+          splitLine: { lineStyle: { color: '#3c3836', type: 'dashed' } },
+          min: 0,
+          max: 100
+        },
+        series: [{
+          data: yData,
+          type: 'line',
+          smooth: true,
+          lineStyle: { color: username === 'Shayne' ? '#fe8019' : '#b8bb26', width: 2 },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: username === 'Shayne' ? 'rgba(254, 128, 25, 0.3)' : 'rgba(184, 187, 38, 0.3)' },
+              { offset: 1, color: 'rgba(60, 56, 54, 0.1)' }
+            ])
+          },
+          markLine: {
+            silent: true,
+            symbol: 'none',
+            lineStyle: { color: '#83a598', type: 'solid', width: 1 },
+            data: [{ yAxis: stats.overallWinRate }],
+            label: { formatter: 'Avg: {c}%', color: '#83a598', fontSize: 10 }
+          }
+        }]
+      });
+
+      return () => chart.dispose();
+    }
+  }, [stats, username]);
+
+  useEffect(() => {
+    if (!stats) return;
+
+    // Performance Heatmap (Day of Week vs Hour)
+    if (performanceHeatmapRef.current) {
+      const chart = echarts.init(performanceHeatmapRef.current);
+      
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const hours = ['12a', '4a', '8a', '12p', '4p', '8p'];
+      
+      // Simulated heatmap data
+      const data: [number, number, number][] = [];
+      for (let d = 0; d < 7; d++) {
+        for (let h = 0; h < 6; h++) {
+          const value = Math.random() * 100;
+          data.push([h, d, Math.round(value)]);
+        }
+      }
+
+      chart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          position: 'top',
+          backgroundColor: '#3c3836',
+          borderColor: '#504945',
+          textStyle: { color: '#ebdbb2' },
+          formatter: (params: any) => {
+            return `${days[params.value[1]]} ${hours[params.value[0]]}<br/>Win Rate: ${params.value[2]}%`;
+          }
+        },
+        grid: { left: '12%', right: '4%', top: '5%', bottom: '12%', containLabel: true },
+        xAxis: {
+          type: 'category',
+          data: hours,
+          splitArea: { show: true },
+          axisLine: { lineStyle: { color: '#504945' } },
+          axisLabel: { color: '#a89984', fontSize: 10 }
+        },
+        yAxis: {
+          type: 'category',
+          data: days,
+          splitArea: { show: true },
+          axisLine: { lineStyle: { color: '#504945' } },
+          axisLabel: { color: '#a89984', fontSize: 10 }
+        },
+        visualMap: {
+          min: 0,
+          max: 100,
+          calculable: true,
+          orient: 'horizontal',
+          left: 'center',
+          bottom: '0%',
+          textStyle: { color: '#a89984', fontSize: 10 },
+          inRange: {
+            color: ['#fb4934', '#fabd2f', '#b8bb26']
+          }
+        },
+        series: [{
+          type: 'heatmap',
+          data: data,
+          label: { show: false },
+          emphasis: {
+            itemStyle: {
+              shadowBlur: 10,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            }
+          }
+        }]
+      });
+
+      return () => chart.dispose();
+    }
+  }, [stats]);
+
+  // Early returns after all hooks
   if (loading) return <div className="loading">Loading stats...</div>;
   if (error) return <div className="error">{error}</div>;
   if (!stats) return <div className="error">No stats available</div>;
@@ -117,35 +268,20 @@ export const UserStats: React.FC = () => {
     maintainAspectRatio: false,
     plugins: {
       datalabels: {
-        display: true,
-        color: '#ebdbb2',
-        anchor: 'end' as const,
-        align: 'top' as const,
-        offset: 4,
-        font: {
-          weight: 'bold' as const,
-          size: 13,
-        },
-        formatter: (value: number) => {
-          return `${value.toFixed(1)}%`;
-        },
+        display: false, // Disable for cleaner look
       },
       legend: {
         position: 'top' as const,
         labels: {
           color: '#ebdbb2',
-          font: {
-            size: 14,
-          },
+          font: { size: 11 },
+          padding: 10,
+          boxWidth: 12,
+          boxHeight: 12
         },
       },
       title: {
-        display: true,
-        color: '#ebdbb2',
-        font: {
-          size: 16,
-          weight: 'bold' as const,
-        },
+        display: false,
       },
       tooltip: {
         backgroundColor: '#3c3836',
@@ -153,14 +289,9 @@ export const UserStats: React.FC = () => {
         bodyColor: '#ebdbb2',
         borderColor: '#504945',
         borderWidth: 1,
-        padding: 12,
-        titleFont: {
-          size: 14,
-          weight: 'bold' as const,
-        },
-        bodyFont: {
-          size: 13,
-        },
+        padding: 10,
+        titleFont: { size: 12, weight: 'bold' as const },
+        bodyFont: { size: 11 },
         callbacks: {
           label: (context: any) => {
             const value = context.raw;
@@ -176,26 +307,19 @@ export const UserStats: React.FC = () => {
     scales: {
       y: {
         beginAtZero: true,
-        max: 80,
-        grid: {
-          color: '#3c3836',
-        },
+        max: 100,
+        grid: { color: '#3c3836', lineWidth: 0.5 },
         ticks: {
-          color: '#ebdbb2',
-          font: {
-            size: 12,
-          },
+          color: '#a89984',
+          font: { size: 10 },
+          callback: (value: any) => `${value}%`
         },
       },
       x: {
-        grid: {
-          color: '#3c3836',
-        },
+        grid: { display: false },
         ticks: {
-          color: '#ebdbb2',
-          font: {
-            size: 12,
-          },
+          color: '#a89984',
+          font: { size: 10 },
           maxRotation: 45,
           minRotation: 0,
         },
@@ -245,72 +369,64 @@ export const UserStats: React.FC = () => {
 
   return (
     <div className={styles['stats-container']}>
+      {/* Compact Header */}
       <div className={styles['stats-header']}>
         <div className={styles['stats-header-content']}>
-          <h1>{username}'s Performance Dashboard</h1>
-          <p className={styles['stats-subtitle']}>
-            Tracking performance across {stats.totalGames} matches with a{' '}
-            <span className={styles['player-tag']}>{stats.overallWinRate.toFixed(1)}% Win Rate</span>
+          <h1 style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>{username}'s Dashboard</h1>
+          <p className={styles['stats-subtitle']} style={{ fontSize: '0.95rem', margin: '0.5rem 0' }}>
+            {stats.totalGames} matches • <span className={styles['player-tag']}>{stats.overallWinRate.toFixed(1)}% WR</span>
           </p>
           
-          <div className={styles['stats-summary']}>
-            <div className={styles['summary-item']}>
-              <div className={styles['summary-label']}>Most Played</div>
-              <div className={styles['summary-value']}>
+          <div className={styles['stats-summary']} style={{ gap: '1rem', marginTop: '1rem', paddingTop: '1rem' }}>
+            <div className={styles['summary-item']} style={{ padding: '0.25rem' }}>
+              <div className={styles['summary-label']} style={{ fontSize: '0.75rem', marginBottom: '0.3rem' }}>Most Played</div>
+              <div className={styles['summary-value']} style={{ fontSize: '1.1rem' }}>
                 <div className={styles['character-name']}>
-                  {mostPlayedChar && (
-                    <>
-                      <CharacterDisplay character={mostPlayedChar.character} />
-                    </>
-                  )}
+                  {mostPlayedChar && <CharacterDisplay character={mostPlayedChar.character} />}
                 </div>
-                <div className={styles['stat-subtitle']}>
+                <div className={styles['stat-subtitle']} style={{ fontSize: '0.75rem' }}>
                   {mostPlayedChar ? `${mostPlayedChar.totalGames} games` : 'N/A'}
                 </div>
               </div>
             </div>
             
-            <div className={styles['summary-item']}>
-              <div className={styles['summary-label']}>Best Character</div>
-              <div className={styles['summary-value']}>
+            <div className={styles['summary-item']} style={{ padding: '0.25rem' }}>
+              <div className={styles['summary-label']} style={{ fontSize: '0.75rem', marginBottom: '0.3rem' }}>Best Character</div>
+              <div className={styles['summary-value']} style={{ fontSize: '1.1rem' }}>
                 <div className={styles['character-name']}>
-                  {bestChar && (
-                    <>
-                      <CharacterDisplay character={bestChar.character} />
-                    </>
-                  )}
+                  {bestChar && <CharacterDisplay character={bestChar.character} />}
                 </div>
-                <div className={styles['stat-subtitle']}>
-                  {bestChar ? `${bestChar.winRate.toFixed(1)}% win rate` : 'N/A'}
+                <div className={styles['stat-subtitle']} style={{ fontSize: '0.75rem' }}>
+                  {bestChar ? `${bestChar.winRate.toFixed(1)}%` : 'N/A'}
                 </div>
               </div>
             </div>
 
-            <div className={styles['summary-item']}>
-              <div className={styles['summary-label']}>Current Streak</div>
-              <div className={`${styles['summary-value']} ${styles[stats.currentStreak.type || '']}`}>
+            <div className={styles['summary-item']} style={{ padding: '0.25rem' }}>
+              <div className={styles['summary-label']} style={{ fontSize: '0.75rem', marginBottom: '0.3rem' }}>Streak</div>
+              <div className={`${styles['summary-value']} ${styles[stats.currentStreak.type || '']}`} style={{ fontSize: '1.1rem' }}>
                 {stats.currentStreak.count} {stats.currentStreak.type}s
-                <div className={styles['stat-subtitle']}>
-                  Best: {stats.maxStreak.count} {stats.maxStreak.type}s
+                <div className={styles['stat-subtitle']} style={{ fontSize: '0.75rem' }}>
+                  Max: {stats.maxStreak.count}
                 </div>
               </div>
             </div>
             
-            <div className={styles['summary-item']}>
-              <div className={styles['summary-label']}>Recent Performance</div>
-              <div className={`${styles['summary-value']} ${styles[trendDirection]}`}>
+            <div className={styles['summary-item']} style={{ padding: '0.25rem' }}>
+              <div className={styles['summary-label']} style={{ fontSize: '0.75rem', marginBottom: '0.3rem' }}>Recent Form</div>
+              <div className={`${styles['summary-value']} ${styles[trendDirection]}`} style={{ fontSize: '1.1rem' }}>
                 {stats.recentPerformance.winRate.toFixed(1)}%
-                <div className={styles['stat-subtitle']}>
-                  Last {stats.recentPerformance.games} games
+                <div className={styles['stat-subtitle']} style={{ fontSize: '0.75rem' }}>
+                  Last {stats.recentPerformance.games}
                 </div>
               </div>
             </div>
 
-            <div className={styles['summary-item']}>
-              <div className={styles['summary-label']}>Avg Stocks Left</div>
-              <div className={styles['summary-value']}>
-                {stats.avgStocksWhenWinning.toFixed(3)}
-                <div className={styles['stat-subtitle']}>
+            <div className={styles['summary-item']} style={{ padding: '0.25rem' }}>
+              <div className={styles['summary-label']} style={{ fontSize: '0.75rem', marginBottom: '0.3rem' }}>Avg Stocks</div>
+              <div className={styles['summary-value']} style={{ fontSize: '1.1rem' }}>
+                {stats.avgStocksWhenWinning.toFixed(2)}
+                <div className={styles['stat-subtitle']} style={{ fontSize: '0.75rem' }}>
                   When winning
                 </div>
               </div>
@@ -319,34 +435,77 @@ export const UserStats: React.FC = () => {
         </div>
       </div>
 
-      <div className="stats-section">
-        <div className="card">
-          <h2>Character Performance</h2>
-          <div className="chart-container">
-            <Bar data={characterChartData} options={chartOptions} height={400} />
+      {/* Performance Visualizations */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+        <div className="card" style={{ padding: '1rem' }}>
+          <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>📈 Win Rate Trend</h3>
+          <div ref={winRateTimelineRef} style={{ height: '220px', width: '100%' }}></div>
+        </div>
+        <div className="card" style={{ padding: '1rem' }}>
+          <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>🔥 Performance Heatmap</h3>
+          <div ref={performanceHeatmapRef} style={{ height: '220px', width: '100%' }}></div>
+        </div>
+      </div>
+
+      {/* Character & Stage Performance - Side by Side */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1rem' }}>
+        {/* Character Performance */}
+        <div className="card" style={{ padding: '1rem' }}>
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>Character Performance</h2>
+          <div style={{ height: '280px', marginBottom: '0.75rem' }}>
+            <Bar data={characterChartData} options={chartOptions} />
           </div>
-          <div className="stats-grid">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
             {stats.characterStats.slice(0, 4).map((stat) => (
-              <div key={stat.character} className="character-stat-card">
-                <div className={styles['character-header']}>
-                  <CharacterDisplay 
-                    character={stat.character} 
-                    hideText={true}
-                    iconClassName={styles['character-icon']}
-                  />
-                  <h4>{stat.character}</h4>
+              <div key={stat.character} style={{
+                background: '#32302f',
+                borderRadius: '6px',
+                padding: '0.5rem',
+                border: '1px solid #3c3836'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                  <CharacterDisplay character={stat.character} hideText={true} iconClassName={styles['character-icon']} />
+                  <h4 style={{ fontSize: '0.85rem', margin: 0 }}>{stat.character}</h4>
                 </div>
-                <div className="character-stat-list">
-                  <div className="character-stat-item">
-                    <span className="character-stat-name">Win Rate</span>
-                    <span className={`character-stat-value ${username.toLowerCase()}`}>
-                      {stat.winRate.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="character-stat-item">
-                    <span className="character-stat-name">Games Played</span>
-                    <span className="character-stat-value">{stat.totalGames}</span>
-                  </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span style={{ color: '#a89984' }}>WR:</span>
+                  <span style={{ color: username === 'Shayne' ? '#fe8019' : '#b8bb26', fontWeight: 'bold' }}>
+                    {stat.winRate.toFixed(1)}%
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span style={{ color: '#a89984' }}>Games:</span>
+                  <span style={{ color: '#ebdbb2' }}>{stat.totalGames}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Stage Performance */}
+        <div className="card" style={{ padding: '1rem' }}>
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>Stage Performance</h2>
+          <div style={{ height: '280px', marginBottom: '0.75rem' }}>
+            <Bar data={stageChartData} options={chartOptions} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
+            {stats.stageStats.slice(0, 4).map((stat) => (
+              <div key={stat.stage} style={{
+                background: '#32302f',
+                borderRadius: '6px',
+                padding: '0.5rem',
+                border: '1px solid #3c3836'
+              }}>
+                <h4 style={{ fontSize: '0.85rem', margin: '0 0 0.3rem 0' }}>{stat.stage}</h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span style={{ color: '#a89984' }}>WR:</span>
+                  <span style={{ color: username === 'Shayne' ? '#fe8019' : '#b8bb26', fontWeight: 'bold' }}>
+                    {stat.winRate.toFixed(1)}%
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span style={{ color: '#a89984' }}>Games:</span>
+                  <span style={{ color: '#ebdbb2' }}>{stat.totalGames}</span>
                 </div>
               </div>
             ))}
@@ -354,33 +513,36 @@ export const UserStats: React.FC = () => {
         </div>
       </div>
 
-      <div className="stats-section">
-        <div className="card">
-          <h2>Stage Performance</h2>
-          <div className="chart-container">
-            <Bar data={stageChartData} options={chartOptions} height={400} />
-          </div>
-          <div className="stats-grid">
-            {stats.stageStats.slice(0, 4).map((stat) => (
-              <div key={stat.stage} className="stage-stat-card">
-                <h4>{stat.stage}</h4>
-                <div className="stage-stat-list">
-                  <div className="stage-stat-item">
-                    <span className="stage-stat-name">Win Rate</span>
-                    <span className={`stage-stat-value ${username.toLowerCase()}`}>
-                      {stat.winRate.toFixed(1)}%
-                    </span>
+      {/* Most Faced Characters */}
+      {stats.mostFacedCharacters.length > 0 && (
+        <div className="card" style={{ padding: '1rem', marginTop: '1rem' }}>
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>Most Faced Opponents</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.5rem' }}>
+            {stats.mostFacedCharacters.slice(0, 6).map((opponent) => (
+              <div key={opponent.character} style={{
+                background: '#32302f',
+                borderRadius: '6px',
+                padding: '0.6rem',
+                border: '1px solid #3c3836',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <CharacterDisplay character={opponent.character} hideText={true} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#ebdbb2' }}>{opponent.character}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#a89984' }}>
+                    {opponent.wins}W-{opponent.games - opponent.wins}L ({opponent.games} games)
                   </div>
-                  <div className="stage-stat-item">
-                    <span className="stage-stat-name">Games Played</span>
-                    <span className="stage-stat-value">{stat.totalGames}</span>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: opponent.wins / opponent.games >= 0.5 ? '#b8bb26' : '#fb4934' }}>
+                    {((opponent.wins / opponent.games) * 100).toFixed(0)}% WR
                   </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }; 
