@@ -350,12 +350,12 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
 
   return (
     <div className="match-logger">
-      <div className="match-form">
-        <h2>Log a Match</h2>
+      <div className="match-form" style={{ padding: '1rem' }}>
+        <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>Log Match</h2>
         <form onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <div className="player-section">
-              <h3>Shayne</h3>
+          <div className="form-grid" style={{ gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <div className="player-section" style={{ padding: '0.75rem' }}>
+              <h3 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Shayne</h3>
               <CharacterSearch 
                 label="Character" 
                 value={shayneCharacter} 
@@ -364,8 +364,8 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
                 characterWinRates={characterWinRates}
               />
             </div>
-            <div className="player-section">
-              <h3>Matt</h3>
+            <div className="player-section" style={{ padding: '0.75rem' }}>
+              <h3 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Matt</h3>
               <CharacterSearch 
                 label="Character" 
                 value={mattCharacter} 
@@ -376,9 +376,9 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
             </div>
           </div>
           
-          <div className="stage-select">
-            <label>Stage</label>
-            <div className="stage-buttons">
+          <div className="stage-select" style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
+            <label style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Stage</label>
+            <div className="stage-buttons" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
               {stages.map(s => (
                 <button
                   type="button"
@@ -391,6 +391,9 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
                     backgroundPosition: 'center',
                     position: 'relative',
                     overflow: 'hidden',
+                    minHeight: '60px',
+                    padding: '0.5rem',
+                    fontSize: '0.75rem'
                   }}
                 >
                   <div style={{
@@ -402,36 +405,37 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
                     backgroundColor: 'rgba(0, 0, 0, 0.6)',
                     zIndex: 1,
                   }} />
-                  <span className="stage-name" style={{ position: 'relative', zIndex: 2 }}>{s}</span>
+                  <span className="stage-name" style={{ position: 'relative', zIndex: 2, fontSize: '0.75rem' }}>{s}</span>
                 </button>
               ))}
             </div>
           </div>
           <input type="hidden" name="stage" value={stage} />
           
-          <div className="form-grid">
-            <div className="player-section">
-              <h3>Winner</h3>
+          <div className="form-grid" style={{ gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <div className="player-section" style={{ padding: '0.75rem' }}>
+              <h3 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Winner</h3>
               <div className="radio-group">
                 <div className="radio-button">
                   <input type="radio" id="winner-shayne" name="winner" value="Shayne" checked={winner === 'Shayne'} onChange={() => setWinner('Shayne')} required />
-                  <label htmlFor="winner-shayne" className="shayne">Shayne</label>
+                  <label htmlFor="winner-shayne" className="shayne" style={{ minHeight: '36px', fontSize: '0.85rem' }}>Shayne</label>
                 </div>
                 <div className="radio-button">
                   <input type="radio" id="winner-matt" name="winner" value="Matt" checked={winner === 'Matt'} onChange={() => setWinner('Matt')} required />
-                  <label htmlFor="winner-matt" className="matt">Matt</label>
+                  <label htmlFor="winner-matt" className="matt" style={{ minHeight: '36px', fontSize: '0.85rem' }}>Matt</label>
                 </div>
               </div>
             </div>
-            <div className="player-section">
-              <h3>Stocks Remaining</h3>
-              <div className="stocks-buttons">
+            <div className="player-section" style={{ padding: '0.75rem' }}>
+              <h3 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Stocks Left</h3>
+              <div className="stocks-buttons" style={{ gap: '0.5rem' }}>
                 {[1, 2, 3].map(n => (
                   <button
                     type="button"
                     key={n}
                     className={`stocks-button${stocks === String(n) ? ' selected' : ''}`}
                     onClick={() => setStocks(String(n))}
+                    style={{ height: '36px', fontSize: '0.95rem' }}
                   >
                     {n}
                   </button>
@@ -440,9 +444,9 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
             </div>
           </div>
 
-          {error && <div className="error" style={{ marginTop: 16 }}>{error}</div>}
-          {success && <div className="success" style={{ marginTop: 16 }}>{success}</div>}
-          <button type="submit" className="submit-button" disabled={submitting}>
+          {error && <div className="error" style={{ marginTop: '0.5rem', padding: '0.5rem', fontSize: '0.85rem' }}>{error}</div>}
+          {success && <div className="success" style={{ marginTop: '0.5rem', padding: '0.5rem', fontSize: '0.85rem' }}>{success}</div>}
+          <button type="submit" className="submit-button" disabled={submitting} style={{ padding: '0.75rem', fontSize: '0.95rem', marginTop: '0.75rem' }}>
             {submitting ? 'Logging...' : 'Log Match'}
           </button>
         </form>

@@ -1,4 +1,5 @@
-import { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useState, forwardRef, useImperativeHandle, useRef } from 'react';
+import * as echarts from 'echarts';
 import CharacterDisplay from './components/CharacterDisplay';
 
 // Import stage images
@@ -54,6 +55,26 @@ interface MatchupStats {
   }>;
 }
 
+interface HeadToHeadStats {
+  recent_form: {
+    last_10: { shayne_wins: number; matt_wins: number; total_games: number };
+  };
+  streaks: {
+    current_streak: { player: string; length: number };
+  };
+}
+
+interface AdvancedMetrics {
+  two_stock_wins: {
+    shayne: { two_stock_wins: number; two_stock_rate: number };
+    matt: { two_stock_wins: number; two_stock_rate: number };
+  };
+  dominance_factor: {
+    shayne: { three_stock_wins: number };
+    matt: { three_stock_wins: number };
+  };
+}
+
 export interface SessionStatsProps {
   shayneCharacter?: string;
   mattCharacter?: string;
@@ -66,17 +87,34 @@ export interface SessionStatsRef {
 const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCharacter, mattCharacter }, ref) => {
   const [stats, setStats] = useState<SessionStatsData | null>(null);
   const [matchupStats, setMatchupStats] = useState<MatchupStats | null>(null);
+  const [headToHead, setHeadToHead] = useState<HeadToHeadStats | null>(null);
+  const [advancedMetrics, setAdvancedMetrics] = useState<AdvancedMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartInstanceRef = useRef<echarts.ECharts | null>(null);
 
   const fetchStats = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/session_stats');
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Failed to load session stats');
-      setStats(data);
+      const [sessionRes, h2hRes, advRes] = await Promise.all([
+        fetch('/api/session_stats'),
+        fetch('/api/head_to_head_stats'),
+        fetch('/api/advanced_metrics'),
+      ]);
+      
+      const sessionData = await sessionRes.json();
+      const h2hData = await h2hRes.json();
+      const advData = await advRes.json();
+      
+      if (!sessionData.success) throw new Error(sessionData.message || 'Failed to load session stats');
+      if (!h2hData.success) throw new Error(h2hData.message || 'Failed to load head-to-head stats');
+      if (!advData.success) throw new Error(advData.message || 'Failed to load advanced metrics');
+      
+      setStats(sessionData);
+      setHeadToHead(h2hData);
+      setAdvancedMetrics(advData);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -114,168 +152,271 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
     fetchMatchupStats();
   }, [shayneCharacter, mattCharacter]);
 
+  // Mini donut chart for win distribution
+  useEffect(() => {
+    if (!chartRef.current || !stats) return;
+
+    const chartInstance = echarts.init(chartRef.current);
+    chartInstanceRef.current = chartInstance;
+
+    const option = {
+      backgroundColor: 'transparent',
+      series: [{
+        type: 'pie',
+        radius: ['60%', '85%'],
+        center: ['50%', '50%'],
+        avoidLabelOverlap: false,
+        label: { show: false },
+        labelLine: { show: false },
+        data: [
+          { value: stats.shayne_wins, name: 'Shayne', itemStyle: { color: '#fe8019' } },
+          { value: stats.matt_wins, name: 'Matt', itemStyle: { color: '#b8bb26' } }
+        ],
+        emphasis: {
+          scale: false,
+          itemStyle: {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.5)'
+          }
+        }
+      }]
+    };
+
+    chartInstance.setOption(option);
+
+    const handleResize = () => chartInstance.resize();
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chartInstance.dispose();
+    };
+  }, [stats]);
+
   return (
-    <div className="session-stats">
-      <h2>Heads-up Stats</h2>
-      {loading && <div>Loading...</div>}
-      {error && <div className="error">{error}</div>}
-      {!loading && !error && stats && (
+    <div className="session-stats" style={{ padding: '1rem' }}>
+      <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>Session Stats</h2>
+      {loading && <div style={{ fontSize: '0.85rem', color: '#a89984' }}>Loading...</div>}
+      {error && <div className="error" style={{ fontSize: '0.85rem', padding: '0.5rem' }}>{error}</div>}
+      {!loading && !error && stats && headToHead && advancedMetrics && (
         <>
+          {/* Hero Stats with Mini Chart */}
+          <div style={{ 
+            background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
+            borderRadius: '12px',
+            padding: '1rem',
+            marginBottom: '1rem',
+            border: '1px solid #504945'
+          }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Today's Session
+                </div>
+                <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+                  <div>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#fe8019', lineHeight: 1 }}>{stats.shayne_wins}</div>
+                    <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Shayne</div>
+                  </div>
+                  <div style={{ fontSize: '1.5rem', color: '#504945', alignSelf: 'center' }}>-</div>
+                  <div>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#b8bb26', lineHeight: 1 }}>{stats.matt_wins}</div>
+                    <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#a89984' }}>
+                  {stats.total_games} games played
+                </div>
+              </div>
+              <div ref={chartRef} style={{ width: 80, height: 80 }} />
+            </div>
+          </div>
+
+          {/* Quick Stats Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', marginBottom: '1rem' }}>
+            <div className="stat-card" style={{ padding: '0.6rem', minHeight: 'auto' }}>
+              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.3rem' }}>🔥 Current Streak</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: headToHead.streaks.current_streak.player === 'Shayne' ? '#fe8019' : '#b8bb26' }}>
+                {headToHead.streaks.current_streak.length}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#a89984' }}>{headToHead.streaks.current_streak.player}</div>
+            </div>
+            
+            <div className="stat-card" style={{ padding: '0.6rem', minHeight: 'auto' }}>
+              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.3rem' }}>📊 Last 10</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
+                <span style={{ color: '#fe8019' }}>{headToHead.recent_form.last_10.shayne_wins}</span>
+                <span style={{ color: '#a89984', margin: '0 0.3rem' }}>-</span>
+                <span style={{ color: '#b8bb26' }}>{headToHead.recent_form.last_10.matt_wins}</span>
+              </div>
+              <div style={{ 
+                height: '3px', 
+                background: '#3c3836', 
+                borderRadius: '2px', 
+                overflow: 'hidden',
+                display: 'flex',
+                marginTop: '0.3rem'
+              }}>
+                <div style={{ width: `${(headToHead.recent_form.last_10.shayne_wins / headToHead.recent_form.last_10.total_games) * 100}%`, background: '#fe8019' }}></div>
+                <div style={{ width: `${(headToHead.recent_form.last_10.matt_wins / headToHead.recent_form.last_10.total_games) * 100}%`, background: '#b8bb26' }}></div>
+              </div>
+            </div>
+
+            <div className="stat-card" style={{ padding: '0.6rem', minHeight: 'auto' }}>
+              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.3rem' }}>⚡ 3-Stocks</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
+                <span style={{ color: '#fe8019' }}>{advancedMetrics.dominance_factor.shayne.three_stock_wins}</span>
+                <span style={{ color: '#a89984', margin: '0 0.3rem' }}>|</span>
+                <span style={{ color: '#b8bb26' }}>{advancedMetrics.dominance_factor.matt.three_stock_wins}</span>
+              </div>
+            </div>
+
+            <div className="stat-card" style={{ padding: '0.6rem', minHeight: 'auto' }}>
+              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.3rem' }}>💪 2-Stocks</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
+                <span style={{ color: '#fe8019' }}>{advancedMetrics.two_stock_wins.shayne.two_stock_wins}</span>
+                <span style={{ color: '#a89984', margin: '0 0.3rem' }}>|</span>
+                <span style={{ color: '#b8bb26' }}>{advancedMetrics.two_stock_wins.matt.two_stock_wins}</span>
+              </div>
+            </div>
+          </div>
+
           {/* Matchup Stats */}
           {matchupStats && shayneCharacter && mattCharacter && (
-            <div className="matchup-stats">
+            <div style={{ 
+              background: '#3c3836',
+              borderRadius: '12px',
+              padding: '0.75rem',
+              marginBottom: '1rem',
+              border: '1px solid #504945'
+            }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <h3 style={{ margin: 0, border: 'none', padding: 0 }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fbf1c7' }}>
                   <CharacterDisplay character={shayneCharacter} /> vs <CharacterDisplay character={mattCharacter} />
-                </h3>
-                <div className="matchup-total-games">
-                  <div className="stat-label">Matchup Games</div>
-                  <div className="stat-value">{matchupStats.total_games}</div>
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>
+                  {matchupStats.total_games} games
                 </div>
               </div>
 
-              <div className="matchup-stats-grid">
-                <div className="matchup-player-stats shayne">
-                  <div className="stat-value shayne">{matchupStats.shayne_wins}</div>
-                  <div className="stat-label">
-                    Shayne's Wins ({Math.round((matchupStats.shayne_wins / matchupStats.total_games) * 100) || 0}%)
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fe8019' }}>{matchupStats.shayne_wins}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#a89984' }}>
+                    {Math.round((matchupStats.shayne_wins / matchupStats.total_games) * 100) || 0}%
                   </div>
-                  <div className="win-rate-bar">
-                    <div 
-                      className="win-rate-fill shayne" 
-                      style={{ 
-                        width: `${(matchupStats.shayne_wins / matchupStats.total_games) * 100}%`,
-                        height: '100%',
-                        transition: 'width 0.3s ease',
-                        backgroundColor: '#d65d0e',
-                        boxShadow: '0 1px 2px rgba(214, 93, 14, 0.3)'
-                      }}
-                    />
+                  <div style={{ 
+                    height: '3px', 
+                    background: '#282828', 
+                    borderRadius: '2px', 
+                    marginTop: '0.3rem',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ 
+                      width: `${(matchupStats.shayne_wins / matchupStats.total_games) * 100}%`,
+                      height: '100%',
+                      background: '#fe8019'
+                    }}></div>
                   </div>
                 </div>
-                <div className="matchup-player-stats matt">
-                  <div className="stat-value matt">{matchupStats.matt_wins}</div>
-                  <div className="stat-label">
-                    Matt's Wins ({Math.round((matchupStats.matt_wins / matchupStats.total_games) * 100) || 0}%)
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#b8bb26' }}>{matchupStats.matt_wins}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#a89984' }}>
+                    {Math.round((matchupStats.matt_wins / matchupStats.total_games) * 100) || 0}%
                   </div>
-                  <div className="win-rate-bar">
-                    <div 
-                      className="win-rate-fill matt" 
-                      style={{ 
-                        width: `${(matchupStats.matt_wins / matchupStats.total_games) * 100}%`,
-                        height: '100%',
-                        transition: 'width 0.3s ease',
-                        backgroundColor: '#98971a',
-                        boxShadow: '0 1px 2px rgba(152, 151, 26, 0.3)'
-                      }}
-                    />
+                  <div style={{ 
+                    height: '3px', 
+                    background: '#282828', 
+                    borderRadius: '2px', 
+                    marginTop: '0.3rem',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ 
+                      width: `${(matchupStats.matt_wins / matchupStats.total_games) * 100}%`,
+                      height: '100%',
+                      background: '#b8bb26'
+                    }}></div>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Today's Session Stats */}
-          <div className="matchup-stats">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Today's Session</h3>
-              <div className="matchup-total-games">
-                <div className="stat-label">Total Games</div>
-                <div className="stat-value">{stats.total_games}</div>
-              </div>
-            </div>
-
-            <div className="matchup-stats-grid">
-              <div className="matchup-player-stats shayne">
-                <div className="stat-value shayne">{stats.shayne_wins}</div>
-                <div className="stat-label">
-                  Shayne's Wins ({Math.round((stats.shayne_wins / stats.total_games) * 100) || 0}%)
-                </div>
-                <div className="win-rate-bar">
-                  <div 
-                    className="win-rate-fill shayne" 
-                    style={{ 
-                      width: `${(stats.shayne_wins / stats.total_games) * 100}%`,
-                      height: '100%',
-                      transition: 'width 0.3s ease',
-                      backgroundColor: '#d65d0e',
-                      boxShadow: '0 1px 2px rgba(214, 93, 14, 0.3)'
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="matchup-player-stats matt">
-                <div className="stat-value matt">{stats.matt_wins}</div>
-                <div className="stat-label">
-                  Matt's Wins ({Math.round((stats.matt_wins / stats.total_games) * 100) || 0}%)
-                </div>
-                <div className="win-rate-bar">
-                  <div 
-                    className="win-rate-fill matt" 
-                    style={{ 
-                      width: `${(stats.matt_wins / stats.total_games) * 100}%`,
-                      height: '100%',
-                      transition: 'width 0.3s ease',
-                      backgroundColor: '#98971a',
-                      boxShadow: '0 1px 2px rgba(152, 151, 26, 0.3)'
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Character Usage */}
-          <div className="character-stats-grid">
-            <h3>Today's Character Usage</h3>
-            <div className="character-grid">
-              <div className="character-stat-card">
-                <h4>Shayne's Characters</h4>
-                <div className="character-stat-list" id="shayneCharacters">
-                  {Object.entries(stats.shayne_characters).sort(([,a],[,b])=>b-a).map(([char, count]) => (
-                    <div className="character-stat-item" key={char}>
-                      <CharacterDisplay character={char} />
-                      <span className="character-stat-value shayne">{count}</span>
+          {/* Character Usage - Compact */}
+          {(Object.keys(stats.shayne_characters).length > 0 || Object.keys(stats.matt_characters).length > 0) && (
+            <div style={{ marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '0.9rem', marginBottom: '0.5rem', color: '#fbf1c7' }}>Today's Characters</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div style={{ background: '#3c3836', borderRadius: '8px', padding: '0.6rem', border: '1px solid #504945' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#fe8019', marginBottom: '0.4rem', fontWeight: '600' }}>Shayne</div>
+                  {Object.entries(stats.shayne_characters).sort(([,a],[,b])=>b-a).slice(0, 3).map(([char, count]) => (
+                    <div key={char} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <div style={{ fontSize: '0.8rem' }}><CharacterDisplay character={char} /></div>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fe8019' }}>{count}</span>
                     </div>
                   ))}
                 </div>
-              </div>
-              <div className="character-stat-card">
-                <h4>Matt's Characters</h4>
-                <div className="character-stat-list" id="mattCharacters">
-                  {Object.entries(stats.matt_characters).sort(([,a],[,b])=>b-a).map(([char, count]) => (
-                    <div className="character-stat-item" key={char}>
-                      <CharacterDisplay character={char} />
-                      <span className="character-stat-value matt">{count}</span>
+                <div style={{ background: '#3c3836', borderRadius: '8px', padding: '0.6rem', border: '1px solid #504945' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#b8bb26', marginBottom: '0.4rem', fontWeight: '600' }}>Matt</div>
+                  {Object.entries(stats.matt_characters).sort(([,a],[,b])=>b-a).slice(0, 3).map(([char, count]) => (
+                    <div key={char} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <div style={{ fontSize: '0.8rem' }}><CharacterDisplay character={char} /></div>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#b8bb26' }}>{count}</span>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Stage Stats */}
-          <div className="stage-stats">
-            <h3>Today's Stage Usage</h3>
-            <div className="stage-stats-grid" id="stageStats">
-              {stats.stage_stats.map(stat => (
-                <div 
-                  className="stage-stat-card" 
-                  key={stat.stage}
-                  style={{
-                    backgroundImage: stageImages[stat.stage] ? `url(${stageImages[stat.stage]})` : 'none'
-                  }}
-                >
-                  <div className="stage-name">{stat.stage}</div>
-                  <div className="stage-stat-value">{stat.count}</div>
-                </div>
-              ))}
+          {/* Stage Stats - Compact */}
+          {stats.stage_stats.length > 0 && (
+            <div>
+              <h3 style={{ fontSize: '0.9rem', marginBottom: '0.5rem', color: '#fbf1c7' }}>Today's Stages</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' }}>
+                {stats.stage_stats.slice(0, 6).map(stat => (
+                  <div 
+                    key={stat.stage}
+                    style={{
+                      backgroundImage: stageImages[stat.stage] ? `url(${stageImages[stat.stage]})` : 'none',
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      borderRadius: '8px',
+                      padding: '0.5rem',
+                      minHeight: '50px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      border: '1px solid #504945'
+                    }}
+                  >
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                      zIndex: 1,
+                    }} />
+                    <div style={{ position: 'relative', zIndex: 2, fontSize: '0.7rem', color: '#fbf1c7', fontWeight: '600', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                      {stat.stage}
+                    </div>
+                    <div style={{ position: 'relative', zIndex: 2, fontSize: '1.1rem', fontWeight: 'bold', color: '#83a598', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                      {stat.count}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
     </div>
   );
 });
 
-export default SessionStats; 
+export default SessionStats;
