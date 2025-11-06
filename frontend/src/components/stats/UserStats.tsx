@@ -84,6 +84,7 @@ export const UserStats: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [heatmapData, setHeatmapData] = useState<any>(null);
   const [usingSimulatedData, setUsingSimulatedData] = useState(false);
+  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
   
   // Refs for ECharts - must be declared before any early returns
   const winRateTimelineRef = useRef<HTMLDivElement>(null);
@@ -120,7 +121,10 @@ export const UserStats: React.FC = () => {
 
     const fetchHeatmapData = async () => {
       try {
-        const response = await fetch(`/api/users/${username}/heatmap`);
+        const url = selectedCharacter 
+          ? `/api/users/${username}/heatmap?character=${encodeURIComponent(selectedCharacter)}`
+          : `/api/users/${username}/heatmap`;
+        const response = await fetch(url);
         if (!response.ok) {
           throw new Error('Failed to fetch heatmap data');
         }
@@ -140,7 +144,7 @@ export const UserStats: React.FC = () => {
     };
 
     fetchHeatmapData();
-  }, [username]);
+  }, [username, selectedCharacter]);
 
   // Initialize ECharts visualizations
   useEffect(() => {
@@ -586,6 +590,68 @@ export const UserStats: React.FC = () => {
             <span>Brightness = Games Played (Darker = Fewer, Brighter = More)</span>
           </div>
           <div ref={performanceHeatmapRef} style={{ height: '260px', width: '100%' }}></div>
+          
+          {/* Character Filter */}
+          {stats && stats.characterStats && stats.characterStats.length > 0 && (
+            <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #504945' }}>
+              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textAlign: 'center' }}>
+                Filter by Character:
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => setSelectedCharacter(null)}
+                  style={{
+                    padding: '0.4rem 0.6rem',
+                    background: selectedCharacter === null ? '#83a598' : '#3c3836',
+                    color: selectedCharacter === null ? '#282828' : '#ebdbb2',
+                    border: '1px solid #504945',
+                    borderRadius: '6px',
+                    fontSize: '0.7rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    fontWeight: selectedCharacter === null ? 'bold' : 'normal'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedCharacter !== null) e.currentTarget.style.background = '#504945';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedCharacter !== null) e.currentTarget.style.background = '#3c3836';
+                  }}
+                >
+                  All Characters
+                </button>
+                {stats.characterStats.slice(0, 8).map((charStat) => (
+                  <button
+                    key={charStat.character}
+                    onClick={() => setSelectedCharacter(charStat.character)}
+                    style={{
+                      padding: '0.3rem',
+                      background: selectedCharacter === charStat.character ? '#83a598' : '#3c3836',
+                      border: selectedCharacter === charStat.character ? '2px solid #83a598' : '1px solid #504945',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedCharacter !== charStat.character) e.currentTarget.style.background = '#504945';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedCharacter !== charStat.character) e.currentTarget.style.background = '#3c3836';
+                    }}
+                    title={`${charStat.character} (${charStat.totalGames} games, ${charStat.winRate.toFixed(1)}% WR)`}
+                  >
+                    <CharacterDisplay character={charStat.character} hideText={true} />
+                    <span style={{ fontSize: '0.65rem', color: selectedCharacter === charStat.character ? '#282828' : '#a89984' }}>
+                      {charStat.totalGames}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
