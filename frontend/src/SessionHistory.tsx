@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import * as echarts from 'echarts';
 
 interface Session {
   session_id: string;
@@ -11,14 +12,27 @@ interface Session {
   duration_minutes: number;
 }
 
+interface TimelineData {
+  session_id: string;
+  date: string;
+  datetime: string;
+  games: number;
+  shayne_wins: number;
+  matt_wins: number;
+  duration_minutes: number;
+}
+
 function SessionHistory() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterMinGames, setFilterMinGames] = useState(0);
+  const [timelineData, setTimelineData] = useState<TimelineData[]>([]);
+  const timelineChartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchSessions();
+    fetchTimeline();
   }, []);
 
   const fetchSessions = async () => {
@@ -37,6 +51,19 @@ function SessionHistory() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTimeline = async () => {
+    try {
+      const res = await fetch('/api/sessions/timeline');
+      const data = await res.json();
+      
+      if (data.success && data.data) {
+        setTimelineData(data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching timeline:', err);
     }
   };
 
@@ -74,6 +101,150 @@ function SessionHistory() {
   const avgDuration = sessions.length > 0 
     ? Math.round(sessions.reduce((sum, s) => sum + s.duration_minutes, 0) / sessions.length)
     : 0;
+
+  // Timeline Chart
+  useEffect(() => {
+    if (!timelineData || timelineData.length === 0) return;
+    if (!timelineChartRef.current) return;
+
+    const chart = echarts.init(timelineChartRef.current);
+
+    // Format dates for display
+    const dates = timelineData.map(d => {
+      const date = new Date(d.datetime);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+    const games = timelineData.map(d => d.games);
+
+    // Calculate rolling average (window of 5 sessions)
+    const rollingAvg: number[] = [];
+    const window = Math.min(5, Math.ceil(timelineData.length / 10)); // Adaptive window
+    for (let i = 0; i < games.length; i++) {
+      const start = Math.max(0, i - Math.floor(window / 2));
+      const end = Math.min(games.length, i + Math.ceil(window / 2));
+      const slice = games.slice(start, end);
+      const avg = slice.reduce((sum, val) => sum + val, 0) / slice.length;
+      rollingAvg.push(parseFloat(avg.toFixed(1)));
+    }
+
+    chart.setOption({
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'cross' },
+        backgroundColor: '#3c3836',
+        borderColor: '#504945',
+        borderWidth: 2,
+        textStyle: { color: '#ebdbb2', fontSize: 11 },
+        formatter: (params: any) => {
+          const dataIndex = params[0].dataIndex;
+          const session = timelineData[dataIndex];
+          const date = new Date(session.datetime);
+          const formattedDate = date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            year: 'numeric'
+          });
+          const shayneWR = session.games > 0 ? ((session.shayne_wins / session.games) * 100).toFixed(1) : '0';
+          const mattWR = session.games > 0 ? ((session.matt_wins / session.games) * 100).toFixed(1) : '0';
+          
+          let tooltip = `<div style="font-weight: bold; margin-bottom: 4px;">${formattedDate}</div>`;
+          
+          params.forEach((param: any) => {
+            if (param.seriesName === 'Games') {
+              tooltip += `<div style="color: #83a598;">Games: ${param.value}</div>`;
+            } else if (param.seriesName === 'Trend') {
+              tooltip += `<div style="color: #fabd2f;">Avg: ${param.value}</div>`;
+            }
+          });
+          
+          tooltip += `<div style="color: #fe8019;">Shayne: ${session.shayne_wins}W (${shayneWR}%)</div>` +
+                     `<div style="color: #b8bb26;">Matt: ${session.matt_wins}W (${mattWR}%)</div>` +
+                     `<div style="color: #a89984; font-size: 10px;">Duration: ${session.duration_minutes}min</div>`;
+          
+          return tooltip;
+        }
+      },
+      legend: {
+        data: ['Games', 'Trend'],
+        textStyle: { color: '#a89984', fontSize: 11 },
+        top: 0,
+        right: '8%'
+      },
+      grid: { 
+        left: '8%', 
+        right: '8%', 
+        top: '15%', 
+        bottom: timelineData.length > 20 ? '20%' : '15%',
+        containLabel: true 
+      },
+      xAxis: {
+        type: 'category',
+        data: dates,
+        axisLine: { lineStyle: { color: '#504945', width: 2 } },
+        axisLabel: { 
+          color: '#a89984', 
+          fontSize: 9,
+          rotate: timelineData.length > 20 ? 45 : 0,
+          interval: timelineData.length > 30 ? Math.floor(timelineData.length / 20) : 0
+        },
+        axisTick: { lineStyle: { color: '#504945' } }
+      },
+      yAxis: {
+        type: 'value',
+        axisLine: { show: true, lineStyle: { color: '#504945', width: 2 } },
+        axisLabel: { color: '#a89984', fontSize: 10 },
+        splitLine: { lineStyle: { color: '#3c3836', type: 'dashed' } }
+      },
+      series: [
+        {
+          name: 'Games',
+          data: games,
+          type: 'bar',
+          itemStyle: {
+            color: '#83a598',
+            borderRadius: [4, 4, 0, 0]
+          },
+          emphasis: {
+            itemStyle: {
+              color: '#a3c0b8'
+            }
+          },
+          barWidth: '60%',
+          animationDelay: (idx: number) => idx * 20
+        },
+        {
+          name: 'Trend',
+          data: rollingAvg,
+          type: 'line',
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 6,
+          lineStyle: {
+            color: '#fabd2f',
+            width: 3
+          },
+          itemStyle: {
+            color: '#fabd2f',
+            borderColor: '#d79921',
+            borderWidth: 2
+          },
+          emphasis: {
+            itemStyle: {
+              color: '#fabd2f',
+              borderColor: '#d79921',
+              borderWidth: 3,
+              shadowBlur: 10,
+              shadowColor: 'rgba(250, 189, 47, 0.5)'
+            }
+          },
+          z: 10
+        }
+      ]
+    });
+
+    return () => chart.dispose();
+  }, [timelineData]);
 
   if (loading) {
     return (
@@ -215,6 +386,35 @@ function SessionHistory() {
           </div>
         </div>
       </div>
+
+      {/* Timeline Chart */}
+      {timelineData.length > 0 && (
+        <div style={{
+          background: '#3c3836',
+          borderRadius: '12px',
+          padding: '1.5rem',
+          marginBottom: '1.5rem',
+          border: '1px solid #504945',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+        }}>
+          <h2 style={{ 
+            fontSize: '1.2rem', 
+            marginBottom: '1rem', 
+            color: '#fbf1c7',
+            fontWeight: 'bold'
+          }}>
+            📊 Session Activity Over Time
+          </h2>
+          <div style={{ 
+            fontSize: '0.85rem', 
+            color: '#a89984', 
+            marginBottom: '1rem' 
+          }}>
+            Games played across {timelineData.length} session{timelineData.length !== 1 ? 's' : ''}
+          </div>
+          <div ref={timelineChartRef} style={{ height: '300px', width: '100%' }}></div>
+        </div>
+      )}
 
       {/* Filter */}
       <div style={{
