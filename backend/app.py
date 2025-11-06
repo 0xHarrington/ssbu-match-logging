@@ -398,9 +398,14 @@ class GameDataManager:
             logger.error(f"Error getting session stats: {str(e)}")
             return {"success": False, "message": str(e)}
 
-    def get_user_heatmap_data(self, username: str) -> Dict[str, Any]:
+    def get_user_heatmap_data(self, username: str, character: Optional[str] = None) -> Dict[str, Any]:
         """
         Get heatmap data for a user showing win rate and game count by day of week and hour.
+        Optionally filter by character.
+        
+        Args:
+            username: The player name
+            character: Optional character name to filter by
         
         Returns a 7x24 grid where each cell contains:
         - day: 0-6 (Sunday-Saturday)
@@ -413,6 +418,14 @@ class GameDataManager:
             
             if len(df) == 0:
                 return {"success": False, "message": "No data available", "data": []}
+            
+            # Filter by character if specified
+            if character:
+                user_char_col = f"{username.lower()}_character"
+                df = df[df[user_char_col] == character]
+                
+                if len(df) == 0:
+                    return {"success": False, "message": f"No games found for {username} playing {character}", "data": []}
             
             # Convert datetime and add day of week and hour columns
             df["datetime"] = pd.to_datetime(df["datetime"])
@@ -445,7 +458,8 @@ class GameDataManager:
             return {
                 "success": True,
                 "data": heatmap_data,
-                "total_games": len(df)
+                "total_games": len(df),
+                "filtered_by_character": character
             }
             
         except Exception as e:
@@ -1356,12 +1370,63 @@ def get_user_stats(username):
 
 @app.route("/api/users/<username>/heatmap")
 def get_user_heatmap(username):
-    """Get heatmap data for a user showing performance by day and hour."""
+    """Get heatmap data for a user showing performance by day and hour. Optionally filter by character."""
     try:
-        result = data_manager.get_user_heatmap_data(username)
+        character = request.args.get('character', None)
+        result = data_manager.get_user_heatmap_data(username, character)
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error in heatmap endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e), "data": []})
+
+
+@app.route("/api/characters/<character>/heatmap")
+def get_character_heatmap(character):
+    """Get heatmap data for a character showing performance by day and hour across all players."""
+    try:
+        # Get heatmap data for both players and combine
+        shayne_result = data_manager.get_user_heatmap_data("Shayne", character)
+        matt_result = data_manager.get_user_heatmap_data("Matt", character)
+        
+        # Combine the data
+        combined_data = []
+        if shayne_result.get("success") and matt_result.get("success"):
+            shayne_data = {(d["day"], d["hour"]): d for d in shayne_result["data"]}
+            matt_data = {(d["day"], d["hour"]): d for d in matt_result["data"]}
+            
+            for day in range(7):
+                for hour in range(24):
+                    key = (day, hour)
+                    shayne_slot = shayne_data.get(key, {"win_rate": 0, "game_count": 0})
+                    matt_slot = matt_data.get(key, {"win_rate": 0, "game_count": 0})
+                    
+                    total_games = shayne_slot["game_count"] + matt_slot["game_count"]
+                    if total_games > 0:
+                        # Calculate combined win rate
+                        shayne_wins = (shayne_slot["win_rate"] / 100) * shayne_slot["game_count"]
+                        matt_wins = (matt_slot["win_rate"] / 100) * matt_slot["game_count"]
+                        combined_win_rate = ((shayne_wins + matt_wins) / total_games) * 100
+                    else:
+                        combined_win_rate = 0
+                    
+                    combined_data.append({
+                        "hour": hour,
+                        "day": day,
+                        "win_rate": round(combined_win_rate, 1),
+                        "game_count": total_games
+                    })
+            
+            return jsonify({
+                "success": True,
+                "data": combined_data,
+                "total_games": shayne_result.get("total_games", 0) + matt_result.get("total_games", 0),
+                "character": character
+            })
+        else:
+            return jsonify({"success": False, "message": "No data available", "data": []})
+            
+    except Exception as e:
+        logger.error(f"Error in character heatmap endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e), "data": []})
 
 
