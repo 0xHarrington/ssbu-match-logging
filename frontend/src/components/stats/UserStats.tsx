@@ -252,31 +252,41 @@ export const UserStats: React.FC = () => {
           axisLabel: { color: '#a89984', fontSize: 10 }
         },
         visualMap: {
+          show: false, // Hide the visual map since we're using custom colors
           min: 0,
-          max: 100,
-          calculable: true,
-          orient: 'horizontal',
-          left: 'center',
-          bottom: '2%',
-          textStyle: { color: '#a89984', fontSize: 9 },
-          itemWidth: 12,
-          itemHeight: 120,
-          inRange: {
-            color: ['#fb4934', '#fe8019', '#fabd2f', '#b8bb26', '#98971a']
-          },
-          text: ['High', 'Low'],
-          textGap: 5
+          max: 100
         },
         series: [{
           type: 'heatmap',
           data: data.map(item => {
             const [hour, day, winRate, gameCount] = item;
-            // Calculate opacity based on game count (0.2 to 1.0)
-            const opacity = Math.max(0.2, Math.min(1.0, gameCount / maxGames));
+            
+            // Calculate brightness based on game count (0.3 to 1.0)
+            // More games = brighter, fewer games = darker
+            const brightness = Math.max(0.3, Math.min(1.0, gameCount / maxGames));
+            
+            // Determine color based on win rate
+            let baseColor;
+            if (winRate < 35) {
+              baseColor = [251, 73, 52]; // Red (#fb4934)
+            } else if (winRate < 45) {
+              baseColor = [254, 128, 25]; // Orange (#fe8019)
+            } else if (winRate < 55) {
+              baseColor = [250, 189, 47]; // Yellow (#fabd2f)
+            } else if (winRate < 65) {
+              baseColor = [184, 187, 38]; // Light green (#b8bb26)
+            } else {
+              baseColor = [152, 151, 26]; // Dark green (#98971a)
+            }
+            
+            // Apply brightness to the color
+            const adjustedColor = baseColor.map(c => Math.round(c * brightness));
+            const colorString = `rgb(${adjustedColor[0]}, ${adjustedColor[1]}, ${adjustedColor[2]})`;
+            
             return {
               value: [hour, day, winRate, gameCount],
               itemStyle: {
-                opacity: opacity
+                color: colorString
               }
             };
           }),
@@ -290,8 +300,7 @@ export const UserStats: React.FC = () => {
               shadowBlur: 10,
               shadowColor: 'rgba(0, 0, 0, 0.5)',
               borderColor: '#fbf1c7',
-              borderWidth: 2,
-              opacity: 1.0 // Full opacity on hover
+              borderWidth: 2
             }
           }
         }]
@@ -495,7 +504,11 @@ export const UserStats: React.FC = () => {
           <div ref={winRateTimelineRef} style={{ height: '220px', width: '100%' }}></div>
         </div>
         <div className="card" style={{ padding: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>🔥 Performance Heatmap (24hr)</h3>
+          <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', color: '#fbf1c7' }}>🔥 Performance Heatmap (24hr)</h3>
+          <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <span>Color = Win Rate (🔴 Low → 🟡 Mid → 🟢 High)</span>
+            <span>Brightness = Games Played (Darker = Fewer, Brighter = More)</span>
+          </div>
           <div ref={performanceHeatmapRef} style={{ height: '260px', width: '100%' }}></div>
         </div>
       </div>
