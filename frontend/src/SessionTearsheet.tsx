@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import CharacterDisplay from './components/CharacterDisplay';
 
@@ -91,6 +92,9 @@ interface Game {
 }
 
 function SessionTearsheet() {
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get('session_id');
+  
   const [stats, setStats] = useState<SessionStatsData | null>(null);
   const [lifetimeStats, setLifetimeStats] = useState<LifetimeStats | null>(null);
   const [headToHead, setHeadToHead] = useState<HeadToHeadStats | null>(null);
@@ -106,8 +110,13 @@ function SessionTearsheet() {
       setLoading(true);
       setError(null);
       try {
+        // Build session stats URL with optional session_id parameter
+        const sessionStatsUrl = sessionId 
+          ? `/api/session_stats?session_id=${sessionId}`
+          : '/api/session_stats';
+        
         const [sessionRes, lifetimeRes, h2hRes, advRes, gamesRes] = await Promise.all([
-          fetch('/api/session_stats'),
+          fetch(sessionStatsUrl),
           fetch('/api/stats'),
           fetch('/api/head_to_head_stats'),
           fetch('/api/advanced_metrics'),
@@ -139,7 +148,7 @@ function SessionTearsheet() {
     };
 
     fetchData();
-  }, []);
+  }, [sessionId]);
 
   const generatePNG = async () => {
     if (!tearsheetRef.current) return;
@@ -245,12 +254,50 @@ function SessionTearsheet() {
     );
   }
 
-  const todayDate = new Date().toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
+  // Format date based on whether we have session data with start/end times
+  const getSessionDateDisplay = () => {
+    if (stats && 'start_time' in stats && 'end_time' in stats) {
+      const start = new Date((stats as any).start_time);
+      const end = new Date((stats as any).end_time);
+      
+      // Check if session spans multiple days
+      const sameDay = start.toDateString() === end.toDateString();
+      
+      if (sameDay) {
+        return start.toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+      } else {
+        const startStr = start.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+        const endStr = end.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+        return `${startStr} → ${endStr}`;
+      }
+    }
+    
+    // Fallback to today's date
+    return new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+  
+  const sessionDateDisplay = getSessionDateDisplay();
 
   return (
     <div style={{ 
@@ -366,7 +413,7 @@ function SessionTearsheet() {
             🎮 Smash Session Stats
           </h1>
           <div style={{ fontSize: '1rem', color: '#a89984', fontWeight: '500' }}>
-            {todayDate}
+            {sessionDateDisplay}
           </div>
         </div>
 
