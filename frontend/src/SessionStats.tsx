@@ -258,97 +258,6 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
       {error && <div className="error" style={{ fontSize: '0.85rem', padding: '0.5rem' }}>{error}</div>}
       {!loading && !error && stats && lifetimeStats && headToHead && advancedMetrics && (
         <>
-          {/* ========== LIFETIME STATS ========== */}
-          <div style={{
-            background: '#1d2021',
-            borderRadius: '10px',
-            padding: '0.9rem',
-            marginBottom: '1.25rem',
-            border: '2px solid #3c3836',
-            boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.3)'
-          }}>
-            {/* Section Title */}
-            <div style={{
-              textAlign: 'center',
-              marginBottom: '0.75rem',
-              paddingBottom: '0.5rem',
-              borderBottom: '1px solid #3c3836'
-            }}>
-              <div style={{
-                fontSize: '0.75rem',
-                fontWeight: 'bold',
-                color: '#d79921',
-                textTransform: 'uppercase',
-                letterSpacing: '1.5px'
-              }}>
-                📊 Lifetime Stats
-              </div>
-            </div>
-
-            {/* Stats Content */}
-            <div style={{ 
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: '0.75rem'
-            }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  All-Time
-                </div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>
-                  <span style={{ color: '#fe8019' }}>{lifetimeStats.shayne_wins}</span>
-                  <span style={{ color: '#504945', margin: '0 0.3rem' }}>-</span>
-                  <span style={{ color: '#b8bb26' }}>{lifetimeStats.matt_wins}</span>
-                </div>
-                <div style={{ fontSize: '0.65rem', color: '#a89984' }}>
-                  {lifetimeStats.total_games} games
-                </div>
-              </div>
-              <div style={{ width: '2px', height: '45px', background: '#3c3836' }} />
-              <div style={{ flex: 1, textAlign: 'right' }}>
-                <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Win Rates
-                </div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
-                  <span style={{ color: '#fe8019' }}>{lifetimeStats.shayne_win_rate.toFixed(1)}%</span>
-                  <span style={{ color: '#504945', margin: '0 0.3rem' }}>|</span>
-                  <span style={{ color: '#b8bb26' }}>{lifetimeStats.matt_win_rate.toFixed(1)}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Dominance Stats - Compact */}
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(2, 1fr)', 
-            gap: '0.5rem', 
-            marginBottom: '1rem',
-            padding: '0.75rem',
-            background: '#1d2021',
-            borderRadius: '8px',
-            border: '1px solid #3c3836'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.3rem' }}>⚡ 3-Stocks</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
-                <span style={{ color: '#fe8019' }}>{advancedMetrics.dominance_factor.shayne.three_stock_wins}</span>
-                <span style={{ color: '#a89984', margin: '0 0.3rem' }}>|</span>
-                <span style={{ color: '#b8bb26' }}>{advancedMetrics.dominance_factor.matt.three_stock_wins}</span>
-              </div>
-            </div>
-
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.3rem' }}>💪 2-Stocks</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
-                <span style={{ color: '#fe8019' }}>{advancedMetrics.two_stock_wins.shayne.two_stock_wins}</span>
-                <span style={{ color: '#a89984', margin: '0 0.3rem' }}>|</span>
-                <span style={{ color: '#b8bb26' }}>{advancedMetrics.two_stock_wins.matt.two_stock_wins}</span>
-              </div>
-            </div>
-          </div>
-
           {/* ========== DIVIDER ========== */}
           <div style={{
             display: 'flex',
@@ -417,11 +326,11 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
             </div>
             
             <div className="stat-card" style={{ padding: '0.6rem', minHeight: 'auto' }}>
-              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.3rem' }}>📊 Last 10</div>
+              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.3rem' }}>📊 Last 50</div>
               <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
-                <span style={{ color: '#fe8019' }}>{headToHead.recent_form.last_10.shayne_wins}</span>
+                <span style={{ color: '#fe8019' }}>{headToHead.recent_form.last_50.shayne_wins}</span>
                 <span style={{ color: '#a89984', margin: '0 0.3rem' }}>-</span>
-                <span style={{ color: '#b8bb26' }}>{headToHead.recent_form.last_10.matt_wins}</span>
+                <span style={{ color: '#b8bb26' }}>{headToHead.recent_form.last_50.matt_wins}</span>
               </div>
               <div style={{ 
                 height: '3px', 
@@ -431,8 +340,8 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
                 display: 'flex',
                 marginTop: '0.3rem'
               }}>
-                <div style={{ width: `${(headToHead.recent_form.last_10.shayne_wins / headToHead.recent_form.last_10.total_games) * 100}%`, background: '#fe8019' }}></div>
-                <div style={{ width: `${(headToHead.recent_form.last_10.matt_wins / headToHead.recent_form.last_10.total_games) * 100}%`, background: '#b8bb26' }}></div>
+                <div style={{ width: `${(headToHead.recent_form.last_50.shayne_wins / headToHead.recent_form.last_50.total_games) * 100}%`, background: '#fe8019' }}></div>
+                <div style={{ width: `${(headToHead.recent_form.last_50.matt_wins / headToHead.recent_form.last_50.total_games) * 100}%`, background: '#b8bb26' }}></div>
               </div>
             </div>
 
@@ -590,7 +499,7 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
 
           {/* Stage Stats - Compact */}
           {stats.stage_stats.length > 0 && (
-            <div>
+            <div style={{ marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '0.9rem', marginBottom: '0.5rem', color: '#fbf1c7' }}>Today's Stages</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' }}>
                 {stats.stage_stats.slice(0, 6).map(stat => (
@@ -631,6 +540,123 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
               </div>
             </div>
           )}
+
+          {/* ========== DIVIDER ========== */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            marginBottom: '1rem',
+            marginTop: '1rem'
+          }}>
+            <div style={{ flex: 1, height: '2px', background: 'linear-gradient(to right, transparent, #504945)' }} />
+            <div style={{ 
+              background: 'linear-gradient(135deg, #d79921, #fabd2f)',
+              color: '#282828',
+              padding: '0.35rem 0.9rem',
+              borderRadius: '15px',
+              fontSize: '0.7rem',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              letterSpacing: '1.5px',
+              boxShadow: '0 2px 8px rgba(215, 153, 33, 0.3)',
+              border: '1px solid #d79921'
+            }}>
+              📊 Lifetime
+            </div>
+            <div style={{ flex: 1, height: '2px', background: 'linear-gradient(to left, transparent, #504945)' }} />
+          </div>
+
+          {/* ========== LIFETIME STATS ========== */}
+          <div style={{
+            background: '#1d2021',
+            borderRadius: '10px',
+            padding: '0.9rem',
+            marginBottom: '1.25rem',
+            border: '2px solid #3c3836',
+            boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.3)'
+          }}>
+            {/* Section Title */}
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '0.75rem',
+              paddingBottom: '0.5rem',
+              borderBottom: '1px solid #3c3836'
+            }}>
+              <div style={{
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                color: '#d79921',
+                textTransform: 'uppercase',
+                letterSpacing: '1.5px'
+              }}>
+                📊 Lifetime Stats
+              </div>
+            </div>
+
+            {/* Stats Content */}
+            <div style={{ 
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '0.75rem'
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  All-Time
+                </div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>
+                  <span style={{ color: '#fe8019' }}>{lifetimeStats.shayne_wins}</span>
+                  <span style={{ color: '#504945', margin: '0 0.3rem' }}>-</span>
+                  <span style={{ color: '#b8bb26' }}>{lifetimeStats.matt_wins}</span>
+                </div>
+                <div style={{ fontSize: '0.65rem', color: '#a89984' }}>
+                  {lifetimeStats.total_games} games
+                </div>
+              </div>
+              <div style={{ width: '2px', height: '45px', background: '#3c3836' }} />
+              <div style={{ flex: 1, textAlign: 'right' }}>
+                <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Win Rates
+                </div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
+                  <span style={{ color: '#fe8019' }}>{lifetimeStats.shayne_win_rate.toFixed(1)}%</span>
+                  <span style={{ color: '#504945', margin: '0 0.3rem' }}>|</span>
+                  <span style={{ color: '#b8bb26' }}>{lifetimeStats.matt_win_rate.toFixed(1)}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Dominance Stats - Compact */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(2, 1fr)', 
+            gap: '0.5rem', 
+            marginBottom: '1rem',
+            padding: '0.75rem',
+            background: '#1d2021',
+            borderRadius: '8px',
+            border: '1px solid #3c3836'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.3rem' }}>⚡ 3-Stocks</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
+                <span style={{ color: '#fe8019' }}>{advancedMetrics.dominance_factor.shayne.three_stock_wins}</span>
+                <span style={{ color: '#a89984', margin: '0 0.3rem' }}>|</span>
+                <span style={{ color: '#b8bb26' }}>{advancedMetrics.dominance_factor.matt.three_stock_wins}</span>
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.3rem' }}>💪 2-Stocks</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
+                <span style={{ color: '#fe8019' }}>{advancedMetrics.two_stock_wins.shayne.two_stock_wins}</span>
+                <span style={{ color: '#a89984', margin: '0 0.3rem' }}>|</span>
+                <span style={{ color: '#b8bb26' }}>{advancedMetrics.two_stock_wins.matt.two_stock_wins}</span>
+              </div>
+            </div>
+          </div>
         </>
       )}
     </div>

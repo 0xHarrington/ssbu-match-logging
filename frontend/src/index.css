@@ -641,6 +641,8 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
   padding: 1.5rem;
   border: 1px solid var(--bg-light);
   transition: all var(--transition-speed);
+  display: flex;
+  flex-direction: column;
 }
 
 .player-section:hover {
@@ -870,6 +872,7 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
   grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem;
   width: 100%;
+  flex: 1;
 }
 
 .stocks-button {
@@ -882,7 +885,8 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
   transition: all var(--transition-speed);
   font-size: 1.1rem;
   font-weight: 500;
-  height: 45px;
+  min-height: 45px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1599,7 +1603,7 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
 }
 
 .win-rate-header .character-display {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 600;
 }
 
@@ -1638,7 +1642,7 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
 
 .win-rate-percentage {
   font-weight: bold;
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .win-rate-display.shayne .win-rate-percentage {
@@ -1651,7 +1655,7 @@ button:focus, .stage-button:focus, .stocks-button:focus, .submit-button:focus {
 
 .win-rate-details {
   color: var(--fg-light);
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   opacity: 0.8;
 }
 
