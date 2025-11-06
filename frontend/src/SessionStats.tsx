@@ -319,6 +319,36 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
             </div>
           </div>
 
+          {/* Dominance Stats - Compact */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(2, 1fr)', 
+            gap: '0.5rem', 
+            marginBottom: '1rem',
+            padding: '0.75rem',
+            background: '#1d2021',
+            borderRadius: '8px',
+            border: '1px solid #3c3836'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.3rem' }}>⚡ 3-Stocks</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
+                <span style={{ color: '#fe8019' }}>{advancedMetrics.dominance_factor.shayne.three_stock_wins}</span>
+                <span style={{ color: '#a89984', margin: '0 0.3rem' }}>|</span>
+                <span style={{ color: '#b8bb26' }}>{advancedMetrics.dominance_factor.matt.three_stock_wins}</span>
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.3rem' }}>💪 2-Stocks</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
+                <span style={{ color: '#fe8019' }}>{advancedMetrics.two_stock_wins.shayne.two_stock_wins}</span>
+                <span style={{ color: '#a89984', margin: '0 0.3rem' }}>|</span>
+                <span style={{ color: '#b8bb26' }}>{advancedMetrics.two_stock_wins.matt.two_stock_wins}</span>
+              </div>
+            </div>
+          </div>
+
           {/* ========== DIVIDER ========== */}
           <div style={{
             display: 'flex',
@@ -406,23 +436,6 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
               </div>
             </div>
 
-            <div className="stat-card" style={{ padding: '0.6rem', minHeight: 'auto' }}>
-              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.3rem' }}>⚡ 3-Stocks</div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
-                <span style={{ color: '#fe8019' }}>{advancedMetrics.dominance_factor.shayne.three_stock_wins}</span>
-                <span style={{ color: '#a89984', margin: '0 0.3rem' }}>|</span>
-                <span style={{ color: '#b8bb26' }}>{advancedMetrics.dominance_factor.matt.three_stock_wins}</span>
-              </div>
-            </div>
-
-            <div className="stat-card" style={{ padding: '0.6rem', minHeight: 'auto' }}>
-              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.3rem' }}>💪 2-Stocks</div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
-                <span style={{ color: '#fe8019' }}>{advancedMetrics.two_stock_wins.shayne.two_stock_wins}</span>
-                <span style={{ color: '#a89984', margin: '0 0.3rem' }}>|</span>
-                <span style={{ color: '#b8bb26' }}>{advancedMetrics.two_stock_wins.matt.two_stock_wins}</span>
-              </div>
-            </div>
           </div>
 
           {/* Matchup Stats */}

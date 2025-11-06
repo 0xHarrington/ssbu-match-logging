@@ -408,7 +408,8 @@ function SessionTearsheet() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            gap: '2rem'
+            gap: '2rem',
+            marginBottom: '1.5rem'
           }}>
             <div style={{ flex: 1, textAlign: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -441,6 +442,41 @@ function SessionTearsheet() {
                   </div>
                   <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Dominance Stats Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+            <div style={{ 
+              background: '#282828',
+              borderRadius: '10px',
+              padding: '1rem',
+              border: '1px solid #3c3836'
+            }}>
+              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                ⚡ 3-Stock Wins
+              </div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
+                <span style={{ color: '#fe8019' }}>{advancedMetrics.dominance_factor.shayne.three_stock_wins}</span>
+                <span style={{ color: '#a89984', margin: '0 0.5rem' }}>|</span>
+                <span style={{ color: '#b8bb26' }}>{advancedMetrics.dominance_factor.matt.three_stock_wins}</span>
+              </div>
+            </div>
+
+            <div style={{ 
+              background: '#282828',
+              borderRadius: '10px',
+              padding: '1rem',
+              border: '1px solid #3c3836'
+            }}>
+              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                💪 2-Stock Wins
+              </div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
+                <span style={{ color: '#fe8019' }}>{advancedMetrics.two_stock_wins.shayne.two_stock_wins}</span>
+                <span style={{ color: '#a89984', margin: '0 0.5rem' }}>|</span>
+                <span style={{ color: '#b8bb26' }}>{advancedMetrics.two_stock_wins.matt.two_stock_wins}</span>
               </div>
             </div>
           </div>
@@ -631,50 +667,6 @@ function SessionTearsheet() {
                 width: `${(headToHead.recent_form.last_10.matt_wins / headToHead.recent_form.last_10.total_games) * 100}%`,
                 background: '#b8bb26'
               }}></div>
-            </div>
-          </div>
-
-          <div style={{ 
-            background: '#3c3836',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            border: '1px solid #504945'
-          }}>
-            <div style={{ 
-              fontSize: '0.85rem', 
-              color: '#a89984', 
-              marginBottom: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '1px'
-            }}>
-              ⚡ 3-Stock Wins
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-              <span style={{ color: '#fe8019' }}>{advancedMetrics.dominance_factor.shayne.three_stock_wins}</span>
-              <span style={{ color: '#a89984', margin: '0 0.5rem' }}>|</span>
-              <span style={{ color: '#b8bb26' }}>{advancedMetrics.dominance_factor.matt.three_stock_wins}</span>
-            </div>
-          </div>
-
-          <div style={{ 
-            background: '#3c3836',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            border: '1px solid #504945'
-          }}>
-            <div style={{ 
-              fontSize: '0.85rem', 
-              color: '#a89984', 
-              marginBottom: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '1px'
-            }}>
-              💪 2-Stock Wins
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-              <span style={{ color: '#fe8019' }}>{advancedMetrics.two_stock_wins.shayne.two_stock_wins}</span>
-              <span style={{ color: '#a89984', margin: '0 0.5rem' }}>|</span>
-              <span style={{ color: '#b8bb26' }}>{advancedMetrics.two_stock_wins.matt.two_stock_wins}</span>
             </div>
           </div>
         </div>
