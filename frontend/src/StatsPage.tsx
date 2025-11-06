@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import * as echarts from 'echarts';
 import CharacterDisplay from './components/CharacterDisplay';
 
@@ -75,12 +76,12 @@ interface HeadToHeadStats {
 
 interface AdvancedMetrics {
   two_stock_wins: {
-    shayne: { two_stock_wins: number; total_wins: number; two_stock_rate: number };
-    matt: { two_stock_wins: number; total_wins: number; two_stock_rate: number };
+    shayne: { two_stock_wins: number; total_wins: number; two_stock_rate: number; of_all_games: number };
+    matt: { two_stock_wins: number; total_wins: number; two_stock_rate: number; of_all_games: number };
   };
   dominance_factor: {
-    shayne: { three_stock_wins: number; total_wins: number; dominance_rate: number };
-    matt: { three_stock_wins: number; total_wins: number; dominance_rate: number };
+    shayne: { three_stock_wins: number; total_wins: number; dominance_rate: number; of_all_games: number };
+    matt: { three_stock_wins: number; total_wins: number; dominance_rate: number; of_all_games: number };
   };
   consistency_score: {
     shayne: number;
@@ -91,8 +92,8 @@ interface AdvancedMetrics {
     matt: { win_after_win: number; win_after_loss: number };
   };
   close_game_record: {
-    shayne: { wins: number; losses: number; win_rate: number };
-    matt: { wins: number; losses: number; win_rate: number };
+    shayne: { wins: number; total_wins: number; win_rate: number; of_all_games: number };
+    matt: { wins: number; total_wins: number; win_rate: number; of_all_games: number };
   };
 }
 
@@ -136,6 +137,7 @@ const StatsPage: React.FC = () => {
   const [matchupMatrix, setMatchupMatrix] = useState<MatchupMatrix | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<echarts.ECharts | null>(null);
@@ -360,6 +362,74 @@ const StatsPage: React.FC = () => {
       <section className="stats-section">
         <h2 style={{ fontSize: '1.3rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>Advanced Metrics</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+          {/* Close Games */}
+          <div className="stat-card" style={{ padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', fontWeight: '600' }}>⚔️ Close Games</div>
+            <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem' }}>1-stock victories</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{advancedMetrics.close_game_record.shayne.wins}</div>
+                <div 
+                  style={{ 
+                    fontSize: '0.7rem', 
+                    color: '#fe8019', 
+                    opacity: 0.8,
+                    cursor: 'help',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={() => setActiveTooltip('close-shayne')}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                >
+                  {advancedMetrics.close_game_record.shayne.win_rate}% | {advancedMetrics.close_game_record.shayne.of_all_games}%
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>{advancedMetrics.close_game_record.matt.wins}</div>
+                <div 
+                  style={{ 
+                    fontSize: '0.7rem', 
+                    color: '#b8bb26', 
+                    opacity: 0.8,
+                    cursor: 'help',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={() => setActiveTooltip('close-matt')}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                >
+                  {advancedMetrics.close_game_record.matt.win_rate}% | {advancedMetrics.close_game_record.matt.of_all_games}%
+                </div>
+              </div>
+            </div>
+          </div>
+          {(activeTooltip === 'close-shayne' || activeTooltip === 'close-matt') && createPortal(
+            <div style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              backgroundColor: '#1d2021',
+              border: '2px solid #504945',
+              borderRadius: '8px',
+              padding: '0.75rem',
+              width: '280px',
+              fontSize: '0.75rem',
+              color: '#ebdbb2',
+              lineHeight: 1.5,
+              zIndex: 9999,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
+              pointerEvents: 'none'
+            }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '0.3rem', color: '#fabd2f' }}>1-Stock Victory Percentages</div>
+              <div style={{ marginBottom: '0.3rem' }}>
+                <span style={{ color: '#83a598', fontWeight: 'bold' }}>First %:</span> Of this player's wins, what % were 1-stock victories
+              </div>
+              <div>
+                <span style={{ color: '#83a598', fontWeight: 'bold' }}>Second %:</span> Of all games played, what % were 1-stock victories for this player
+              </div>
+            </div>,
+            document.body
+          )}
+
           {/* Two-Stock Wins */}
           <div className="stat-card" style={{ padding: '0.75rem' }}>
             <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', fontWeight: '600' }}>💪 Solid Wins</div>
@@ -367,14 +437,66 @@ const StatsPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{advancedMetrics.two_stock_wins.shayne.two_stock_wins}</div>
-                <div style={{ fontSize: '0.7rem', color: '#fe8019', opacity: 0.8 }}>{advancedMetrics.two_stock_wins.shayne.two_stock_rate}%</div>
+                <div 
+                  style={{ 
+                    fontSize: '0.7rem', 
+                    color: '#fe8019', 
+                    opacity: 0.8,
+                    cursor: 'help',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={() => setActiveTooltip('two-shayne')}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                >
+                  {advancedMetrics.two_stock_wins.shayne.two_stock_rate}% | {advancedMetrics.two_stock_wins.shayne.of_all_games}%
+                </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>{advancedMetrics.two_stock_wins.matt.two_stock_wins}</div>
-                <div style={{ fontSize: '0.7rem', color: '#b8bb26', opacity: 0.8 }}>{advancedMetrics.two_stock_wins.matt.two_stock_rate}%</div>
+                <div 
+                  style={{ 
+                    fontSize: '0.7rem', 
+                    color: '#b8bb26', 
+                    opacity: 0.8,
+                    cursor: 'help',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={() => setActiveTooltip('two-matt')}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                >
+                  {advancedMetrics.two_stock_wins.matt.two_stock_rate}% | {advancedMetrics.two_stock_wins.matt.of_all_games}%
+                </div>
               </div>
             </div>
           </div>
+          {(activeTooltip === 'two-shayne' || activeTooltip === 'two-matt') && createPortal(
+            <div style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              backgroundColor: '#1d2021',
+              border: '2px solid #504945',
+              borderRadius: '8px',
+              padding: '0.75rem',
+              width: '280px',
+              fontSize: '0.75rem',
+              color: '#ebdbb2',
+              lineHeight: 1.5,
+              zIndex: 9999,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
+              pointerEvents: 'none'
+            }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '0.3rem', color: '#fabd2f' }}>2-Stock Victory Percentages</div>
+              <div style={{ marginBottom: '0.3rem' }}>
+                <span style={{ color: '#83a598', fontWeight: 'bold' }}>First %:</span> Of this player's wins, what % were 2-stock victories
+              </div>
+              <div>
+                <span style={{ color: '#83a598', fontWeight: 'bold' }}>Second %:</span> Of all games played, what % were 2-stock victories for this player
+              </div>
+            </div>,
+            document.body
+          )}
 
           {/* Dominance Factor */}
           <div className="stat-card" style={{ padding: '0.75rem' }}>
@@ -383,46 +505,66 @@ const StatsPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{advancedMetrics.dominance_factor.shayne.three_stock_wins}</div>
-                <div style={{ fontSize: '0.7rem', color: '#fe8019', opacity: 0.8 }}>{advancedMetrics.dominance_factor.shayne.dominance_rate}%</div>
+                <div 
+                  style={{ 
+                    fontSize: '0.7rem', 
+                    color: '#fe8019', 
+                    opacity: 0.8,
+                    cursor: 'help',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={() => setActiveTooltip('three-shayne')}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                >
+                  {advancedMetrics.dominance_factor.shayne.dominance_rate}% | {advancedMetrics.dominance_factor.shayne.of_all_games}%
+                </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>{advancedMetrics.dominance_factor.matt.three_stock_wins}</div>
-                <div style={{ fontSize: '0.7rem', color: '#b8bb26', opacity: 0.8 }}>{advancedMetrics.dominance_factor.matt.dominance_rate}%</div>
+                <div 
+                  style={{ 
+                    fontSize: '0.7rem', 
+                    color: '#b8bb26', 
+                    opacity: 0.8,
+                    cursor: 'help',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={() => setActiveTooltip('three-matt')}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                >
+                  {advancedMetrics.dominance_factor.matt.dominance_rate}% | {advancedMetrics.dominance_factor.matt.of_all_games}%
+                </div>
               </div>
             </div>
           </div>
-
-          {/* Momentum */}
-          <div className="stat-card" style={{ padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', fontWeight: '600' }}>📈 Momentum</div>
-            <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem' }}>Win after win</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          {(activeTooltip === 'three-shayne' || activeTooltip === 'three-matt') && createPortal(
+            <div style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              backgroundColor: '#1d2021',
+              border: '2px solid #504945',
+              borderRadius: '8px',
+              padding: '0.75rem',
+              width: '280px',
+              fontSize: '0.75rem',
+              color: '#ebdbb2',
+              lineHeight: 1.5,
+              zIndex: 9999,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
+              pointerEvents: 'none'
+            }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '0.3rem', color: '#fabd2f' }}>3-Stock Victory Percentages</div>
+              <div style={{ marginBottom: '0.3rem' }}>
+                <span style={{ color: '#83a598', fontWeight: 'bold' }}>First %:</span> Of this player's wins, what % were 3-stock victories
+              </div>
               <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{advancedMetrics.momentum_analysis.shayne.win_after_win}%</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Shayne</div>
+                <span style={{ color: '#83a598', fontWeight: 'bold' }}>Second %:</span> Of all games played, what % were 3-stock victories for this player
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>{advancedMetrics.momentum_analysis.matt.win_after_win}%</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Close Games */}
-          <div className="stat-card" style={{ padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', fontWeight: '600' }}>⚔️ Close Games</div>
-            <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem' }}>1-stock differential</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{advancedMetrics.close_game_record.shayne.win_rate}%</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>{advancedMetrics.close_game_record.shayne.wins}W</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>{advancedMetrics.close_game_record.matt.win_rate}%</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>{advancedMetrics.close_game_record.matt.wins}W</div>
-              </div>
-            </div>
-          </div>
+            </div>,
+            document.body
+          )}
 
           {/* Avg Stock Differential */}
           <div className="stat-card" style={{ padding: '0.75rem' }}>
@@ -440,10 +582,120 @@ const StatsPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Momentum */}
+          <div className="stat-card" style={{ padding: '0.75rem', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '0.75rem', color: '#a89984', fontWeight: '600' }}>📈 Momentum</div>
+              <div 
+                style={{ 
+                  cursor: 'help',
+                  fontSize: '0.65rem',
+                  color: '#665c54',
+                  fontWeight: 'normal',
+                  width: '13px',
+                  height: '13px',
+                  borderRadius: '50%',
+                  border: '1px solid #504945',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  position: 'relative',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={() => setActiveTooltip('momentum')}
+                onMouseLeave={() => setActiveTooltip(null)}
+              >
+                i
+              </div>
+              {activeTooltip === 'momentum' && createPortal(
+                <div style={{
+                  position: 'fixed',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  backgroundColor: '#1d2021',
+                  border: '2px solid #504945',
+                  borderRadius: '8px',
+                  padding: '0.75rem',
+                  width: '260px',
+                  fontSize: '0.75rem',
+                  color: '#ebdbb2',
+                  lineHeight: 1.5,
+                  zIndex: 9999,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
+                  pointerEvents: 'none'
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '0.3rem', color: '#fabd2f' }}>Momentum</div>
+                  Momentum measures a player's ability to chain wins together. Shows the percentage of games won immediately after winning the previous game. Higher values indicate better ability to maintain winning streaks.
+                </div>,
+                document.body
+              )}
+            </div>
+            <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem', textAlign: 'center' }}>Win after win</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{advancedMetrics.momentum_analysis.shayne.win_after_win}%</div>
+                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Shayne</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>{advancedMetrics.momentum_analysis.matt.win_after_win}%</div>
+                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
+              </div>
+            </div>
+          </div>
+
           {/* Consistency */}
-          <div className="stat-card" style={{ padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', fontWeight: '600' }}>📊 Consistency</div>
-            <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem' }}>Lower is better</div>
+          <div className="stat-card" style={{ padding: '0.75rem', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '0.75rem', color: '#a89984', fontWeight: '600' }}>📊 Consistency</div>
+              <div 
+                style={{ 
+                  cursor: 'help',
+                  fontSize: '0.65rem',
+                  color: '#665c54',
+                  fontWeight: 'normal',
+                  width: '13px',
+                  height: '13px',
+                  borderRadius: '50%',
+                  border: '1px solid #504945',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  position: 'relative',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={() => setActiveTooltip('consistency')}
+                onMouseLeave={() => setActiveTooltip(null)}
+              >
+                i
+              </div>
+              {activeTooltip === 'consistency' && createPortal(
+                <div style={{
+                  position: 'fixed',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  backgroundColor: '#1d2021',
+                  border: '2px solid #504945',
+                  borderRadius: '8px',
+                  padding: '0.75rem',
+                  width: '260px',
+                  fontSize: '0.75rem',
+                  color: '#ebdbb2',
+                  lineHeight: 1.5,
+                  zIndex: 9999,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
+                  pointerEvents: 'none'
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '0.3rem', color: '#fabd2f' }}>Consistency</div>
+                  Consistency measures win rate volatility using the standard deviation of performance across rolling 20-game windows. Lower scores indicate more stable, predictable performance. Higher scores suggest more variable results with hot and cold streaks.
+                </div>,
+                document.body
+              )}
+            </div>
+            <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem', textAlign: 'center' }}>Lower is better</div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{advancedMetrics.consistency_score.shayne}</div>

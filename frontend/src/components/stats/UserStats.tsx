@@ -745,7 +745,7 @@ export const UserStats: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1rem' }}>
         {/* Character Performance */}
         <div className="card" style={{ padding: '1rem' }}>
-          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>Character Performance</h2>
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>🎯 Character Performance</h2>
           <div style={{ height: '280px', marginBottom: '0.75rem' }}>
             <Bar data={characterChartData} options={chartOptions} />
           </div>
@@ -778,7 +778,7 @@ export const UserStats: React.FC = () => {
 
         {/* Stage Performance */}
         <div className="card" style={{ padding: '1rem' }}>
-          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>Stage Performance</h2>
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>🎯 Stage Performance</h2>
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', 
