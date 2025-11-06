@@ -7,6 +7,7 @@ import StatsPage from './StatsPage';
 import { UserStats } from './components/stats/UserStats';
 import CharacterAnalytics from './CharacterAnalytics';
 import CharacterDetail from './CharacterDetail';
+import SessionTearsheet from './SessionTearsheet';
 
 function LoggingHome() {
   const recentMatchesRef = useRef<RecentMatchesRef>(null);
@@ -151,6 +152,7 @@ function App() {
           <Route path="/users/:username" element={<UserStats />} />
           <Route path="/characters" element={<CharacterAnalytics />} />
           <Route path="/characters/:character" element={<CharacterDetail />} />
+          <Route path="/session-tearsheet" element={<SessionTearsheet />} />
         </Routes>
       </main>
     </div>

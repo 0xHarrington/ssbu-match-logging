@@ -194,9 +194,44 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
     };
   }, [stats]);
 
+  const handleShareSession = () => {
+    window.open('/session-tearsheet', '_blank', 'width=900,height=1200');
+  };
+
   return (
     <div className="session-stats" style={{ padding: '1rem' }}>
-      <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>Session Stats</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h2 style={{ fontSize: '1.2rem', margin: 0 }}>Session Stats</h2>
+        {!loading && !error && stats && stats.total_games > 0 && (
+          <button
+            onClick={handleShareSession}
+            style={{
+              padding: '0.5rem 0.75rem',
+              background: '#83a598',
+              color: '#282828',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '0.8rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.3rem'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#a3c0b8';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#83a598';
+              e.currentTarget.style.transform = 'none';
+            }}
+          >
+            📊 Share Session
+          </button>
+        )}
+      </div>
       {loading && <div style={{ fontSize: '0.85rem', color: '#a89984' }}>Loading...</div>}
       {error && <div className="error" style={{ fontSize: '0.85rem', padding: '0.5rem' }}>{error}</div>}
       {!loading && !error && stats && headToHead && advancedMetrics && (
