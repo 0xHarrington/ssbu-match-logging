@@ -110,30 +110,30 @@ function SessionHistory() {
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'flex-start',
-        marginBottom: '2rem' 
+        marginBottom: '1.5rem' 
       }}>
         <div>
           <h1 style={{ 
-            fontSize: '2rem', 
+            fontSize: '1.5rem', 
             fontWeight: 'bold',
             color: '#fbf1c7',
-            marginBottom: '0.5rem'
+            marginBottom: '0.25rem'
           }}>
             📊 Session History
           </h1>
-          <p style={{ color: '#a89984', fontSize: '0.95rem' }}>
+          <p style={{ color: '#a89984', fontSize: '0.8rem' }}>
             View and analyze all your gaming sessions
           </p>
         </div>
         <Link
           to="/sessions/compare"
           style={{
-            padding: '0.75rem 1.5rem',
+            padding: '0.5rem 1rem',
             background: '#83a598',
             color: '#282828',
             border: 'none',
-            borderRadius: '8px',
-            fontSize: '0.9rem',
+            borderRadius: '6px',
+            fontSize: '0.8rem',
             fontWeight: 'bold',
             textDecoration: 'none',
             display: 'inline-block',
@@ -155,62 +155,62 @@ function SessionHistory() {
       {/* Summary Stats */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '1rem',
-        marginBottom: '2rem'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: '0.75rem',
+        marginBottom: '1.5rem'
       }}>
         <div style={{
           background: '#3c3836',
-          borderRadius: '12px',
-          padding: '1.5rem',
+          borderRadius: '8px',
+          padding: '0.875rem',
           border: '1px solid #504945'
         }}>
-          <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '0.625rem', color: '#a89984', marginBottom: '0.375rem', textTransform: 'uppercase' }}>
             Total Sessions
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#83a598' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#83a598' }}>
             {sessions.length}
           </div>
         </div>
 
         <div style={{
           background: '#3c3836',
-          borderRadius: '12px',
-          padding: '1.5rem',
+          borderRadius: '8px',
+          padding: '0.875rem',
           border: '1px solid #504945'
         }}>
-          <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '0.625rem', color: '#a89984', marginBottom: '0.375rem', textTransform: 'uppercase' }}>
             Total Games
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#b8bb26' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#b8bb26' }}>
             {totalGames}
           </div>
         </div>
 
         <div style={{
           background: '#3c3836',
-          borderRadius: '12px',
-          padding: '1.5rem',
+          borderRadius: '8px',
+          padding: '0.875rem',
           border: '1px solid #504945'
         }}>
-          <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '0.625rem', color: '#a89984', marginBottom: '0.375rem', textTransform: 'uppercase' }}>
             Avg Games/Session
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#fabd2f' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fabd2f' }}>
             {avgGamesPerSession}
           </div>
         </div>
 
         <div style={{
           background: '#3c3836',
-          borderRadius: '12px',
-          padding: '1.5rem',
+          borderRadius: '8px',
+          padding: '0.875rem',
           border: '1px solid #504945'
         }}>
-          <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '0.625rem', color: '#a89984', marginBottom: '0.375rem', textTransform: 'uppercase' }}>
             Avg Duration
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#fe8019' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fe8019' }}>
             {formatDuration(avgDuration)}
           </div>
         </div>
@@ -219,15 +219,15 @@ function SessionHistory() {
       {/* Filter */}
       <div style={{
         background: '#3c3836',
-        borderRadius: '12px',
-        padding: '1rem',
-        marginBottom: '1.5rem',
+        borderRadius: '8px',
+        padding: '0.75rem',
+        marginBottom: '1.25rem',
         border: '1px solid #504945',
         display: 'flex',
         alignItems: 'center',
-        gap: '1rem'
+        gap: '0.75rem'
       }}>
-        <label style={{ color: '#ebdbb2', fontSize: '0.9rem' }}>
+        <label style={{ color: '#ebdbb2', fontSize: '0.75rem' }}>
           Minimum Games:
         </label>
         <input
@@ -238,13 +238,14 @@ function SessionHistory() {
           style={{
             background: '#282828',
             border: '1px solid #504945',
-            borderRadius: '6px',
-            padding: '0.5rem',
+            borderRadius: '4px',
+            padding: '0.375rem',
             color: '#ebdbb2',
-            width: '80px'
+            width: '60px',
+            fontSize: '0.75rem'
           }}
         />
-        <span style={{ color: '#a89984', fontSize: '0.85rem' }}>
+        <span style={{ color: '#a89984', fontSize: '0.7rem' }}>
           Showing {filteredSessions.length} of {sessions.length} sessions
         </span>
       </div>
@@ -252,8 +253,8 @@ function SessionHistory() {
       {/* Sessions List */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
-        gap: '1.5rem'
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: '1rem'
       }}>
         {filteredSessions.map((session) => {
           const shayneWinRate = session.total_games > 0 
@@ -270,8 +271,8 @@ function SessionHistory() {
             >
               <div style={{
                 background: '#3c3836',
-                borderRadius: '12px',
-                padding: '1.5rem',
+                borderRadius: '8px',
+                padding: '0.875rem',
                 border: '1px solid #504945',
                 transition: 'all 0.2s',
                 cursor: 'pointer'
@@ -288,20 +289,20 @@ function SessionHistory() {
               }}>
                 {/* Date Header */}
                 <div style={{ 
-                  marginBottom: '1rem',
-                  paddingBottom: '0.75rem',
+                  marginBottom: '0.625rem',
+                  paddingBottom: '0.5rem',
                   borderBottom: '1px solid #504945'
                 }}>
                   <div style={{ 
-                    fontSize: '1.1rem', 
+                    fontSize: '0.85rem', 
                     fontWeight: 'bold',
                     color: '#fbf1c7',
-                    marginBottom: '0.25rem'
+                    marginBottom: '0.125rem'
                   }}>
                     📅 {formatDate(session.start_time)}
                   </div>
                   <div style={{ 
-                    fontSize: '0.85rem',
+                    fontSize: '0.7rem',
                     color: '#a89984'
                   }}>
                     {formatTime(session.start_time)} → {formatTime(session.end_time)}
@@ -311,49 +312,49 @@ function SessionHistory() {
                 {/* Game Count and Duration */}
                 <div style={{
                   display: 'flex',
-                  gap: '1.5rem',
-                  marginBottom: '1rem'
+                  gap: '1rem',
+                  marginBottom: '0.625rem'
                 }}>
                   <div>
-                    <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem' }}>
+                    <div style={{ fontSize: '0.625rem', color: '#a89984', marginBottom: '0.125rem' }}>
                       Games
                     </div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#83a598' }}>
+                    <div style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#83a598' }}>
                       {session.total_games}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem' }}>
+                    <div style={{ fontSize: '0.625rem', color: '#a89984', marginBottom: '0.125rem' }}>
                       Duration
                     </div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fabd2f' }}>
+                    <div style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#fabd2f' }}>
                       {formatDuration(session.duration_minutes)}
                     </div>
                   </div>
                 </div>
 
                 {/* Score */}
-                <div style={{ marginBottom: '0.75rem' }}>
+                <div style={{ marginBottom: '0.5rem' }}>
                   <div style={{ 
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginBottom: '0.5rem'
+                    marginBottom: '0.375rem'
                   }}>
-                    <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fe8019' }}>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fe8019' }}>
                       Shayne {session.shayne_wins}
                     </span>
-                    <span style={{ fontSize: '0.9rem', color: '#a89984' }}>-</span>
-                    <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#b8bb26' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#a89984' }}>-</span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#b8bb26' }}>
                       {session.matt_wins} Matt
                     </span>
                   </div>
                   
                   {/* Win Rate Bar */}
                   <div style={{
-                    height: '6px',
+                    height: '4px',
                     background: '#282828',
-                    borderRadius: '3px',
+                    borderRadius: '2px',
                     overflow: 'hidden',
                     display: 'flex'
                   }}>
@@ -369,19 +370,17 @@ function SessionHistory() {
                 </div>
 
                 {/* Winner Badge */}
-                {winner !== 'Tie' && (
-                  <div style={{
-                    display: 'inline-block',
-                    padding: '0.35rem 0.75rem',
-                    borderRadius: '20px',
-                    fontSize: '0.75rem',
-                    fontWeight: 'bold',
-                    background: winner === 'Shayne' ? '#fe8019' : '#b8bb26',
-                    color: '#282828'
-                  }}>
-                    🏆 {winner} Won
-                  </div>
-                )}
+                <div style={{
+                  display: 'inline-block',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '12px',
+                  fontSize: '0.65rem',
+                  fontWeight: 'bold',
+                  background: winner === 'Tie' ? '#83a598' : winner === 'Shayne' ? '#fe8019' : '#b8bb26',
+                  color: '#282828'
+                }}>
+                  {winner === 'Tie' ? '🤝 Tied' : `🏆 ${winner} Won`}
+                </div>
               </div>
             </Link>
           );
