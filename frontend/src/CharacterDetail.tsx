@@ -665,234 +665,254 @@ const CharacterDetail: React.FC = () => {
         />
       </div>
 
-      {/* Player Stats & Stage Performance - Side by Side Layout */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(300px, 400px) 1fr',
-        gap: '1.5rem',
-        marginBottom: '1.5rem',
-        alignItems: 'start'
-      }}>
-        {/* Left Column: Player Stats */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div style={{
-          background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          border: '2px solid #fe8019',
-          textAlign: 'center',
-          boxShadow: '0 4px 12px rgba(254, 128, 25, 0.2)'
-        }}>
-          <h3 style={{ 
-            color: '#fe8019', 
-            marginBottom: '1rem', 
-            fontSize: '1.2rem',
-            fontWeight: 'bold',
-            textTransform: 'uppercase',
-            letterSpacing: '1px'
+      {/* Player Stats & Stage Performance - Side by Side Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+        {/* Player Performance Card */}
+        <div className="card" style={{ padding: '1rem' }}>
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>👥 Player Performance</h2>
+          
+          {/* Shayne Stats */}
+          <div style={{
+            background: '#32302f',
+            borderRadius: '8px',
+            padding: '0.75rem',
+            marginBottom: '0.5rem',
+            border: '2px solid #fe8019'
           }}>
-            Shayne
-          </h3>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-around', 
-            marginBottom: '1rem',
-            paddingBottom: '1rem',
-            borderBottom: '1px solid #504945'
-          }}>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ebdbb2' }}>
-                {data.shayne_stats.games}
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#a89984', textTransform: 'uppercase' }}>
-                Games
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ebdbb2' }}>
-                {data.shayne_stats.wins}
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#a89984', textTransform: 'uppercase' }}>
-                Wins
-              </div>
-            </div>
-          </div>
-          <div style={{ 
-            fontSize: '2.5rem', 
-            fontWeight: 'bold', 
-            color: data.shayne_stats.win_rate >= 50 ? '#b8bb26' : '#fb4934',
-            marginBottom: '0.25rem'
-          }}>
-            {Math.round(data.shayne_stats.win_rate)}%
-          </div>
-          <div style={{ 
-            fontSize: '0.75rem', 
-            color: '#a89984',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>
-            Win Rate
-          </div>
-        </div>
-
-        <div style={{
-          background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          border: '2px solid #b8bb26',
-          textAlign: 'center',
-          boxShadow: '0 4px 12px rgba(184, 187, 38, 0.2)'
-        }}>
-          <h3 style={{ 
-            color: '#b8bb26', 
-            marginBottom: '1rem', 
-            fontSize: '1.2rem',
-            fontWeight: 'bold',
-            textTransform: 'uppercase',
-            letterSpacing: '1px'
-          }}>
-            Matt
-          </h3>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-around', 
-            marginBottom: '1rem',
-            paddingBottom: '1rem',
-            borderBottom: '1px solid #504945'
-          }}>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ebdbb2' }}>
-                {data.matt_stats.games}
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#a89984', textTransform: 'uppercase' }}>
-                Games
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ebdbb2' }}>
-                {data.matt_stats.wins}
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#a89984', textTransform: 'uppercase' }}>
-                Wins
-              </div>
-            </div>
-          </div>
-          <div style={{ 
-            fontSize: '2.5rem', 
-            fontWeight: 'bold', 
-            color: data.matt_stats.win_rate >= 50 ? '#b8bb26' : '#fb4934',
-            marginBottom: '0.25rem'
-          }}>
-            {Math.round(data.matt_stats.win_rate)}%
-          </div>
-          <div style={{ 
-            fontSize: '0.75rem', 
-            color: '#a89984',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>
-            Win Rate
-          </div>
-        </div>
-        </div>
-
-        {/* Right Column: Stage Performance */}
-        {data.stage_performance.length > 0 && (
-          <div>
-            <h2 style={{ 
-              fontSize: '1.2rem', 
-              marginBottom: '1rem', 
-              color: '#fbf1c7',
-              fontWeight: 'bold',
-              textAlign: 'center'
+            <div style={{ 
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '0.5rem'
             }}>
-              🎯 Stage Performance
-            </h2>
+              <h3 style={{ 
+                color: '#fe8019', 
+                fontSize: '0.85rem',
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                margin: 0
+              }}>
+                Shayne
+              </h3>
+              <div style={{ 
+                fontSize: '1.5rem', 
+                fontWeight: 'bold', 
+                color: data.shayne_stats.win_rate >= 50 ? '#b8bb26' : '#fb4934'
+              }}>
+                {Math.round(data.shayne_stats.win_rate)}%
+              </div>
+            </div>
+            <div style={{ 
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '0.5rem',
+              fontSize: '0.75rem'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#ebdbb2' }}>
+                  {data.shayne_stats.games}
+                </div>
+                <div style={{ fontSize: '0.6rem', color: '#a89984', textTransform: 'uppercase' }}>
+                  Games
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>
+                  {data.shayne_stats.wins}
+                </div>
+                <div style={{ fontSize: '0.6rem', color: '#a89984', textTransform: 'uppercase' }}>
+                  Wins
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fb4934' }}>
+                  {data.shayne_stats.games - data.shayne_stats.wins}
+                </div>
+                <div style={{ fontSize: '0.6rem', color: '#a89984', textTransform: 'uppercase' }}>
+                  Losses
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#83a598' }}>
+                  {(() => {
+                    const diff = data.shayne_stats.wins - (data.shayne_stats.games - data.shayne_stats.wins);
+                    return diff > 0 ? `+${diff}` : diff;
+                  })()}
+                </div>
+                <div style={{ fontSize: '0.6rem', color: '#a89984', textTransform: 'uppercase' }}>
+                  Diff
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Matt Stats */}
+          <div style={{
+            background: '#32302f',
+            borderRadius: '8px',
+            padding: '0.75rem',
+            border: '2px solid #b8bb26'
+          }}>
+            <div style={{ 
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '0.5rem'
+            }}>
+              <h3 style={{ 
+                color: '#b8bb26', 
+                fontSize: '0.85rem',
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                margin: 0
+              }}>
+                Matt
+              </h3>
+              <div style={{ 
+                fontSize: '1.5rem', 
+                fontWeight: 'bold', 
+                color: data.matt_stats.win_rate >= 50 ? '#b8bb26' : '#fb4934'
+              }}>
+                {Math.round(data.matt_stats.win_rate)}%
+              </div>
+            </div>
+            <div style={{ 
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '0.5rem',
+              fontSize: '0.75rem'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#ebdbb2' }}>
+                  {data.matt_stats.games}
+                </div>
+                <div style={{ fontSize: '0.6rem', color: '#a89984', textTransform: 'uppercase' }}>
+                  Games
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>
+                  {data.matt_stats.wins}
+                </div>
+                <div style={{ fontSize: '0.6rem', color: '#a89984', textTransform: 'uppercase' }}>
+                  Wins
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fb4934' }}>
+                  {data.matt_stats.games - data.matt_stats.wins}
+                </div>
+                <div style={{ fontSize: '0.6rem', color: '#a89984', textTransform: 'uppercase' }}>
+                  Losses
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#83a598' }}>
+                  {(() => {
+                    const diff = data.matt_stats.wins - (data.matt_stats.games - data.matt_stats.wins);
+                    return diff > 0 ? `+${diff}` : diff;
+                  })()}
+                </div>
+                <div style={{ fontSize: '0.6rem', color: '#a89984', textTransform: 'uppercase' }}>
+                  Diff
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stage Performance Card */}
+        {data.stage_performance.length > 0 && (
+          <div className="card" style={{ padding: '1rem' }}>
+            <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>🎯 Stage Performance</h2>
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
+              gridTemplateColumns: 'repeat(3, 1fr)', 
               gap: '0.75rem' 
             }}>
               {data.stage_performance
                 .filter(stage => stage.stage !== 'No Stage' && stage.stage !== 'Northern Cave')
                 .sort((a, b) => b.win_rate - a.win_rate)
+                .slice(0, 9)
                 .map(stage => {
-              const winRate = Math.round(stage.win_rate);
-              const color = winRate >= 60 ? '#b8bb26' : 
-                           winRate >= 50 ? '#83a598' : 
-                           winRate >= 40 ? '#fe8019' : '#fb4934';
-              
-              return (
-                <div 
-                  key={stage.stage}
-                  style={{
-                    backgroundImage: stageImages[stage.stage] ? `url(${stageImages[stage.stage]})` : 'none',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    borderRadius: '12px',
-                    padding: '1rem',
-                    minHeight: '100px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    border: '2px solid #504945',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'none';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-                    zIndex: 1,
-                  }} />
-                  <div style={{ 
-                    position: 'relative',
-                    zIndex: 2,
-                    fontSize: '0.85rem',
-                    color: '#fbf1c7',
-                    fontWeight: 'bold',
-                    textShadow: '0 2px 4px rgba(0,0,0,0.9)',
-                    marginBottom: '0.5rem'
-                  }}>
-                    {stage.stage}
-                  </div>
-                  <div style={{
-                    position: 'relative',
-                    zIndex: 2
-                  }}>
+                const winRate = Math.round(stage.win_rate);
+                const color = winRate >= 60 ? '#b8bb26' : 
+                             winRate >= 50 ? '#83a598' : 
+                             winRate >= 40 ? '#fe8019' : '#fb4934';
+                
+                return (
+                  <div 
+                    key={stage.stage}
+                    style={{
+                      backgroundImage: stageImages[stage.stage] ? `url(${stageImages[stage.stage]})` : 'none',
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      borderRadius: '12px',
+                      padding: '1rem',
+                      minHeight: '100px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      border: '2px solid #504945',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'none';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                      zIndex: 1,
+                    }} />
                     <div style={{ 
-                      fontSize: '2rem',
+                      position: 'relative',
+                      zIndex: 2,
+                      fontSize: '0.85rem',
+                      color: '#fbf1c7',
                       fontWeight: 'bold',
-                      color: color,
                       textShadow: '0 2px 4px rgba(0,0,0,0.9)',
-                      lineHeight: 1
+                      marginBottom: '0.5rem'
                     }}>
-                      {winRate}%
+                      {stage.stage}
                     </div>
                     <div style={{
-                      fontSize: '0.75rem',
-                      color: '#a89984',
-                      textShadow: '0 2px 4px rgba(0,0,0,0.9)',
-                      marginTop: '0.25rem'
+                      position: 'relative',
+                      zIndex: 2
                     }}>
-                      {stage.wins}W-{stage.games - stage.wins}L ({stage.games}g)
+                      <div style={{ 
+                        fontSize: '2rem',
+                        fontWeight: 'bold',
+                        color: color,
+                        textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+                        lineHeight: 1
+                      }}>
+                        {winRate}%
+                      </div>
+                      <div style={{
+                        fontSize: '0.75rem',
+                        color: '#a89984',
+                        textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+                        marginTop: '0.25rem'
+                      }}>
+                        {stage.wins}W-{stage.games - stage.wins}L ({stage.games}g)
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
+                );
               })}
             </div>
           </div>
