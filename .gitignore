@@ -10,6 +10,10 @@ archives/
 # data files
 *.csv
 
+# Markdown files (except README)
+*.md
+!README.md
+
 # Python
 __pycache__/
 *.pyc
