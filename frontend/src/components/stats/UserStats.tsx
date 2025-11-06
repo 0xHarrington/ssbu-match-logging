@@ -190,16 +190,29 @@ export const UserStats: React.FC = () => {
       });
       
       // Simulated heatmap data with more granularity
-      const data: [number, number, number][] = [];
+      // Format: [hour, day, winRate, gameCount]
+      const data: [number, number, number, number][] = [];
+      const maxGames = 30; // Maximum games in any time slot for normalization
+      
       for (let d = 0; d < 7; d++) {
         for (let h = 0; h < 24; h++) {
           // Simulate realistic gaming patterns (higher activity in evenings)
           let baseValue = Math.random() * 40;
-          if (h >= 18 && h <= 23) baseValue += 40; // Evening boost
-          else if (h >= 12 && h < 18) baseValue += 20; // Afternoon boost
-          else if (h >= 0 && h < 6) baseValue -= 20; // Late night penalty
-          const value = Math.max(0, Math.min(100, baseValue + (Math.random() * 30)));
-          data.push([h, d, Math.round(value)]);
+          let gameCount = Math.floor(Math.random() * 5); // Base game count
+          
+          if (h >= 18 && h <= 23) {
+            baseValue += 40; // Evening boost
+            gameCount += Math.floor(Math.random() * 20) + 5; // More games in evening
+          } else if (h >= 12 && h < 18) {
+            baseValue += 20; // Afternoon boost
+            gameCount += Math.floor(Math.random() * 10) + 2; // Some games in afternoon
+          } else if (h >= 0 && h < 6) {
+            baseValue -= 20; // Late night penalty
+            gameCount = Math.floor(Math.random() * 3); // Very few games late night
+          }
+          
+          const winRate = Math.max(0, Math.min(100, baseValue + (Math.random() * 30)));
+          data.push([h, d, Math.round(winRate), gameCount]);
         }
       }
 
@@ -211,8 +224,9 @@ export const UserStats: React.FC = () => {
           borderColor: '#504945',
           textStyle: { color: '#ebdbb2', fontSize: 11 },
           formatter: (params: any) => {
-            const games = Math.floor(Math.random() * 20) + 1; // Simulated game count
-            return `${days[params.value[1]]} ${hours[params.value[0]]}<br/>Win Rate: ${params.value[2]}%<br/>Games: ${games}`;
+            const winRate = params.value[2];
+            const games = params.value[3];
+            return `${days[params.value[1]]} ${hours[params.value[0]]}<br/>Win Rate: ${winRate}%<br/>Games: ${games}`;
           }
         },
         grid: { left: '8%', right: '2%', top: '3%', bottom: '15%', containLabel: true },
@@ -255,7 +269,17 @@ export const UserStats: React.FC = () => {
         },
         series: [{
           type: 'heatmap',
-          data: data,
+          data: data.map(item => {
+            const [hour, day, winRate, gameCount] = item;
+            // Calculate opacity based on game count (0.2 to 1.0)
+            const opacity = Math.max(0.2, Math.min(1.0, gameCount / maxGames));
+            return {
+              value: [hour, day, winRate, gameCount],
+              itemStyle: {
+                opacity: opacity
+              }
+            };
+          }),
           label: { show: false },
           itemStyle: {
             borderColor: '#282828',
@@ -266,7 +290,8 @@ export const UserStats: React.FC = () => {
               shadowBlur: 10,
               shadowColor: 'rgba(0, 0, 0, 0.5)',
               borderColor: '#fbf1c7',
-              borderWidth: 2
+              borderWidth: 2,
+              opacity: 1.0 // Full opacity on hover
             }
           }
         }]
