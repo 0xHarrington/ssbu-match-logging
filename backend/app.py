@@ -1,6 +1,6 @@
 # app.py
 from flask import Flask, request, jsonify
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import pandas as pd
 import os
 import logging
@@ -29,7 +29,9 @@ class GameDataManager:
             "stocks_remaining",
             "stage",
             "timestamp",  # Unix timestamp for easier time-based operations
+            "session_id",  # Session identifier
         ]
+        self.session_gap_hours = 4  # Hours of inactivity before starting new session
         self._ensure_csv_exists()
         self._ensure_characters_file_exists()
 
@@ -157,6 +159,10 @@ class GameDataManager:
                 & (df["shayne_character"] != "nan")
                 & (df["matt_character"] != "nan")
             ]
+            
+            # Handle session_id column - add if missing
+            if "session_id" not in df.columns:
+                df["session_id"] = None
 
             return df
         except pd.errors.EmptyDataError:
@@ -164,6 +170,215 @@ class GameDataManager:
         except Exception as e:
             logger.error(f"Error loading data: {str(e)}")
             raise
+    
+    def _generate_session_id(self, game_datetime: datetime) -> str:
+        """Generate a session ID based on the game datetime."""
+        return game_datetime.strftime("%Y-%m-%d-%H")
+    
+    def _get_or_create_session_id(self, game_timestamp: float) -> str:
+        """
+        Determine the session ID for a new game.
+        Creates a new session if more than session_gap_hours have passed since last game.
+        """
+        try:
+            df = self._load_data()
+            
+            if len(df) == 0:
+                # First game ever - create new session
+                game_time = datetime.fromtimestamp(game_timestamp)
+                return self._generate_session_id(game_time)
+            
+            # Get the most recent game
+            df = df.sort_values("timestamp", ascending=False)
+            last_game = df.iloc[0]
+            last_timestamp = float(last_game["timestamp"])
+            last_session_id = last_game.get("session_id")
+            
+            # Calculate time gap
+            time_gap_hours = (game_timestamp - last_timestamp) / 3600
+            
+            if time_gap_hours > self.session_gap_hours:
+                # Start new session
+                game_time = datetime.fromtimestamp(game_timestamp)
+                new_session_id = self._generate_session_id(game_time)
+                logger.info(f"Starting new session: {new_session_id} (gap: {time_gap_hours:.1f}h)")
+                return new_session_id
+            else:
+                # Continue current session
+                if last_session_id and pd.notna(last_session_id):
+                    return str(last_session_id)
+                else:
+                    # Last game doesn't have session_id, create one based on its time
+                    last_game_time = datetime.fromtimestamp(last_timestamp)
+                    return self._generate_session_id(last_game_time)
+                    
+        except Exception as e:
+            logger.error(f"Error determining session ID: {str(e)}")
+            # Fallback to creating new session
+            game_time = datetime.fromtimestamp(game_timestamp)
+            return self._generate_session_id(game_time)
+    
+    def get_sessions(self) -> list:
+        """Get a list of all sessions with summary statistics."""
+        try:
+            df = self._load_data()
+            
+            if len(df) == 0:
+                return []
+            
+            # Ensure all games have session IDs
+            df = self._assign_missing_session_ids(df)
+            
+            # Group by session
+            sessions = []
+            for session_id in df["session_id"].unique():
+                if pd.isna(session_id):
+                    continue
+                    
+                session_games = df[df["session_id"] == session_id].sort_values("datetime")
+                
+                if len(session_games) == 0:
+                    continue
+                
+                start_time = session_games.iloc[0]["datetime"]
+                end_time = session_games.iloc[-1]["datetime"]
+                duration_minutes = int((end_time - start_time).total_seconds() / 60)
+                
+                shayne_wins = len(session_games[session_games["winner"] == "Shayne"])
+                matt_wins = len(session_games[session_games["winner"] == "Matt"])
+                
+                sessions.append({
+                    "session_id": str(session_id),
+                    "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "total_games": len(session_games),
+                    "shayne_wins": int(shayne_wins),
+                    "matt_wins": int(matt_wins),
+                    "duration_minutes": duration_minutes
+                })
+            
+            # Sort by start time, most recent first
+            sessions.sort(key=lambda x: x["start_time"], reverse=True)
+            return sessions
+            
+        except Exception as e:
+            logger.error(f"Error getting sessions: {str(e)}")
+            return []
+    
+    def _assign_missing_session_ids(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Assign session IDs to any games that don't have them."""
+        if len(df) == 0:
+            return df
+        
+        df = df.sort_values("timestamp")
+        
+        current_session_id = None
+        last_timestamp = None
+        
+        for idx, row in df.iterrows():
+            if pd.notna(row.get("session_id")):
+                current_session_id = row["session_id"]
+                last_timestamp = row["timestamp"]
+                continue
+            
+            timestamp = row["timestamp"]
+            
+            if last_timestamp is None:
+                # First game
+                game_time = datetime.fromtimestamp(timestamp)
+                current_session_id = self._generate_session_id(game_time)
+            else:
+                # Check time gap
+                time_gap_hours = (timestamp - last_timestamp) / 3600
+                if time_gap_hours > self.session_gap_hours:
+                    # New session
+                    game_time = datetime.fromtimestamp(timestamp)
+                    current_session_id = self._generate_session_id(game_time)
+            
+            df.at[idx, "session_id"] = current_session_id
+            last_timestamp = timestamp
+        
+        return df
+    
+    def get_session_stats(self, session_id: str) -> Dict[str, Any]:
+        """Get detailed statistics for a specific session."""
+        try:
+            df = self._load_data()
+            
+            if len(df) == 0:
+                return {"success": False, "message": "No data available"}
+            
+            # Ensure all games have session IDs
+            df = self._assign_missing_session_ids(df)
+            
+            # Filter for specific session
+            session_games = df[df["session_id"] == session_id]
+            
+            if len(session_games) == 0:
+                return {"success": False, "message": f"Session {session_id} not found"}
+            
+            # Calculate stats (same as session_stats endpoint)
+            total_games = len(session_games)
+            shayne_wins = len(session_games[session_games["winner"] == "Shayne"])
+            matt_wins = len(session_games[session_games["winner"] == "Matt"])
+            
+            shayne_characters = {}
+            matt_characters = {}
+            
+            for _, row in session_games.iterrows():
+                shayne_characters[row["shayne_character"]] = (
+                    shayne_characters.get(row["shayne_character"], 0) + 1
+                )
+                matt_characters[row["matt_character"]] = (
+                    matt_characters.get(row["matt_character"], 0) + 1
+                )
+            
+            # Stage stats
+            stage_counts = session_games["stage"].value_counts()
+            stage_stats = [
+                {"stage": stage, "count": int(count)} for stage, count in stage_counts.items()
+            ]
+            
+            # Matchup stats
+            matchup_stats = []
+            if len(session_games) > 0:
+                matchup_counts = (
+                    session_games.groupby(["shayne_character", "matt_character"])
+                    .agg({"winner": lambda x: (x == "Shayne").sum(), "datetime": "count"})
+                    .reset_index()
+                )
+                matchup_counts.columns = [
+                    "shayne_character",
+                    "matt_character",
+                    "shayne_wins",
+                    "total_games",
+                ]
+                matchup_counts["matt_wins"] = (
+                    matchup_counts["total_games"] - matchup_counts["shayne_wins"]
+                )
+                matchup_stats = matchup_counts.to_dict("records")
+            
+            # Session metadata
+            start_time = session_games.iloc[0]["datetime"]
+            end_time = session_games.iloc[-1]["datetime"]
+            
+            return {
+                "success": True,
+                "session_id": session_id,
+                "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "total_games": int(total_games),
+                "shayne_wins": int(shayne_wins),
+                "matt_wins": int(matt_wins),
+                "shayne_characters": shayne_characters,
+                "matt_characters": matt_characters,
+                "stage_stats": stage_stats,
+                "matchup_stats": matchup_stats,
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting session stats: {str(e)}")
+            return {"success": False, "message": str(e)}
 
     def add_game(self, game_data: Dict[str, Any]) -> bool:
         """
@@ -198,6 +413,11 @@ class GameDataManager:
             # Create a new entry with Eastern time
             eastern = pytz.timezone("US/Eastern")
             now = datetime.now(eastern)
+            timestamp = now.timestamp()
+            
+            # Determine session ID
+            session_id = self._get_or_create_session_id(timestamp)
+            
             new_game = {
                 "datetime": now.strftime("%Y-%m-%d %H:%M:%S"),
                 "shayne_character": game_data["shayneCharacter"],
@@ -205,7 +425,8 @@ class GameDataManager:
                 "winner": game_data["winner"],
                 "stocks_remaining": game_data["stocksRemaining"] or None,
                 "stage": stage_value,
-                "timestamp": now.timestamp(),
+                "timestamp": timestamp,
+                "session_id": session_id,
             }
 
             # Log the processed game data
@@ -548,6 +769,14 @@ def get_character_win_rates():
 @app.route("/api/session_stats")
 def session_stats():
     try:
+        # Check if a specific session_id is requested
+        session_id = request.args.get("session_id")
+        
+        if session_id:
+            # Return stats for specific session
+            return jsonify(data_manager.get_session_stats(session_id))
+        
+        # Otherwise, return current session stats (backward compatible)
         # Get current date in Eastern time
         eastern = pytz.timezone("US/Eastern")
         now = datetime.now(eastern)
@@ -1367,6 +1596,75 @@ def get_matchup_matrix():
         
     except Exception as e:
         logger.error(f"Error in matchup_matrix endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/sessions")
+def get_sessions_list():
+    """Get list of all sessions with summary data."""
+    try:
+        sessions = data_manager.get_sessions()
+        return jsonify({"success": True, "sessions": sessions})
+    except Exception as e:
+        logger.error(f"Error in sessions endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/sessions/<session_id>")
+def get_session_detail(session_id):
+    """Get detailed stats for a specific session."""
+    try:
+        stats = data_manager.get_session_stats(session_id)
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error in session detail endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/sessions/current")
+def get_current_session():
+    """Get the current active session information."""
+    try:
+        df = data_manager._load_data()
+        
+        if len(df) == 0:
+            return jsonify({
+                "success": True,
+                "session_id": None,
+                "start_time": None,
+                "game_count": 0,
+                "is_active": False
+            })
+        
+        # Get the most recent game
+        df = df.sort_values("timestamp", ascending=False)
+        last_game = df.iloc[0]
+        last_timestamp = float(last_game["timestamp"])
+        
+        # Check if session is still active (less than 4 hours since last game)
+        now = datetime.now().timestamp()
+        time_gap_hours = (now - last_timestamp) / 3600
+        is_active = time_gap_hours < data_manager.session_gap_hours
+        
+        # Get or create session ID
+        session_id = data_manager._get_or_create_session_id(last_timestamp)
+        
+        # Count games in current session
+        df = data_manager._assign_missing_session_ids(df)
+        session_games = df[df["session_id"] == session_id]
+        
+        start_time = session_games.iloc[0]["datetime"] if len(session_games) > 0 else None
+        
+        return jsonify({
+            "success": True,
+            "session_id": session_id,
+            "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S") if start_time else None,
+            "game_count": len(session_games),
+            "is_active": is_active
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in current session endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
