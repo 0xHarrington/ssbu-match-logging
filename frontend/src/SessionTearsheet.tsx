@@ -44,6 +44,14 @@ interface SessionStatsData {
   stage_stats: StageStat[];
 }
 
+interface LifetimeStats {
+  total_games: number;
+  shayne_wins: number;
+  matt_wins: number;
+  shayne_win_rate: number;
+  matt_win_rate: number;
+}
+
 interface HeadToHeadStats {
   recent_form: {
     last_10: { shayne_wins: number; matt_wins: number; total_games: number };
@@ -75,6 +83,7 @@ interface Game {
 
 function SessionTearsheet() {
   const [stats, setStats] = useState<SessionStatsData | null>(null);
+  const [lifetimeStats, setLifetimeStats] = useState<LifetimeStats | null>(null);
   const [headToHead, setHeadToHead] = useState<HeadToHeadStats | null>(null);
   const [advancedMetrics, setAdvancedMetrics] = useState<AdvancedMetrics | null>(null);
   const [recentGames, setRecentGames] = useState<Game[]>([]);
@@ -88,24 +97,28 @@ function SessionTearsheet() {
       setLoading(true);
       setError(null);
       try {
-        const [sessionRes, h2hRes, advRes, gamesRes] = await Promise.all([
+        const [sessionRes, lifetimeRes, h2hRes, advRes, gamesRes] = await Promise.all([
           fetch('/api/session_stats'),
+          fetch('/api/stats'),
           fetch('/api/head_to_head_stats'),
           fetch('/api/advanced_metrics'),
           fetch('/api/recent_games'),
         ]);
         
         const sessionData = await sessionRes.json();
+        const lifetimeData = await lifetimeRes.json();
         const h2hData = await h2hRes.json();
         const advData = await advRes.json();
         const gamesData = await gamesRes.json();
         
         if (!sessionData.success) throw new Error(sessionData.message || 'Failed to load session stats');
+        if (!lifetimeData.success) throw new Error(lifetimeData.message || 'Failed to load lifetime stats');
         if (!h2hData.success) throw new Error(h2hData.message || 'Failed to load head-to-head stats');
         if (!advData.success) throw new Error(advData.message || 'Failed to load advanced metrics');
         if (!gamesData.success) throw new Error(gamesData.message || 'Failed to load recent games');
         
         setStats(sessionData);
+        setLifetimeStats(lifetimeData.stats);
         setHeadToHead(h2hData);
         setAdvancedMetrics(advData);
         setRecentGames(gamesData.games);
@@ -205,7 +218,7 @@ function SessionTearsheet() {
     );
   }
 
-  if (error || !stats || !headToHead || !advancedMetrics) {
+  if (error || !stats || !lifetimeStats || !headToHead || !advancedMetrics) {
     return (
       <div style={{ 
         minHeight: '100vh', 
@@ -348,6 +361,72 @@ function SessionTearsheet() {
           </div>
         </div>
 
+        {/* Lifetime Stats Banner */}
+        <div style={{ 
+          background: 'linear-gradient(135deg, #1d2021 0%, #282828 100%)',
+          borderRadius: '12px',
+          padding: '1rem',
+          marginBottom: '2rem',
+          border: '1px solid #3c3836',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              All-Time Record
+            </div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 'bold' }}>
+              <span style={{ color: '#fe8019' }}>{lifetimeStats.shayne_wins}</span>
+              <span style={{ color: '#504945', margin: '0 0.5rem' }}>-</span>
+              <span style={{ color: '#b8bb26' }}>{lifetimeStats.matt_wins}</span>
+            </div>
+            <div style={{ fontSize: '0.7rem', color: '#a89984', marginTop: '0.2rem' }}>
+              {lifetimeStats.total_games} total games
+            </div>
+          </div>
+          <div style={{ width: '1px', height: '50px', background: '#3c3836' }} />
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              Win Rates
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>
+                  {lifetimeStats.shayne_win_rate.toFixed(1)}%
+                </div>
+                <div style={{ fontSize: '0.65rem', color: '#a89984' }}>Shayne</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>
+                  {lifetimeStats.matt_win_rate.toFixed(1)}%
+                </div>
+                <div style={{ fontSize: '0.65rem', color: '#a89984' }}>Matt</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Session Stats Section Header */}
+        <div style={{ 
+          textAlign: 'center',
+          marginBottom: '1rem'
+        }}>
+          <div style={{ 
+            display: 'inline-block',
+            background: '#83a598',
+            color: '#282828',
+            padding: '0.5rem 1.5rem',
+            borderRadius: '20px',
+            fontSize: '0.85rem',
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            letterSpacing: '1.5px'
+          }}>
+            📅 Today's Session
+          </div>
+        </div>
+
         {/* Hero Stats */}
         <div style={{ 
           background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
@@ -365,7 +444,7 @@ function SessionTearsheet() {
             letterSpacing: '2px',
             fontWeight: 'bold'
           }}>
-            Final Score
+            Session Score
           </div>
           <div style={{ 
             display: 'flex', 
