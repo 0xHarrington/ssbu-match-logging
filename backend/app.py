@@ -445,26 +445,28 @@ class GameDataManager:
 
             # Calculate win rate for each 20-game window
             num_windows = len(recent_games) // 20
-            
+
             for i in range(num_windows):
                 start_idx = i * 20
                 end_idx = start_idx + 20
                 window = recent_games.iloc[start_idx:end_idx]
-                
+
                 wins = len(window[window["winner"] == username])
                 win_rate = (wins / 20) * 100
 
                 # Get date range for this window
                 start_dt = window.iloc[0]["datetime"]
                 end_dt = window.iloc[-1]["datetime"]
-                
+
                 # Format dates as mm/dd or mm/dd/yy
                 start_year = start_dt.year
                 end_year = end_dt.year
-                
+
                 if start_year != end_year:
                     # Different years - include year in both dates
-                    start_date = f"{start_dt.month}/{start_dt.day}/{start_dt.year % 100}"
+                    start_date = (
+                        f"{start_dt.month}/{start_dt.day}/{start_dt.year % 100}"
+                    )
                     end_date = f"{end_dt.month}/{end_dt.day}/{end_dt.year % 100}"
                 else:
                     # Same year - omit year
@@ -480,7 +482,7 @@ class GameDataManager:
                 "data": {
                     "game_numbers": game_numbers,
                     "win_rates": win_rates,
-                    "date_ranges": date_ranges
+                    "date_ranges": date_ranges,
                 },
                 "total_games": len(df),
                 "windows": num_windows,
@@ -1553,6 +1555,103 @@ def get_character_heatmap(character):
 
     except Exception as e:
         logger.error(f"Error in character heatmap endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e), "data": []})
+
+
+@app.route("/api/characters/<character>/timeline")
+def get_character_timeline(character):
+    """Get timeline data showing games played per session for a specific character."""
+    try:
+        df = data_manager._load_data()
+
+        if len(df) == 0:
+            return jsonify(
+                {"success": False, "message": "No data available", "data": []}
+            )
+
+        # Assign session IDs
+        df = data_manager._assign_missing_session_ids(df)
+
+        # Filter for games where this character was played
+        character_games = df[
+            (df["shayne_character"] == character) | (df["matt_character"] == character)
+        ]
+
+        if len(character_games) == 0:
+            return jsonify({"success": True, "data": [], "character": character})
+
+        # Group by session and count games
+        session_data = []
+        for session_id in character_games["session_id"].unique():
+            session_games = character_games[character_games["session_id"] == session_id]
+
+            # Get session start time
+            start_time = session_games["datetime"].min()
+
+            session_data.append(
+                {
+                    "session_id": session_id,
+                    "date": start_time.strftime("%Y-%m-%d"),
+                    "datetime": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "games": len(session_games),
+                }
+            )
+
+        # Sort by date
+        session_data.sort(key=lambda x: x["datetime"])
+
+        return jsonify(
+            {
+                "success": True,
+                "data": session_data,
+                "character": character,
+                "total_sessions": len(session_data),
+                "total_games": len(character_games),
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error in character timeline endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e), "data": []})
+
+
+@app.route("/api/sessions/timeline")
+def get_sessions_timeline():
+    """Get timeline data showing games played per session over time."""
+    try:
+        sessions = data_manager.get_sessions()
+
+        if not sessions:
+            return jsonify({"success": True, "data": []})
+
+        # Format data for timeline visualization
+        timeline_data = []
+        for session in sessions:
+            timeline_data.append(
+                {
+                    "session_id": session["session_id"],
+                    "date": session["start_time"].split(" ")[0],  # Extract date part
+                    "datetime": session["start_time"],
+                    "games": session["total_games"],
+                    "shayne_wins": session["shayne_wins"],
+                    "matt_wins": session["matt_wins"],
+                    "duration_minutes": session["duration_minutes"],
+                }
+            )
+
+        # Sort by date
+        timeline_data.sort(key=lambda x: x["datetime"])
+
+        return jsonify(
+            {
+                "success": True,
+                "data": timeline_data,
+                "total_sessions": len(timeline_data),
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error in sessions timeline endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e), "data": []})
 
 
