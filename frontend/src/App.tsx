@@ -87,12 +87,12 @@ function Header() {
         onMouseLeave={() => setIsHovered(false)}
         style={{
           textDecoration: 'none',
-          padding: mobile ? '0.75rem 1rem' : 'clamp(0.35rem, 1vw, 0.5rem) clamp(0.5rem, 1.5vw, 1rem)',
-          borderRadius: mobile ? 8 : 12,
+          padding: mobile ? '0.625rem 0.875rem' : 'clamp(0.3rem, 0.8vw, 0.4rem) clamp(0.4rem, 1.2vw, 0.75rem)',
+          borderRadius: mobile ? 6 : 8,
           transition: 'all 0.2s',
           background: isActive ? 'var(--blue, #83a598)' : isHovered ? 'rgba(131, 165, 152, 0.2)' : 'none',
           color: isActive ? 'var(--bg0, #282828)' : 'var(--fg, #ebdbb2)',
-          fontSize: mobile ? '1rem' : 'clamp(0.75rem, 1.5vw, 0.95rem)',
+          fontSize: mobile ? '0.875rem' : 'clamp(0.7rem, 1.2vw, 0.8rem)',
           whiteSpace: 'nowrap',
           display: 'block',
           transform: isHovered && !isActive ? 'translateY(-1px)' : 'none',
@@ -120,7 +120,7 @@ function Header() {
       flexWrap: 'wrap'
     }}>
       <Link to="/" className="header-title" style={{ 
-        fontSize: 'clamp(1rem, 3vw, 1.5rem)',
+        fontSize: 'clamp(0.875rem, 2.5vw, 1.125rem)',
         fontWeight: 'bold', 
         color: 'var(--fg-light, #fbf1c7)', 
         textDecoration: 'none', 
