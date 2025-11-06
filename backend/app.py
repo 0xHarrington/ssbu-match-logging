@@ -415,7 +415,7 @@ class GameDataManager:
         - game_numbers: List of game indices (1-100)
         - win_rates: List of win rates for each 20-game window
         - total_games: Total games in dataset
-        
+
         Each data point represents the win rate across 20 games.
         100 data points cover the last 2000 games (or fewer if not enough games exist).
         """
@@ -441,6 +441,7 @@ class GameDataManager:
 
             game_numbers = []
             win_rates = []
+            date_ranges = []
 
             # Calculate win rate for each 20-game window
             num_windows = len(recent_games) // 20
@@ -453,12 +454,34 @@ class GameDataManager:
                 wins = len(window[window["winner"] == username])
                 win_rate = (wins / 20) * 100
 
+                # Get date range for this window
+                start_dt = window.iloc[0]["datetime"]
+                end_dt = window.iloc[-1]["datetime"]
+                
+                # Format dates as mm/dd or mm/dd/yy
+                start_year = start_dt.year
+                end_year = end_dt.year
+                
+                if start_year != end_year:
+                    # Different years - include year in both dates
+                    start_date = f"{start_dt.month}/{start_dt.day}/{start_dt.year % 100}"
+                    end_date = f"{end_dt.month}/{end_dt.day}/{end_dt.year % 100}"
+                else:
+                    # Same year - omit year
+                    start_date = f"{start_dt.month}/{start_dt.day}"
+                    end_date = f"{end_dt.month}/{end_dt.day}"
+
                 game_numbers.append(i + 1)  # 1-indexed window number
                 win_rates.append(round(win_rate, 1))
+                date_ranges.append(f"{start_date} to {end_date}")
 
             return {
                 "success": True,
-                "data": {"game_numbers": game_numbers, "win_rates": win_rates},
+                "data": {
+                    "game_numbers": game_numbers,
+                    "win_rates": win_rates,
+                    "date_ranges": date_ranges
+                },
                 "total_games": len(df),
                 "windows": num_windows,
             }

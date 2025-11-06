@@ -183,11 +183,13 @@ export const UserStats: React.FC = () => {
       
       let xData: string[];
       let yData: number[];
+      let dateRanges: string[] = [];
       
       if (timelineData && !usingSimulatedTimeline) {
         // Use real data from backend
         xData = timelineData.game_numbers.map((n: number) => `${n}`);
         yData = timelineData.win_rates;
+        dateRanges = timelineData.date_ranges || [];
       } else {
         // Generate seeded random data for consistent display
         const seed = (username?.charCodeAt(0) || 0) * 1000;
@@ -223,10 +225,18 @@ export const UserStats: React.FC = () => {
           textStyle: { color: '#ebdbb2', fontSize: 11 },
           formatter: (params: any) => {
             const point = params[0];
-            return `Window ${point.name}<br/>20-Game Win Rate: ${point.value.toFixed(1)}%`;
+            const windowIndex = point.dataIndex;
+            let tooltip = `Window ${point.name}<br/>20-Game Win Rate: ${point.value.toFixed(1)}%`;
+            
+            // Add date range if available
+            if (dateRanges.length > windowIndex) {
+              tooltip += `<br/>Period: ${dateRanges[windowIndex]}`;
+            }
+            
+            return tooltip;
           }
         },
-        grid: { left: '8%', right: '4%', top: '15%', bottom: '12%', containLabel: true },
+        grid: { left: '8%', right: '12%', top: '15%', bottom: '12%', containLabel: true },
         xAxis: {
           type: 'category',
           data: xData,
@@ -260,9 +270,18 @@ export const UserStats: React.FC = () => {
           markLine: {
             silent: true,
             symbol: 'none',
-            lineStyle: { color: '#83a598', type: 'solid', width: 1 },
-            data: [{ yAxis: stats.overallWinRate }],
-            label: { formatter: 'Overall Avg: {c}%', color: '#83a598', fontSize: 9 }
+            data: [
+              {
+                yAxis: 50,
+                lineStyle: { color: 'rgba(168, 153, 132, 0.2)', type: 'dashed', width: 1 },
+                label: { show: false }
+              },
+              {
+                yAxis: stats.overallWinRate,
+                lineStyle: { color: '#83a598', type: 'solid', width: 1 },
+                label: { formatter: 'Overall Avg: {c}%', color: '#83a598', fontSize: 9 }
+              }
+            ]
           }
         }]
       });
