@@ -8,6 +8,9 @@ import { UserStats } from './components/stats/UserStats';
 import CharacterAnalytics from './CharacterAnalytics';
 import CharacterDetail from './CharacterDetail';
 import SessionTearsheet from './SessionTearsheet';
+import SessionHistory from './SessionHistory';
+import SessionDetail from './SessionDetail';
+import SessionComparison from './SessionComparison';
 
 function LoggingHome() {
   const recentMatchesRef = useRef<RecentMatchesRef>(null);
@@ -61,53 +64,161 @@ function LoggingHome() {
 
 function Header() {
   const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const navLinks = [
+    { to: '/', label: 'Game Logger', match: (path: string) => path === '/' },
+    { to: '/stats', label: 'Statistics', match: (path: string) => path === '/stats' },
+    { to: '/users/Shayne', label: "Shayne's Stats", match: (path: string) => path === '/users/Shayne' },
+    { to: '/users/Matt', label: "Matt's Stats", match: (path: string) => path === '/users/Matt' },
+    { to: '/characters', label: 'Character Analytics', match: (path: string) => path === '/characters' },
+    { to: '/sessions', label: 'Sessions', match: (path: string) => path.startsWith('/sessions') },
+  ];
+
+  const NavLink = ({ to, label, match, mobile = false }: { to: string; label: string; match: (path: string) => boolean; mobile?: boolean }) => {
+    const isActive = match(location.pathname);
+    const [isHovered, setIsHovered] = useState(false);
+
+    return (
+      <Link
+        to={to}
+        onClick={() => mobile && setMenuOpen(false)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        style={{
+          textDecoration: 'none',
+          padding: mobile ? '0.75rem 1rem' : 'clamp(0.35rem, 1vw, 0.5rem) clamp(0.5rem, 1.5vw, 1rem)',
+          borderRadius: mobile ? 8 : 12,
+          transition: 'all 0.2s',
+          background: isActive ? 'var(--blue, #83a598)' : isHovered ? 'rgba(131, 165, 152, 0.2)' : 'none',
+          color: isActive ? 'var(--bg0, #282828)' : 'var(--fg, #ebdbb2)',
+          fontSize: mobile ? '1rem' : 'clamp(0.75rem, 1.5vw, 0.95rem)',
+          whiteSpace: 'nowrap',
+          display: 'block',
+          transform: isHovered && !isActive ? 'translateY(-1px)' : 'none',
+          boxShadow: isHovered && !isActive ? '0 2px 8px rgba(131, 165, 152, 0.3)' : 'none'
+        }}
+      >
+        {label}
+      </Link>
+    );
+  };
+
   return (
-    <header className="main-header" style={{ background: 'var(--bg1, #3c3836)', padding: '0 2rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', position: 'sticky', top: 0, zIndex: 100 }}>
-      <Link to="/" className="header-title" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--fg-light, #fbf1c7)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+    <header className="main-header" style={{ 
+      background: 'var(--bg1, #3c3836)', 
+      padding: '0.75rem clamp(0.5rem, 2vw, 2rem)',
+      minHeight: '60px',
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'space-between',
+      gap: '0.75rem',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.2)', 
+      position: 'sticky', 
+      top: 0, 
+      zIndex: 100,
+      flexWrap: 'wrap'
+    }}>
+      <Link to="/" className="header-title" style={{ 
+        fontSize: 'clamp(1rem, 3vw, 1.5rem)',
+        fontWeight: 'bold', 
+        color: 'var(--fg-light, #fbf1c7)', 
+        textDecoration: 'none', 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '0.5rem',
+        whiteSpace: 'nowrap',
+        minWidth: 'fit-content'
+      }}>
         Smash Match Logger
       </Link>
-      <nav style={{ display: 'flex', gap: '1rem' }}>
-        <Link to="/" className={`nav-link${location.pathname === '/' ? ' active' : ''}`} style={{
-          textDecoration: 'none',
-          padding: '0.5rem 1rem',
-          borderRadius: 12,
+
+      {/* Hamburger Button */}
+      <button
+        onClick={() => setMenuOpen(!menuOpen)}
+        style={{
+          display: 'none',
+          background: 'none',
+          border: 'none',
+          color: 'var(--fg, #ebdbb2)',
+          fontSize: '1.5rem',
+          cursor: 'pointer',
+          padding: '0.5rem',
           transition: 'all 0.2s',
-          background: location.pathname === '/' ? 'var(--blue, #83a598)' : 'none',
-          color: location.pathname === '/' ? 'var(--bg0, #282828)' : 'var(--fg, #ebdbb2)'
-        }}>Game Logger</Link>
-        <Link to="/stats" className={`nav-link${location.pathname === '/stats' ? ' active' : ''}`} style={{
-          textDecoration: 'none',
-          padding: '0.5rem 1rem',
-          borderRadius: 12,
-          transition: 'all 0.2s',
-          background: location.pathname === '/stats' ? 'var(--blue, #83a598)' : 'none',
-          color: location.pathname === '/stats' ? 'var(--bg0, #282828)' : 'var(--fg, #ebdbb2)'
-        }}>Statistics</Link>
-        <Link to="/users/Shayne" className={`nav-link${location.pathname === '/users/Shayne' ? ' active' : ''}`} style={{
-          textDecoration: 'none',
-          padding: '0.5rem 1rem',
-          borderRadius: 12,
-          transition: 'all 0.2s',
-          background: location.pathname === '/users/Shayne' ? 'var(--blue, #83a598)' : 'none',
-          color: location.pathname === '/users/Shayne' ? 'var(--bg0, #282828)' : 'var(--fg, #ebdbb2)'
-        }}>Shayne's Stats</Link>
-        <Link to="/users/Matt" className={`nav-link${location.pathname === '/users/Matt' ? ' active' : ''}`} style={{
-          textDecoration: 'none',
-          padding: '0.5rem 1rem',
-          borderRadius: 12,
-          transition: 'all 0.2s',
-          background: location.pathname === '/users/Matt' ? 'var(--blue, #83a598)' : 'none',
-          color: location.pathname === '/users/Matt' ? 'var(--bg0, #282828)' : 'var(--fg, #ebdbb2)'
-        }}>Matt's Stats</Link>
-        <Link to="/characters" className={`nav-link${location.pathname === '/characters' ? ' active' : ''}`} style={{
-          textDecoration: 'none',
-          padding: '0.5rem 1rem',
-          borderRadius: 12,
-          transition: 'all 0.2s',
-          background: location.pathname === '/characters' ? 'var(--blue, #83a598)' : 'none',
-          color: location.pathname === '/characters' ? 'var(--bg0, #282828)' : 'var(--fg, #ebdbb2)'
-        }}>Character Analytics</Link>
+          borderRadius: '8px'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(131, 165, 152, 0.2)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'none';
+        }}
+        className="hamburger-menu"
+      >
+        {menuOpen ? '✕' : '☰'}
+      </button>
+
+      {/* Desktop Navigation */}
+      <nav className="desktop-nav" style={{ 
+        display: 'flex', 
+        gap: 'clamp(0.25rem, 1vw, 1rem)',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        flex: '1 1 auto',
+        minWidth: 0
+      }}>
+        {navLinks.map((link) => (
+          <NavLink key={link.to} {...link} />
+        ))}
       </nav>
+
+      {/* Mobile Navigation */}
+      {menuOpen && (
+        <nav
+          className="mobile-nav"
+          style={{
+            display: 'none',
+            flexDirection: 'column',
+            width: '100%',
+            background: 'var(--bg2, #504945)',
+            borderRadius: '8px',
+            padding: '0.5rem',
+            gap: '0.25rem',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            animation: 'slideDown 0.2s ease-out'
+          }}
+        >
+          {navLinks.map((link) => (
+            <NavLink key={link.to} {...link} mobile />
+          ))}
+        </nav>
+      )}
+
+      <style>{`
+        @media (max-width: 1024px) {
+          .hamburger-menu {
+            display: block !important;
+          }
+          .desktop-nav {
+            display: none !important;
+          }
+          .mobile-nav {
+            display: flex !important;
+          }
+        }
+        
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </header>
   );
 }
@@ -132,6 +243,10 @@ function PageTitle() {
     } else if (path.startsWith('/characters/')) {
       const character = decodeURIComponent(path.split('/')[2]);
       title = `${character} - Smash Match Logger`;
+    } else if (path === '/sessions') {
+      title = 'Sessions - Smash Match Logger';
+    } else if (path.startsWith('/sessions/')) {
+      title = 'Session Details - Smash Match Logger';
     }
     
     document.title = title;
@@ -152,6 +267,9 @@ function App() {
           <Route path="/users/:username" element={<UserStats />} />
           <Route path="/characters" element={<CharacterAnalytics />} />
           <Route path="/characters/:character" element={<CharacterDetail />} />
+          <Route path="/sessions" element={<SessionHistory />} />
+          <Route path="/sessions/compare" element={<SessionComparison />} />
+          <Route path="/sessions/:session_id" element={<SessionDetail />} />
           <Route path="/session-tearsheet" element={<SessionTearsheet />} />
         </Routes>
       </main>
