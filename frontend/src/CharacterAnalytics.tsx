@@ -278,8 +278,46 @@ const CharacterAnalytics: React.FC = () => {
     }
   }, [data]);
 
-  if (loading) return <div className="stats-container"><div>Loading character analytics...</div></div>;
-  if (error) return <div className="stats-container"><div className="error">{error}</div></div>;
+  if (loading) {
+    return (
+      <div className="stats-container" style={{ 
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '3rem', 
+          fontSize: '1.2rem',
+          color: '#a89984'
+        }}>
+          Loading character analytics...
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="stats-container" style={{ 
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '2rem',
+          fontSize: '1.2rem',
+          color: '#fb4934'
+        }}>
+          {error}
+        </div>
+      </div>
+    );
+  }
+  
   if (!data) return null;
 
   // Sort characters based on selected criteria
@@ -293,12 +331,84 @@ const CharacterAnalytics: React.FC = () => {
   const activeCharacters = sortedCharacters.filter(([_, stats]) => stats.total_games >= filterMinGames);
 
   return (
-    <div className="stats-container" style={{ padding: '1.5rem' }}>
+    <div className="stats-container" style={{ 
+      maxWidth: '1400px', 
+      padding: '1.5rem',
+      margin: '0 auto'
+    }}>
+      {/* Header Section */}
+      <section className="stats-section" style={{ marginBottom: '1.5rem' }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
+          borderRadius: '16px',
+          padding: '1.5rem',
+          border: '1px solid #504945',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          textAlign: 'center'
+        }}>
+          <h1 style={{ 
+            fontSize: '1.8rem', 
+            fontWeight: 'bold',
+            marginBottom: '0.5rem',
+            color: '#fbf1c7'
+          }}>
+            🎮 Character Analytics
+          </h1>
+          <p style={{ 
+            color: '#a89984', 
+            marginBottom: '1rem', 
+            fontSize: '0.9rem' 
+          }}>
+            {data.total_matches} total matches • {activeCharacters.length} characters with data
+          </p>
+          
+          {/* Quick Stats */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+            gap: '1rem',
+            marginTop: '1rem'
+          }}>
+            <div>
+              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase' }}>
+                Most Used
+              </div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#83a598' }}>
+                {activeCharacters[0] ? activeCharacters[0][0] : 'N/A'}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#a89984' }}>
+                {activeCharacters[0] ? `${activeCharacters[0][1].usage_rate}%` : ''}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase' }}>
+                Highest Win Rate
+              </div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#b8bb26' }}>
+                {sortedCharacters.filter(([_, s]) => s.total_games >= 20)[0] ? 
+                  sortedCharacters.filter(([_, s]) => s.total_games >= 20).sort((a, b) => b[1].win_rate - a[1].win_rate)[0][0] : 'N/A'}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#a89984' }}>
+                {sortedCharacters.filter(([_, s]) => s.total_games >= 20)[0] ? 
+                  `${sortedCharacters.filter(([_, s]) => s.total_games >= 20).sort((a, b) => b[1].win_rate - a[1].win_rate)[0][1].win_rate}%` : ''}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase' }}>
+                Active Roster
+              </div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fabd2f' }}>
+                {activeCharacters.length}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#a89984' }}>
+                characters
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="stats-section">
-        <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Character Analytics</h2>
-        <p style={{ textAlign: 'center', color: 'var(--fg-light)', marginBottom: '1rem', fontSize: '0.9rem' }}>
-          {data.total_matches} total matches • {activeCharacters.length} characters
-        </p>
 
         {/* Visualizations */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
@@ -318,25 +428,36 @@ const CharacterAnalytics: React.FC = () => {
           justifyContent: 'space-between',
           alignItems: 'center',
           gap: '1rem', 
-          marginBottom: '1rem',
+          marginBottom: '1.5rem',
           flexWrap: 'wrap',
-          background: 'var(--bg1)',
-          padding: '0.75rem 1rem',
-          borderRadius: 'var(--card-radius)',
-          border: '1px solid var(--bg-light)'
+          background: '#3c3836',
+          padding: '1rem',
+          borderRadius: '12px',
+          border: '1px solid #504945',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
         }}>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: '#a89984', marginRight: '0.5rem', fontWeight: '600' }}>
+              Sort by:
+            </span>
             <button
               onClick={() => setSortBy('usage_rate')}
               style={{
-                padding: '0.4rem 0.8rem',
+                padding: '0.5rem 1rem',
                 fontSize: '0.85rem',
-                borderRadius: 'var(--card-radius)',
-                border: '1px solid var(--bg-light)',
-                background: sortBy === 'usage_rate' ? 'var(--blue)' : 'var(--bg2)',
-                color: sortBy === 'usage_rate' ? 'var(--bg0)' : 'var(--fg)',
+                borderRadius: '8px',
+                border: sortBy === 'usage_rate' ? '2px solid #83a598' : '1px solid #504945',
+                background: sortBy === 'usage_rate' ? '#83a598' : '#282828',
+                color: sortBy === 'usage_rate' ? '#282828' : '#ebdbb2',
                 cursor: 'pointer',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                fontWeight: sortBy === 'usage_rate' ? 'bold' : 'normal'
+              }}
+              onMouseEnter={(e) => {
+                if (sortBy !== 'usage_rate') e.currentTarget.style.background = '#3c3836';
+              }}
+              onMouseLeave={(e) => {
+                if (sortBy !== 'usage_rate') e.currentTarget.style.background = '#282828';
               }}
             >
               📊 Usage
@@ -344,14 +465,21 @@ const CharacterAnalytics: React.FC = () => {
             <button
               onClick={() => setSortBy('win_rate')}
               style={{
-                padding: '0.4rem 0.8rem',
+                padding: '0.5rem 1rem',
                 fontSize: '0.85rem',
-                borderRadius: 'var(--card-radius)',
-                border: '1px solid var(--bg-light)',
-                background: sortBy === 'win_rate' ? 'var(--blue)' : 'var(--bg2)',
-                color: sortBy === 'win_rate' ? 'var(--bg0)' : 'var(--fg)',
+                borderRadius: '8px',
+                border: sortBy === 'win_rate' ? '2px solid #83a598' : '1px solid #504945',
+                background: sortBy === 'win_rate' ? '#83a598' : '#282828',
+                color: sortBy === 'win_rate' ? '#282828' : '#ebdbb2',
                 cursor: 'pointer',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                fontWeight: sortBy === 'win_rate' ? 'bold' : 'normal'
+              }}
+              onMouseEnter={(e) => {
+                if (sortBy !== 'win_rate') e.currentTarget.style.background = '#3c3836';
+              }}
+              onMouseLeave={(e) => {
+                if (sortBy !== 'win_rate') e.currentTarget.style.background = '#282828';
               }}
             >
               🏆 Win Rate
@@ -359,49 +487,66 @@ const CharacterAnalytics: React.FC = () => {
             <button
               onClick={() => setSortBy('total_games')}
               style={{
-                padding: '0.4rem 0.8rem',
+                padding: '0.5rem 1rem',
                 fontSize: '0.85rem',
-                borderRadius: 'var(--card-radius)',
-                border: '1px solid var(--bg-light)',
-                background: sortBy === 'total_games' ? 'var(--blue)' : 'var(--bg2)',
-                color: sortBy === 'total_games' ? 'var(--bg0)' : 'var(--fg)',
+                borderRadius: '8px',
+                border: sortBy === 'total_games' ? '2px solid #83a598' : '1px solid #504945',
+                background: sortBy === 'total_games' ? '#83a598' : '#282828',
+                color: sortBy === 'total_games' ? '#282828' : '#ebdbb2',
                 cursor: 'pointer',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                fontWeight: sortBy === 'total_games' ? 'bold' : 'normal'
+              }}
+              onMouseEnter={(e) => {
+                if (sortBy !== 'total_games') e.currentTarget.style.background = '#3c3836';
+              }}
+              onMouseLeave={(e) => {
+                if (sortBy !== 'total_games') e.currentTarget.style.background = '#282828';
               }}
             >
               🎮 Games
             </button>
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <label style={{ fontSize: '0.85rem', color: 'var(--fg-light)' }}>Min Games:</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <label style={{ fontSize: '0.8rem', color: '#a89984', fontWeight: '600' }}>
+              Min Games:
+            </label>
             <select 
               value={filterMinGames} 
               onChange={(e) => setFilterMinGames(Number(e.target.value))}
               style={{
-                padding: '0.4rem 0.6rem',
+                padding: '0.5rem 0.75rem',
                 fontSize: '0.85rem',
-                borderRadius: 'var(--card-radius)',
-                border: '1px solid var(--bg-light)',
-                background: 'var(--bg2)',
-                color: 'var(--fg)',
-                cursor: 'pointer'
+                borderRadius: '8px',
+                border: '1px solid #504945',
+                background: '#282828',
+                color: '#ebdbb2',
+                cursor: 'pointer',
+                fontWeight: '500',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#3c3836';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#282828';
               }}
             >
-              <option value={0}>All</option>
-              <option value={5}>5+</option>
-              <option value={10}>10+</option>
-              <option value={20}>20+</option>
-              <option value={50}>50+</option>
+              <option value={0}>All Characters</option>
+              <option value={5}>5+ games</option>
+              <option value={10}>10+ games</option>
+              <option value={20}>20+ games</option>
+              <option value={50}>50+ games</option>
             </select>
           </div>
         </div>
 
-        {/* Character Grid - Compact */}
+        {/* Character Grid */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-          gap: '0.75rem'
+          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          gap: '1rem'
         }}>
           {activeCharacters.map(([character, stats]) => (
             <Link
@@ -409,52 +554,95 @@ const CharacterAnalytics: React.FC = () => {
               to={`/characters/${encodeURIComponent(character)}`}
               style={{
                 textDecoration: 'none',
-                background: 'var(--bg1)',
-                borderRadius: 'var(--card-radius)',
-                padding: '0.75rem',
-                border: '1px solid var(--bg-light)',
+                background: '#3c3836',
+                borderRadius: '12px',
+                padding: '1rem',
+                border: '1px solid #504945',
                 transition: 'all 0.2s',
-                display: 'block'
+                display: 'block',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)';
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4)';
+                e.currentTarget.style.borderColor = '#83a598';
               }}
               onMouseOut={(e) => {
                 e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+                e.currentTarget.style.borderColor = '#504945';
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.75rem', 
+                marginBottom: '0.75rem',
+                paddingBottom: '0.75rem',
+                borderBottom: '1px solid #504945'
+              }}>
                 <CharacterDisplay character={character} hideText={false} />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--fg-light)' }}>Usage</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--blue)' }}>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr', 
+                gap: '0.75rem', 
+                marginBottom: '0.75rem' 
+              }}>
+                <div style={{
+                  background: '#282828',
+                  padding: '0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid #3c3836'
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem' }}>
+                    Usage
+                  </div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#83a598' }}>
                     {stats.usage_rate}%
                   </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--fg-light)' }}>Win Rate</div>
+                <div style={{
+                  background: '#282828',
+                  padding: '0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid #3c3836'
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem' }}>
+                    Win Rate
+                  </div>
                   <div style={{ 
-                    fontSize: '1rem', 
+                    fontSize: '1.1rem', 
                     fontWeight: 'bold', 
-                    color: stats.win_rate >= 50 ? 'var(--green)' : 'var(--red)' 
+                    color: stats.win_rate >= 50 ? '#b8bb26' : '#fb4934' 
                   }}>
                     {stats.win_rate}%
                   </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--fg-light)' }}>Games</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--fg)' }}>
+                <div style={{
+                  background: '#282828',
+                  padding: '0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid #3c3836'
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem' }}>
+                    Games
+                  </div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#ebdbb2' }}>
                     {stats.total_games}
                   </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--fg-light)' }}>Wins</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--fg)' }}>
+                <div style={{
+                  background: '#282828',
+                  padding: '0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid #3c3836'
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem' }}>
+                    Wins
+                  </div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#ebdbb2' }}>
                     {stats.wins}
                   </div>
                 </div>
@@ -462,14 +650,22 @@ const CharacterAnalytics: React.FC = () => {
 
               <div style={{ 
                 display: 'flex', 
-                justifyContent: 'space-between', 
-                fontSize: '0.7rem',
-                color: 'var(--fg-light)',
-                borderTop: '1px solid var(--bg-light)',
-                paddingTop: '0.5rem'
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '0.75rem',
+                background: '#282828',
+                padding: '0.5rem',
+                borderRadius: '6px',
+                border: '1px solid #3c3836'
               }}>
-                <span style={{ color: '#fe8019' }}>S: {stats.shayne_usage}</span>
-                <span style={{ color: '#b8bb26' }}>M: {stats.matt_usage}</span>
+                <div>
+                  <span style={{ color: '#a89984', marginRight: '0.25rem' }}>Shayne:</span>
+                  <span style={{ color: '#fe8019', fontWeight: 'bold' }}>{stats.shayne_usage}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#a89984', marginRight: '0.25rem' }}>Matt:</span>
+                  <span style={{ color: '#b8bb26', fontWeight: 'bold' }}>{stats.matt_usage}</span>
+                </div>
               </div>
             </Link>
           ))}

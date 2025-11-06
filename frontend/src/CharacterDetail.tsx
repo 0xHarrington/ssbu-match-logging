@@ -46,6 +46,13 @@ interface CharacterStatsData {
   matt_matchups: MatchupData[];
 }
 
+interface TimelineData {
+  session_id: string;
+  date: string;
+  datetime: string;
+  games: number;
+}
+
 const CharacterDetail: React.FC = () => {
   const { character } = useParams<{ character: string }>();
   const [data, setData] = useState<CharacterStatsData | null>(null);
@@ -53,10 +60,12 @@ const CharacterDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [heatmapData, setHeatmapData] = useState<any>(null);
   const [usingSimulatedHeatmap, setUsingSimulatedHeatmap] = useState(false);
+  const [timelineData, setTimelineData] = useState<TimelineData[]>([]);
   const matchupRadarRef = useRef<HTMLDivElement>(null);
   const playerComparisonRef = useRef<HTMLDivElement>(null);
   const stagePerformanceRef = useRef<HTMLDivElement>(null);
   const heatmapRef = useRef<HTMLDivElement>(null);
+  const timelineChartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!character) return;
@@ -104,26 +113,51 @@ const CharacterDetail: React.FC = () => {
     fetchHeatmapData();
   }, [character]);
 
+  // Fetch timeline data
+  useEffect(() => {
+    if (!character) return;
+
+    const fetchTimelineData = async () => {
+      try {
+        const response = await fetch(`/api/characters/${encodeURIComponent(character)}/timeline`);
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          setTimelineData(result.data);
+        }
+      } catch (err) {
+        console.error('Error fetching timeline data:', err);
+      }
+    };
+
+    fetchTimelineData();
+  }, [character]);
+
   // ECharts visualizations
   useEffect(() => {
     if (!data) return;
 
-    // Matchup Radar Chart - Only matchups with 20+ games
+    // Top Matchups Bar Chart - Only matchups with 12+ games
     if (matchupRadarRef.current) {
       const chart = echarts.init(matchupRadarRef.current);
       
-      // Filter matchups with at least 20 games
-      const significantMatchups = [
-        ...data.best_matchups.filter(m => m.games >= 20).slice(0, 5),
-        ...data.worst_matchups.filter(m => m.games >= 20).slice(0, 5)
+      // Combine all matchups and filter for 12+ games
+      const allMatchups = [
+        ...data.best_matchups.filter(m => m.games >= 12),
+        ...data.worst_matchups.filter(m => m.games >= 12)
       ];
       
-      if (significantMatchups.length === 0) {
+      // Remove duplicates and sort by total games
+      const uniqueMatchups = Array.from(
+        new Map(allMatchups.map(m => [m.opponent, m])).values()
+      ).sort((a, b) => b.games - a.games).slice(0, 10);
+      
+      if (uniqueMatchups.length === 0) {
         // Show message if no significant matchups
         chart.setOption({
           backgroundColor: 'transparent',
           title: {
-            text: 'Not enough data\n(20+ games needed)',
+            text: 'Not enough data\n(12+ games needed per matchup)',
             left: 'center',
             top: 'center',
             textStyle: {
@@ -134,60 +168,85 @@ const CharacterDetail: React.FC = () => {
           }
         });
       } else {
-        const indicators = significantMatchups.map(m => ({ 
-          name: m.opponent, 
-          max: 100 
-        }));
-        const values = significantMatchups.map(m => m.win_rate);
-
         chart.setOption({
           backgroundColor: 'transparent',
           tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
             backgroundColor: '#3c3836',
             borderColor: '#504945',
+            borderWidth: 2,
             textStyle: { color: '#ebdbb2', fontSize: 11 },
             formatter: (params: any) => {
-              const matchup = significantMatchups[params.dataIndex];
-              return `${matchup.opponent}<br/>Win Rate: ${Math.round(matchup.win_rate)}%<br/>Record: ${matchup.wins}W-${matchup.losses}L (${matchup.games} games)`;
+              const matchup = uniqueMatchups[params[0].dataIndex];
+              return `<div style="font-weight: bold; margin-bottom: 4px;">${matchup.opponent}</div>` +
+                     `<div style="color: ${matchup.win_rate >= 50 ? '#b8bb26' : '#fb4934'};">Win Rate: ${Math.round(matchup.win_rate)}%</div>` +
+                     `<div style="color: #a89984; font-size: 10px;">Record: ${matchup.wins}W-${matchup.losses}L</div>` +
+                     `<div style="color: #83a598; font-size: 10px;">${matchup.games} games played</div>`;
             }
           },
-          radar: {
-            indicator: indicators,
-            shape: 'polygon',
-            splitNumber: 4,
-            axisName: {
-              color: '#a89984',
-              fontSize: 9
+          grid: { 
+            left: '20%', 
+            right: '8%', 
+            top: '5%', 
+            bottom: '5%', 
+            containLabel: false
+          },
+          xAxis: {
+            type: 'value',
+            max: 100,
+            axisLine: { show: false },
+            axisTick: { show: false },
+            axisLabel: { 
+              color: '#a89984', 
+              fontSize: 9,
+              formatter: '{value}%'
             },
-            splitLine: {
-              lineStyle: { color: '#3c3836' }
-            },
-            splitArea: {
-              show: true,
-              areaStyle: {
-                color: ['rgba(60, 56, 54, 0.1)', 'rgba(60, 56, 54, 0.2)']
-              }
-            },
-            axisLine: {
-              lineStyle: { color: '#504945' }
+            splitLine: { 
+              lineStyle: { color: '#3c3836', type: 'dashed' } 
             }
+          },
+          yAxis: {
+            type: 'category',
+            data: uniqueMatchups.map(m => m.opponent),
+            axisLine: { show: false },
+            axisTick: { show: false },
+            axisLabel: { 
+              color: '#ebdbb2', 
+              fontSize: 10,
+              fontWeight: 500
+            },
+            inverse: true
           },
           series: [{
-            type: 'radar',
-            data: [{
-              value: values,
-              name: 'Win Rate',
-              areaStyle: {
-                color: 'rgba(131, 165, 152, 0.3)'
-              },
-              lineStyle: {
-                color: '#83a598',
-                width: 2
-              },
+            type: 'bar',
+            data: uniqueMatchups.map(matchup => ({
+              value: matchup.win_rate,
               itemStyle: {
-                color: '#83a598'
+                color: matchup.win_rate >= 60 ? '#b8bb26' : 
+                       matchup.win_rate >= 50 ? '#83a598' : 
+                       matchup.win_rate >= 40 ? '#fe8019' : '#fb4934',
+                borderRadius: [0, 4, 4, 0]
               }
-            }]
+            })),
+            barMaxWidth: 20,
+            label: {
+              show: true,
+              position: 'right',
+              formatter: (params: any) => {
+                const matchup = uniqueMatchups[params.dataIndex];
+                return `${Math.round(matchup.win_rate)}% (${matchup.games}g)`;
+              },
+              color: '#ebdbb2',
+              fontSize: 10,
+              fontWeight: 'bold'
+            },
+            emphasis: {
+              itemStyle: {
+                shadowBlur: 10,
+                shadowColor: 'rgba(0, 0, 0, 0.5)'
+              }
+            }
           }]
         });
       }
@@ -330,67 +389,299 @@ const CharacterDetail: React.FC = () => {
     }
   }, [data]);
 
-  if (loading) return <div className="stats-container"><div>Loading character details...</div></div>;
-  if (error) return <div className="stats-container"><div className="error">{error}</div></div>;
+  // Timeline Chart - Games per session
+  useEffect(() => {
+    if (!timelineData || timelineData.length === 0) return;
+    if (!timelineChartRef.current) return;
+
+    const chart = echarts.init(timelineChartRef.current);
+
+    // Format dates for display
+    const dates = timelineData.map(d => {
+      const date = new Date(d.datetime);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+    const games = timelineData.map(d => d.games);
+
+    // Calculate rolling average (window of 5 sessions)
+    const rollingAvg: number[] = [];
+    const window = Math.min(5, Math.ceil(timelineData.length / 10)); // Adaptive window
+    for (let i = 0; i < games.length; i++) {
+      const start = Math.max(0, i - Math.floor(window / 2));
+      const end = Math.min(games.length, i + Math.ceil(window / 2));
+      const slice = games.slice(start, end);
+      const avg = slice.reduce((sum, val) => sum + val, 0) / slice.length;
+      rollingAvg.push(parseFloat(avg.toFixed(1)));
+    }
+
+    chart.setOption({
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'cross' },
+        backgroundColor: '#3c3836',
+        borderColor: '#504945',
+        borderWidth: 2,
+        textStyle: { color: '#ebdbb2', fontSize: 11 },
+        formatter: (params: any) => {
+          const dataIndex = params[0].dataIndex;
+          const session = timelineData[dataIndex];
+          const date = new Date(session.datetime);
+          const formattedDate = date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            year: 'numeric'
+          });
+          let tooltip = `<div style="font-weight: bold; margin-bottom: 4px;">${formattedDate}</div>`;
+          
+          params.forEach((param: any) => {
+            if (param.seriesName === 'Games') {
+              tooltip += `<div style="color: #689d6a;">Games: ${param.value}</div>`;
+            } else if (param.seriesName === 'Trend') {
+              tooltip += `<div style="color: #fabd2f;">Avg: ${param.value}</div>`;
+            }
+          });
+          
+          tooltip += `<div style="color: #a89984; font-size: 10px;">Session ${session.session_id}</div>`;
+          return tooltip;
+        }
+      },
+      legend: {
+        data: ['Games', 'Trend'],
+        textStyle: { color: '#a89984', fontSize: 11 },
+        top: 0,
+        right: '8%'
+      },
+      grid: { 
+        left: '8%', 
+        right: '8%', 
+        top: '15%', 
+        bottom: timelineData.length > 20 ? '20%' : '15%',
+        containLabel: true 
+      },
+      xAxis: {
+        type: 'category',
+        data: dates,
+        axisLine: { lineStyle: { color: '#504945', width: 2 } },
+        axisLabel: { 
+          color: '#a89984', 
+          fontSize: 9,
+          rotate: timelineData.length > 20 ? 45 : 0,
+          interval: timelineData.length > 30 ? Math.floor(timelineData.length / 20) : 0
+        },
+        axisTick: { lineStyle: { color: '#504945' } }
+      },
+      yAxis: {
+        type: 'value',
+        axisLine: { show: true, lineStyle: { color: '#504945', width: 2 } },
+        axisLabel: { color: '#a89984', fontSize: 10 },
+        splitLine: { lineStyle: { color: '#3c3836', type: 'dashed' } }
+      },
+      series: [
+        {
+          name: 'Games',
+          data: games,
+          type: 'bar',
+          itemStyle: {
+            color: '#689d6a',
+            borderRadius: [4, 4, 0, 0]
+          },
+          emphasis: {
+            itemStyle: {
+              color: '#8ec07c'
+            }
+          },
+          barWidth: '60%',
+          animationDelay: (idx: number) => idx * 20
+        },
+        {
+          name: 'Trend',
+          data: rollingAvg,
+          type: 'line',
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 6,
+          lineStyle: {
+            color: '#fabd2f',
+            width: 3
+          },
+          itemStyle: {
+            color: '#fabd2f',
+            borderColor: '#d79921',
+            borderWidth: 2
+          },
+          emphasis: {
+            itemStyle: {
+              color: '#fabd2f',
+              borderColor: '#d79921',
+              borderWidth: 3,
+              shadowBlur: 10,
+              shadowColor: 'rgba(250, 189, 47, 0.5)'
+            }
+          },
+          z: 10
+        }
+      ]
+    });
+
+    return () => chart.dispose();
+  }, [timelineData]);
+
+  if (loading) {
+    return (
+      <div className="stats-container" style={{ 
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '3rem', 
+          fontSize: '1.2rem',
+          color: '#a89984'
+        }}>
+          Loading character details...
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="stats-container" style={{ 
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '2rem',
+          fontSize: '1.2rem',
+          color: '#fb4934'
+        }}>
+          {error}
+        </div>
+      </div>
+    );
+  }
+  
   if (!data || !character) return null;
 
   return (
-    <div className="stats-container" style={{ padding: '1.5rem' }}>
-      {/* Compact Header */}
-      <div style={{
-        background: 'var(--bg1)',
-        borderRadius: 'var(--card-radius)',
-        padding: '1rem',
-        border: '1px solid var(--bg-light)',
-        marginBottom: '1rem',
-        textAlign: 'center'
-      }}>
-        <Link to="/characters" style={{ 
-          color: 'var(--blue)', 
-          textDecoration: 'none', 
-          fontSize: '0.85rem',
-          marginBottom: '0.75rem',
-          display: 'inline-block'
-        }}>
-          ← Back
+    <div className="stats-container" style={{ 
+      maxWidth: '1400px', 
+      padding: '1.5rem',
+      margin: '0 auto'
+    }}>
+      {/* Navigation */}
+      <div style={{ marginBottom: '1rem' }}>
+        <Link 
+          to="/characters" 
+          style={{ 
+            color: '#83a598', 
+            textDecoration: 'none', 
+            fontSize: '0.9rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 1rem',
+            background: '#3c3836',
+            borderRadius: '8px',
+            border: '1px solid #504945',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#504945';
+            e.currentTarget.style.transform = 'translateX(-4px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = '#3c3836';
+            e.currentTarget.style.transform = 'none';
+          }}
+        >
+          ← Back to Characters
         </Link>
-        
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+      </div>
+
+      {/* Hero Header */}
+      <div style={{
+        background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
+        borderRadius: '16px',
+        padding: '2rem',
+        border: '1px solid #504945',
+        marginBottom: '1.5rem',
+        textAlign: 'center',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          gap: '1rem', 
+          marginBottom: '1.5rem' 
+        }}>
           <CharacterDisplay character={character} hideText={false} />
         </div>
         
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-          gap: '1rem',
-          marginTop: '0.75rem'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+          gap: '1.5rem',
+          marginTop: '1.5rem'
         }}>
           <div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--blue)' }}>
+            <div style={{ 
+              fontSize: '0.7rem', 
+              color: '#a89984', 
+              marginBottom: '0.5rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Total Games
+            </div>
+            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#83a598' }}>
               {data.total_games}
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--fg-light)' }}>Games</div>
           </div>
           <div>
             <div style={{ 
-              fontSize: '1.5rem', 
+              fontSize: '0.7rem', 
+              color: '#a89984', 
+              marginBottom: '0.5rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Overall Win Rate
+            </div>
+            <div style={{ 
+              fontSize: '2rem', 
               fontWeight: 'bold', 
-              color: data.global_win_rate >= 50 ? 'var(--green)' : 'var(--red)' 
+              color: data.global_win_rate >= 50 ? '#b8bb26' : '#fb4934' 
             }}>
               {data.global_win_rate}%
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--fg-light)' }}>Win Rate</div>
           </div>
           <div>
             <div style={{ 
-              fontSize: '1.5rem', 
+              fontSize: '0.7rem', 
+              color: '#a89984', 
+              marginBottom: '0.5rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Recent Form
+            </div>
+            <div style={{ 
+              fontSize: '2rem', 
               fontWeight: 'bold', 
-              color: data.recent_performance.win_rate >= 50 ? 'var(--green)' : 'var(--red)' 
+              color: data.recent_performance.win_rate >= 50 ? '#b8bb26' : '#fb4934' 
             }}>
               {Math.round(data.recent_performance.win_rate)}%
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--fg-light)' }}>
-              Recent (L{data.recent_performance.games})
+            <div style={{ fontSize: '0.7rem', color: '#a89984', marginTop: '0.25rem' }}>
+              Last {data.recent_performance.games} games
             </div>
           </div>
         </div>
@@ -403,7 +694,7 @@ const CharacterDetail: React.FC = () => {
           <div ref={playerComparisonRef} style={{ height: '220px', width: '100%' }}></div>
         </div>
         <div className="card" style={{ padding: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>🎯 Matchup Radar</h3>
+          <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>🎯 Top Matchups</h3>
           <div ref={matchupRadarRef} style={{ height: '220px', width: '100%' }}></div>
         </div>
       </div>
@@ -430,125 +721,253 @@ const CharacterDetail: React.FC = () => {
         />
       </div>
 
-      {/* Player Stats - Compact Cards */}
+      {/* Player Stats - Enhanced Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '0.75rem',
-        marginBottom: '1rem'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '1rem',
+        marginBottom: '1.5rem'
       }}>
         <div style={{
-          background: 'var(--bg1)',
-          borderRadius: 'var(--card-radius)',
-          padding: '1rem',
+          background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
+          borderRadius: '12px',
+          padding: '1.5rem',
           border: '2px solid #fe8019',
-          textAlign: 'center'
+          textAlign: 'center',
+          boxShadow: '0 4px 12px rgba(254, 128, 25, 0.2)'
         }}>
-          <h3 style={{ color: '#fe8019', marginBottom: '0.5rem', fontSize: '1rem' }}>Shayne</h3>
-          <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '0.5rem' }}>
+          <h3 style={{ 
+            color: '#fe8019', 
+            marginBottom: '1rem', 
+            fontSize: '1.2rem',
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            letterSpacing: '1px'
+          }}>
+            Shayne
+          </h3>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-around', 
+            marginBottom: '1rem',
+            paddingBottom: '1rem',
+            borderBottom: '1px solid #504945'
+          }}>
             <div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--fg)' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ebdbb2' }}>
                 {data.shayne_stats.games}
               </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--fg-light)' }}>Games</div>
+              <div style={{ fontSize: '0.7rem', color: '#a89984', textTransform: 'uppercase' }}>
+                Games
+              </div>
             </div>
             <div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--fg)' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ebdbb2' }}>
                 {data.shayne_stats.wins}
               </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--fg-light)' }}>Wins</div>
+              <div style={{ fontSize: '0.7rem', color: '#a89984', textTransform: 'uppercase' }}>
+                Wins
+              </div>
             </div>
           </div>
           <div style={{ 
-            fontSize: '1.5rem', 
+            fontSize: '2.5rem', 
             fontWeight: 'bold', 
-            color: data.shayne_stats.win_rate >= 50 ? 'var(--green)' : 'var(--red)'
+            color: data.shayne_stats.win_rate >= 50 ? '#b8bb26' : '#fb4934',
+            marginBottom: '0.25rem'
           }}>
             {Math.round(data.shayne_stats.win_rate)}%
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--fg-light)' }}>Win Rate</div>
+          <div style={{ 
+            fontSize: '0.75rem', 
+            color: '#a89984',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
+            Win Rate
+          </div>
         </div>
 
         <div style={{
-          background: 'var(--bg1)',
-          borderRadius: 'var(--card-radius)',
-          padding: '1rem',
+          background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
+          borderRadius: '12px',
+          padding: '1.5rem',
           border: '2px solid #b8bb26',
-          textAlign: 'center'
+          textAlign: 'center',
+          boxShadow: '0 4px 12px rgba(184, 187, 38, 0.2)'
         }}>
-          <h3 style={{ color: '#b8bb26', marginBottom: '0.5rem', fontSize: '1rem' }}>Matt</h3>
-          <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '0.5rem' }}>
+          <h3 style={{ 
+            color: '#b8bb26', 
+            marginBottom: '1rem', 
+            fontSize: '1.2rem',
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            letterSpacing: '1px'
+          }}>
+            Matt
+          </h3>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-around', 
+            marginBottom: '1rem',
+            paddingBottom: '1rem',
+            borderBottom: '1px solid #504945'
+          }}>
             <div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--fg)' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ebdbb2' }}>
                 {data.matt_stats.games}
               </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--fg-light)' }}>Games</div>
+              <div style={{ fontSize: '0.7rem', color: '#a89984', textTransform: 'uppercase' }}>
+                Games
+              </div>
             </div>
             <div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--fg)' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ebdbb2' }}>
                 {data.matt_stats.wins}
               </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--fg-light)' }}>Wins</div>
+              <div style={{ fontSize: '0.7rem', color: '#a89984', textTransform: 'uppercase' }}>
+                Wins
+              </div>
             </div>
           </div>
           <div style={{ 
-            fontSize: '1.5rem', 
+            fontSize: '2.5rem', 
             fontWeight: 'bold', 
-            color: data.matt_stats.win_rate >= 50 ? 'var(--green)' : 'var(--red)'
+            color: data.matt_stats.win_rate >= 50 ? '#b8bb26' : '#fb4934',
+            marginBottom: '0.25rem'
           }}>
             {Math.round(data.matt_stats.win_rate)}%
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--fg-light)' }}>Win Rate</div>
+          <div style={{ 
+            fontSize: '0.75rem', 
+            color: '#a89984',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
+            Win Rate
+          </div>
         </div>
       </div>
 
       {/* Stage Performance */}
       {data.stage_performance.length > 0 && (
-        <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-          <h2 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>🎯 Stage Performance</h2>
+        <div className="card" style={{ 
+          padding: '1.5rem', 
+          marginBottom: '1.5rem',
+          background: '#3c3836',
+          borderRadius: '12px',
+          border: '1px solid #504945',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+        }}>
+          <h2 style={{ 
+            fontSize: '1.2rem', 
+            marginBottom: '1rem', 
+            color: '#fbf1c7',
+            fontWeight: 'bold'
+          }}>
+            🎯 Stage Performance
+          </h2>
           <div ref={stagePerformanceRef} style={{ height: '280px', width: '100%' }}></div>
         </div>
       )}
 
-      {/* Matchups - Compact Side by Side */}
+      {/* Usage Timeline */}
+      {timelineData.length > 0 && (
+        <div className="card" style={{ 
+          padding: '1.5rem', 
+          marginBottom: '1.5rem',
+          background: '#3c3836',
+          borderRadius: '12px',
+          border: '1px solid #504945',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+        }}>
+          <h2 style={{ 
+            fontSize: '1.2rem', 
+            marginBottom: '1rem', 
+            color: '#fbf1c7',
+            fontWeight: 'bold'
+          }}>
+            📈 Usage Over Time
+          </h2>
+          <div style={{ 
+            fontSize: '0.85rem', 
+            color: '#a89984', 
+            marginBottom: '1rem' 
+          }}>
+            Games played with {character} across {timelineData.length} session{timelineData.length !== 1 ? 's' : ''}
+          </div>
+          <div ref={timelineChartRef} style={{ height: '300px', width: '100%' }}></div>
+        </div>
+      )}
+
+      {/* Matchups - Enhanced Side by Side */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '0.75rem'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: '1rem'
       }}>
         {/* Best Matchups */}
         <div style={{
-          background: 'var(--bg1)',
-          borderRadius: 'var(--card-radius)',
-          padding: '1rem',
-          border: '1px solid var(--bg-light)'
+          background: '#3c3836',
+          borderRadius: '12px',
+          padding: '1.25rem',
+          border: '1px solid #504945',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
         }}>
-          <h3 style={{ color: 'var(--green)', marginBottom: '0.5rem', fontSize: '1rem' }}>✅ Best Matchups</h3>
-          <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.75rem' }}>
-            (20+ games minimum)
+          <h3 style={{ 
+            color: '#b8bb26', 
+            marginBottom: '0.75rem', 
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            ✅ Best Matchups
+          </h3>
+          <div style={{ 
+            fontSize: '0.7rem', 
+            color: '#a89984', 
+            marginBottom: '1rem',
+            padding: '0.5rem',
+            background: '#282828',
+            borderRadius: '6px',
+            textAlign: 'center'
+          }}>
+            Minimum 12 games required
           </div>
-          {data.best_matchups.filter(m => m.games >= 20).length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {data.best_matchups.filter(m => m.games >= 20).slice(0, 5).map((matchup) => (
+          {data.best_matchups.filter(m => m.games >= 12).length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {data.best_matchups.filter(m => m.games >= 12).slice(0, 5).map((matchup) => (
                 <div key={matchup.opponent} style={{
-                  background: 'var(--bg2)',
-                  borderRadius: 'var(--card-radius)',
-                  padding: '0.6rem',
-                  border: '1px solid var(--bg-light)',
+                  background: '#282828',
+                  borderRadius: '8px',
+                  padding: '0.75rem',
+                  border: '1px solid #3c3836',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#3c3836';
+                  e.currentTarget.style.borderColor = '#b8bb26';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#282828';
+                  e.currentTarget.style.borderColor = '#3c3836';
                 }}>
                   <CharacterDisplay character={matchup.opponent} />
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ 
-                      fontSize: '1rem', 
+                      fontSize: '1.2rem', 
                       fontWeight: 'bold', 
-                      color: 'var(--green)' 
+                      color: '#b8bb26',
+                      marginBottom: '0.25rem'
                     }}>
                       {Math.round(matchup.win_rate)}%
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--fg-light)' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#a89984' }}>
                       {matchup.wins}W-{matchup.losses}L ({matchup.games}g)
                     </div>
                   </div>
@@ -556,45 +975,83 @@ const CharacterDetail: React.FC = () => {
               ))}
             </div>
           ) : (
-            <p style={{ color: 'var(--fg-light)', fontStyle: 'italic', fontSize: '0.85rem' }}>
-              Not enough data (need 20+ games)
-            </p>
+            <div style={{ 
+              color: '#a89984', 
+              fontStyle: 'italic', 
+              fontSize: '0.85rem',
+              textAlign: 'center',
+              padding: '2rem 1rem',
+              background: '#282828',
+              borderRadius: '8px'
+            }}>
+              Not enough data yet<br/>
+              <span style={{ fontSize: '0.75rem' }}>(need 12+ games per matchup)</span>
+            </div>
           )}
         </div>
 
         {/* Worst Matchups */}
         <div style={{
-          background: 'var(--bg1)',
-          borderRadius: 'var(--card-radius)',
-          padding: '1rem',
-          border: '1px solid var(--bg-light)'
+          background: '#3c3836',
+          borderRadius: '12px',
+          padding: '1.25rem',
+          border: '1px solid #504945',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
         }}>
-          <h3 style={{ color: 'var(--red)', marginBottom: '0.5rem', fontSize: '1rem' }}>⚠️ Tough Matchups</h3>
-          <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.75rem' }}>
-            (20+ games minimum)
+          <h3 style={{ 
+            color: '#fb4934', 
+            marginBottom: '0.75rem', 
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            ⚠️ Tough Matchups
+          </h3>
+          <div style={{ 
+            fontSize: '0.7rem', 
+            color: '#a89984', 
+            marginBottom: '1rem',
+            padding: '0.5rem',
+            background: '#282828',
+            borderRadius: '6px',
+            textAlign: 'center'
+          }}>
+            Minimum 12 games required
           </div>
-          {data.worst_matchups.filter(m => m.games >= 20).length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {data.worst_matchups.filter(m => m.games >= 20).slice(0, 5).map((matchup) => (
+          {data.worst_matchups.filter(m => m.games >= 12).length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {data.worst_matchups.filter(m => m.games >= 12).slice(0, 5).map((matchup) => (
                 <div key={matchup.opponent} style={{
-                  background: 'var(--bg2)',
-                  borderRadius: 'var(--card-radius)',
-                  padding: '0.6rem',
-                  border: '1px solid var(--bg-light)',
+                  background: '#282828',
+                  borderRadius: '8px',
+                  padding: '0.75rem',
+                  border: '1px solid #3c3836',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#3c3836';
+                  e.currentTarget.style.borderColor = '#fb4934';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#282828';
+                  e.currentTarget.style.borderColor = '#3c3836';
                 }}>
                   <CharacterDisplay character={matchup.opponent} />
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ 
-                      fontSize: '1rem', 
+                      fontSize: '1.2rem', 
                       fontWeight: 'bold', 
-                      color: 'var(--red)' 
+                      color: '#fb4934',
+                      marginBottom: '0.25rem'
                     }}>
                       {Math.round(matchup.win_rate)}%
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--fg-light)' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#a89984' }}>
                       {matchup.wins}W-{matchup.losses}L ({matchup.games}g)
                     </div>
                   </div>
@@ -602,9 +1059,18 @@ const CharacterDetail: React.FC = () => {
               ))}
             </div>
           ) : (
-            <p style={{ color: 'var(--fg-light)', fontStyle: 'italic', fontSize: '0.85rem' }}>
-              Not enough data (need 20+ games)
-            </p>
+            <div style={{ 
+              color: '#a89984', 
+              fontStyle: 'italic', 
+              fontSize: '0.85rem',
+              textAlign: 'center',
+              padding: '2rem 1rem',
+              background: '#282828',
+              borderRadius: '8px'
+            }}>
+              Not enough data yet<br/>
+              <span style={{ fontSize: '0.75rem' }}>(need 12+ games per matchup)</span>
+            </div>
           )}
         </div>
       </div>
