@@ -745,7 +745,7 @@ export const UserStats: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1rem' }}>
         {/* Character Performance */}
         <div className="card" style={{ padding: '1rem' }}>
-          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>🎯 Character Performance</h2>
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>👊 Character Performance</h2>
           <div style={{ height: '280px', marginBottom: '0.75rem' }}>
             <Bar data={characterChartData} options={chartOptions} />
           </div>
@@ -872,7 +872,7 @@ export const UserStats: React.FC = () => {
       {/* Most Faced Characters */}
       {stats.mostFacedCharacters.length > 0 && (
         <div className="card" style={{ padding: '1rem', marginTop: '1rem' }}>
-          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>Most Faced Opponents</h2>
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>🤺 Most Faced Opponents</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.5rem' }}>
             {stats.mostFacedCharacters.slice(0, 6).map((opponent) => (
               <div key={opponent.character} style={{
