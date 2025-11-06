@@ -145,6 +145,8 @@ class GameDataManager:
             df = pd.read_csv(self.csv_path)
             # Convert datetime column to datetime type
             df["datetime"] = pd.to_datetime(df["datetime"])
+            # Ensure timestamp is numeric
+            df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
             # Handle if there are any games with no stages
             df["stage"] = df["stage"].fillna("No Stage")
 
@@ -229,6 +231,10 @@ class GameDataManager:
             # Ensure all games have session IDs
             df = self._assign_missing_session_ids(df)
             
+            # Save session IDs back to CSV if any were assigned
+            if df["session_id"].notna().any():
+                self._save_session_ids(df)
+            
             # Group by session
             sessions = []
             for session_id in df["session_id"].unique():
@@ -265,11 +271,23 @@ class GameDataManager:
             logger.error(f"Error getting sessions: {str(e)}")
             return []
     
+    def _save_session_ids(self, df: pd.DataFrame) -> None:
+        """Save the dataframe with session IDs back to CSV."""
+        try:
+            # Ensure the column order matches self.columns
+            columns_to_save = [col for col in self.columns if col in df.columns]
+            df[columns_to_save].to_csv(self.csv_path, index=False)
+            logger.info("Session IDs saved to CSV")
+        except Exception as e:
+            logger.error(f"Error saving session IDs: {str(e)}")
+    
     def _assign_missing_session_ids(self, df: pd.DataFrame) -> pd.DataFrame:
         """Assign session IDs to any games that don't have them."""
         if len(df) == 0:
             return df
         
+        # Ensure timestamp is numeric
+        df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
         df = df.sort_values("timestamp")
         
         current_session_id = None
@@ -278,10 +296,10 @@ class GameDataManager:
         for idx, row in df.iterrows():
             if pd.notna(row.get("session_id")):
                 current_session_id = row["session_id"]
-                last_timestamp = row["timestamp"]
+                last_timestamp = float(row["timestamp"])
                 continue
             
-            timestamp = row["timestamp"]
+            timestamp = float(row["timestamp"])
             
             if last_timestamp is None:
                 # First game
