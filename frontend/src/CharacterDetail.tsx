@@ -4,6 +4,30 @@ import * as echarts from 'echarts';
 import CharacterDisplay from './components/CharacterDisplay';
 import { PerformanceHeatmap } from './components/PerformanceHeatmap';
 
+// Import stage images
+import bfImage from './assets/stages/bf.avif';
+import fdImage from './assets/stages/fd.avif';
+import ps2Image from './assets/stages/ps2.avif';
+import sbfImage from './assets/stages/sbf.avif';
+import tncImage from './assets/stages/tnc.avif';
+import kalosImage from './assets/stages/kalos.avif';
+import hollowImage from './assets/stages/hollow.avif';
+import yoshisImage from './assets/stages/yoshis.avif';
+import smashvilleImage from './assets/stages/smashville.avif';
+
+// Stage image mapping
+const stageImages: { [key: string]: string } = {
+  'Battlefield': bfImage,
+  'Small Battlefield': sbfImage,
+  'Final Destination': fdImage,
+  'Pokemon Stadium 2': ps2Image,
+  'Smashville': smashvilleImage,
+  'Town & City': tncImage,
+  'Kalos Pokemon League': kalosImage,
+  'Yoshi\'s Story': yoshisImage,
+  'Hollow Bastion': hollowImage,
+};
+
 interface MatchupData {
   opponent: string;
   games: number;
@@ -63,7 +87,6 @@ const CharacterDetail: React.FC = () => {
   const [timelineData, setTimelineData] = useState<TimelineData[]>([]);
   const matchupRadarRef = useRef<HTMLDivElement>(null);
   const playerComparisonRef = useRef<HTMLDivElement>(null);
-  const stagePerformanceRef = useRef<HTMLDivElement>(null);
   const heatmapRef = useRef<HTMLDivElement>(null);
   const timelineChartRef = useRef<HTMLDivElement>(null);
 
@@ -198,11 +221,11 @@ const CharacterDetail: React.FC = () => {
             axisLine: { show: false },
             axisTick: { show: false },
             axisLabel: { 
-              color: '#a89984', 
+              color: '#a89984',
               fontSize: 9,
               formatter: '{value}%'
             },
-            splitLine: { 
+            splitLine: {
               lineStyle: { color: '#3c3836', type: 'dashed' } 
             }
           },
@@ -246,7 +269,7 @@ const CharacterDetail: React.FC = () => {
                 shadowBlur: 10,
                 shadowColor: 'rgba(0, 0, 0, 0.5)'
               }
-            }
+              }
           }]
         });
       }
@@ -309,85 +332,6 @@ const CharacterDetail: React.FC = () => {
     }
   }, [data]);
 
-  // Stage Performance Chart
-  useEffect(() => {
-    if (!data || !data.stage_performance || data.stage_performance.length === 0) return;
-
-    if (stagePerformanceRef.current) {
-      const chart = echarts.init(stagePerformanceRef.current);
-      
-      // Sort stages by win rate
-      const sortedStages = [...data.stage_performance].sort((a, b) => b.win_rate - a.win_rate);
-      
-      chart.setOption({
-        backgroundColor: 'transparent',
-        tooltip: {
-          trigger: 'axis',
-          axisPointer: { type: 'shadow' },
-          backgroundColor: '#3c3836',
-          borderColor: '#504945',
-          textStyle: { color: '#ebdbb2', fontSize: 11 },
-          formatter: (params: any) => {
-            const stage = sortedStages[params[0].dataIndex];
-            return `${stage.stage}<br/>Win Rate: ${Math.round(stage.win_rate)}%<br/>Record: ${stage.wins}W-${stage.games - stage.wins}L<br/>Games: ${stage.games}`;
-          }
-        },
-        grid: { 
-          left: '15%', 
-          right: '8%', 
-          top: '5%', 
-          bottom: '5%', 
-          containLabel: true 
-        },
-        xAxis: {
-          type: 'value',
-          max: 100,
-          axisLine: { show: false },
-          axisTick: { show: false },
-          axisLabel: { 
-            color: '#a89984', 
-            fontSize: 9,
-            formatter: '{value}%'
-          },
-          splitLine: { 
-            lineStyle: { color: '#3c3836', type: 'dashed' } 
-          }
-        },
-        yAxis: {
-          type: 'category',
-          data: sortedStages.map(s => s.stage),
-          axisLine: { show: false },
-          axisTick: { show: false },
-          axisLabel: { 
-            color: '#a89984', 
-            fontSize: 9
-          }
-        },
-        series: [{
-          type: 'bar',
-          data: sortedStages.map(stage => ({
-            value: stage.win_rate,
-            itemStyle: {
-              color: stage.win_rate >= 50 ? '#b8bb26' : '#fb4934'
-            }
-          })),
-          barMaxWidth: 20,
-          label: {
-            show: true,
-            position: 'right',
-            formatter: (params: any) => {
-              const stage = sortedStages[params.dataIndex];
-              return `${Math.round(stage.win_rate)}%`;
-            },
-            color: '#ebdbb2',
-            fontSize: 9
-          }
-        }]
-      });
-
-      return () => chart.dispose();
-    }
-  }, [data]);
 
   // Timeline Chart - Games per session
   useEffect(() => {
@@ -413,17 +357,17 @@ const CharacterDetail: React.FC = () => {
       const avg = slice.reduce((sum, val) => sum + val, 0) / slice.length;
       rollingAvg.push(parseFloat(avg.toFixed(1)));
     }
-
-    chart.setOption({
-      backgroundColor: 'transparent',
-      tooltip: {
-        trigger: 'axis',
+      
+      chart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'axis',
         axisPointer: { type: 'cross' },
-        backgroundColor: '#3c3836',
-        borderColor: '#504945',
+          backgroundColor: '#3c3836',
+          borderColor: '#504945',
         borderWidth: 2,
-        textStyle: { color: '#ebdbb2', fontSize: 11 },
-        formatter: (params: any) => {
+          textStyle: { color: '#ebdbb2', fontSize: 11 },
+          formatter: (params: any) => {
           const dataIndex = params[0].dataIndex;
           const session = timelineData[dataIndex];
           const date = new Date(session.datetime);
@@ -452,26 +396,26 @@ const CharacterDetail: React.FC = () => {
         top: 0,
         right: '8%'
       },
-      grid: { 
+        grid: { 
         left: '8%', 
-        right: '8%', 
+          right: '8%', 
         top: '15%', 
         bottom: timelineData.length > 20 ? '20%' : '15%',
-        containLabel: true 
-      },
-      xAxis: {
+          containLabel: true 
+        },
+        xAxis: {
         type: 'category',
         data: dates,
         axisLine: { lineStyle: { color: '#504945', width: 2 } },
-        axisLabel: { 
-          color: '#a89984', 
-          fontSize: 9,
+          axisLabel: { 
+            color: '#a89984', 
+            fontSize: 9,
           rotate: timelineData.length > 20 ? 45 : 0,
           interval: timelineData.length > 30 ? Math.floor(timelineData.length / 20) : 0
-        },
+          },
         axisTick: { lineStyle: { color: '#504945' } }
-      },
-      yAxis: {
+        },
+        yAxis: {
         type: 'value',
         axisLine: { show: true, lineStyle: { color: '#504945', width: 2 } },
         axisLabel: { color: '#a89984', fontSize: 10 },
@@ -482,7 +426,7 @@ const CharacterDetail: React.FC = () => {
           name: 'Games',
           data: games,
           type: 'bar',
-          itemStyle: {
+            itemStyle: {
             color: '#689d6a',
             borderRadius: [4, 4, 0, 0]
           },
@@ -522,20 +466,20 @@ const CharacterDetail: React.FC = () => {
           z: 10
         }
       ]
-    });
+      });
 
-    return () => chart.dispose();
+      return () => chart.dispose();
   }, [timelineData]);
 
   if (loading) {
-    return (
+  return (
       <div className="stats-container" style={{ 
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <div style={{ 
+      <div style={{
           textAlign: 'center', 
           padding: '3rem', 
           fontSize: '1.2rem',
@@ -581,7 +525,7 @@ const CharacterDetail: React.FC = () => {
           to="/characters" 
           style={{ 
             color: '#83a598', 
-            textDecoration: 'none', 
+          textDecoration: 'none', 
             fontSize: '0.9rem',
             display: 'inline-flex',
             alignItems: 'center',
@@ -721,13 +665,16 @@ const CharacterDetail: React.FC = () => {
         />
       </div>
 
-      {/* Player Stats - Enhanced Cards */}
+      {/* Player Stats & Stage Performance - Side by Side Layout */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '1rem',
-        marginBottom: '1.5rem'
+        gridTemplateColumns: 'minmax(300px, 400px) 1fr',
+        gap: '1.5rem',
+        marginBottom: '1.5rem',
+        alignItems: 'start'
       }}>
+        {/* Left Column: Player Stats */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div style={{
           background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
           borderRadius: '12px',
@@ -847,29 +794,110 @@ const CharacterDetail: React.FC = () => {
             Win Rate
           </div>
         </div>
-      </div>
-
-      {/* Stage Performance */}
-      {data.stage_performance.length > 0 && (
-        <div className="card" style={{ 
-          padding: '1.5rem', 
-          marginBottom: '1.5rem',
-          background: '#3c3836',
-          borderRadius: '12px',
-          border: '1px solid #504945',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-        }}>
-          <h2 style={{ 
-            fontSize: '1.2rem', 
-            marginBottom: '1rem', 
-            color: '#fbf1c7',
-            fontWeight: 'bold'
-          }}>
-            🎯 Stage Performance
-          </h2>
-          <div ref={stagePerformanceRef} style={{ height: '280px', width: '100%' }}></div>
         </div>
-      )}
+
+        {/* Right Column: Stage Performance */}
+        {data.stage_performance.length > 0 && (
+          <div>
+            <h2 style={{ 
+              fontSize: '1.2rem', 
+              marginBottom: '1rem', 
+              color: '#fbf1c7',
+              fontWeight: 'bold',
+              textAlign: 'center'
+            }}>
+              🎯 Stage Performance
+            </h2>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
+              gap: '0.75rem' 
+            }}>
+              {data.stage_performance
+                .filter(stage => stage.stage !== 'No Stage' && stage.stage !== 'Northern Cave')
+                .sort((a, b) => b.win_rate - a.win_rate)
+                .map(stage => {
+              const winRate = Math.round(stage.win_rate);
+              const color = winRate >= 60 ? '#b8bb26' : 
+                           winRate >= 50 ? '#83a598' : 
+                           winRate >= 40 ? '#fe8019' : '#fb4934';
+              
+              return (
+                <div 
+                  key={stage.stage}
+                  style={{
+                    backgroundImage: stageImages[stage.stage] ? `url(${stageImages[stage.stage]})` : 'none',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    borderRadius: '12px',
+                    padding: '1rem',
+                    minHeight: '100px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    border: '2px solid #504945',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                    zIndex: 1,
+                  }} />
+                  <div style={{ 
+                    position: 'relative',
+                    zIndex: 2,
+                    fontSize: '0.85rem',
+                    color: '#fbf1c7',
+                    fontWeight: 'bold',
+                    textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    {stage.stage}
+                  </div>
+                  <div style={{
+                    position: 'relative',
+                    zIndex: 2
+                  }}>
+                    <div style={{ 
+                      fontSize: '2rem',
+                      fontWeight: 'bold',
+                      color: color,
+                      textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+                      lineHeight: 1
+                    }}>
+                      {winRate}%
+                    </div>
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#a89984',
+                      textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+                      marginTop: '0.25rem'
+                    }}>
+                      {stage.wins}W-{stage.games - stage.wins}L ({stage.games}g)
+                    </div>
+                  </div>
+                </div>
+              );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Usage Timeline */}
       {timelineData.length > 0 && (

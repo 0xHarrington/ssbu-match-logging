@@ -16,6 +16,30 @@ import * as echarts from 'echarts';
 import styles from './UserStats.module.css';
 import CharacterDisplay from '../CharacterDisplay';
 
+// Import stage images
+import bfImage from '../../assets/stages/bf.avif';
+import fdImage from '../../assets/stages/fd.avif';
+import ps2Image from '../../assets/stages/ps2.avif';
+import sbfImage from '../../assets/stages/sbf.avif';
+import tncImage from '../../assets/stages/tnc.avif';
+import kalosImage from '../../assets/stages/kalos.avif';
+import hollowImage from '../../assets/stages/hollow.avif';
+import yoshisImage from '../../assets/stages/yoshis.avif';
+import smashvilleImage from '../../assets/stages/smashville.avif';
+
+// Stage image mapping
+const stageImages: { [key: string]: string } = {
+  'Battlefield': bfImage,
+  'Small Battlefield': sbfImage,
+  'Final Destination': fdImage,
+  'Pokemon Stadium 2': ps2Image,
+  'Smashville': smashvilleImage,
+  'Town & City': tncImage,
+  'Kalos Pokemon League': kalosImage,
+  'Yoshi\'s Story': yoshisImage,
+  'Hollow Bastion': hollowImage,
+};
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -37,6 +61,8 @@ interface StageStats {
   stage: string;
   winRate: number;
   totalGames: number;
+  wins: number;
+  losses: number;
 }
 
 interface MostFacedCharacter {
@@ -555,26 +581,6 @@ export const UserStats: React.FC = () => {
     ],
   };
 
-  const stageChartData = {
-    labels: stats.stageStats.map(stat => stat.stage),
-    datasets: [
-      {
-        label: 'Win Rate (%)',
-        data: stats.stageStats.map(stat => stat.winRate),
-        backgroundColor: username && username === 'Shayne' ? '#fe8019' : '#b8bb26',
-        borderColor: '#282828',
-        borderWidth: 1,
-      },
-      {
-        label: 'Games Played',
-        data: stats.stageStats.map(stat => (stat.totalGames / stats.totalGames) * 100),
-        backgroundColor: '#83a598',
-        borderColor: '#282828',
-        borderWidth: 1,
-      },
-    ],
-  };
-
   return (
     <div className={styles['stats-container']}>
       {/* Compact Header */}
@@ -773,30 +779,92 @@ export const UserStats: React.FC = () => {
         {/* Stage Performance */}
         <div className="card" style={{ padding: '1rem' }}>
           <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>Stage Performance</h2>
-          <div style={{ height: '280px', marginBottom: '0.75rem' }}>
-            <Bar data={stageChartData} options={chartOptions} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
-            {stats.stageStats.slice(0, 4).map((stat) => (
-              <div key={stat.stage} style={{
-                background: '#32302f',
-                borderRadius: '6px',
-                padding: '0.5rem',
-                border: '1px solid #3c3836'
-              }}>
-                <h4 style={{ fontSize: '0.85rem', margin: '0 0 0.3rem 0' }}>{stat.stage}</h4>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                  <span style={{ color: '#a89984' }}>WR:</span>
-                  <span style={{ color: username === 'Shayne' ? '#fe8019' : '#b8bb26', fontWeight: 'bold' }}>
-                    {stat.winRate.toFixed(1)}%
-                  </span>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', 
+            gap: '0.75rem' 
+          }}>
+            {stats.stageStats
+              .filter(stat => stat.stage !== 'No Stage' && stat.stage !== 'Northern Cave')
+              .map((stat) => {
+              const winRate = Math.round(stat.winRate);
+              const color = winRate >= 60 ? '#b8bb26' : 
+                           winRate >= 50 ? '#83a598' : 
+                           winRate >= 40 ? '#fe8019' : '#fb4934';
+              
+              return (
+                <div 
+                  key={stat.stage}
+                  style={{
+                    backgroundImage: stageImages[stat.stage] ? `url(${stageImages[stat.stage]})` : 'none',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    borderRadius: '12px',
+                    padding: '1rem',
+                    minHeight: '100px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    border: '2px solid #504945',
+                    transition: 'all 0.2s',
+                    cursor: 'default'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                    zIndex: 1,
+                  }} />
+                  <div style={{ 
+                    position: 'relative',
+                    zIndex: 2,
+                    fontSize: '0.85rem',
+                    color: '#fbf1c7',
+                    fontWeight: 'bold',
+                    textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    {stat.stage}
+                  </div>
+                  <div style={{
+                    position: 'relative',
+                    zIndex: 2
+                  }}>
+                    <div style={{ 
+                      fontSize: '2rem',
+                      fontWeight: 'bold',
+                      color: color,
+                      textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+                      lineHeight: 1
+                    }}>
+                      {winRate}%
+                    </div>
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#a89984',
+                      textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+                      marginTop: '0.25rem'
+                    }}>
+                      {stat.wins}W-{stat.losses}L ({stat.totalGames}g)
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                  <span style={{ color: '#a89984' }}>Games:</span>
-                  <span style={{ color: '#ebdbb2' }}>{stat.totalGames}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
