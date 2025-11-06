@@ -306,7 +306,8 @@ export const UserStats: React.FC = () => {
           splitArea: { show: false },
           axisLine: { show: false },
           axisTick: { show: false },
-          axisLabel: { color: '#a89984', fontSize: 10 }
+          axisLabel: { color: '#a89984', fontSize: 10 },
+          inverse: true // Display from top to bottom (Sunday at top, Saturday at bottom)
         },
         visualMap: {
           show: false, // Hide the visual map since we're using custom colors
