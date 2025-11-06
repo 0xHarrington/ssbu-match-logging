@@ -193,22 +193,22 @@ export const UserStats: React.FC = () => {
         const seed = (username?.charCodeAt(0) || 0) * 1000;
         const random = seededRandom(seed);
         
-        // Generate 51 data points (games 50-100)
-        const numPoints = 51;
-        xData = Array.from({ length: numPoints }, (_, i) => `${i + 50}`);
+        // Generate 100 data points (or fewer if not enough games)
+        const numPoints = Math.min(100, Math.floor(stats.totalGames / 20));
+        xData = Array.from({ length: numPoints }, (_, i) => `${i + 1}`);
         
-        // Create smooth simulated data that trends around overall win rate
+        // Create simulated data that trends around overall win rate
         const baseWinRate = stats.overallWinRate;
         yData = [];
         let currentValue = baseWinRate + (random() - 0.5) * 20;
         
         for (let i = 0; i < numPoints; i++) {
           // Add some randomness but keep it smooth
-          const change = (random() - 0.5) * 8;
+          const change = (random() - 0.5) * 15;
           currentValue = Math.max(20, Math.min(80, currentValue + change));
           
           // Gradually pull towards overall win rate for realism
-          currentValue = currentValue * 0.95 + baseWinRate * 0.05;
+          currentValue = currentValue * 0.92 + baseWinRate * 0.08;
           
           yData.push(parseFloat(currentValue.toFixed(1)));
         }
@@ -223,7 +223,7 @@ export const UserStats: React.FC = () => {
           textStyle: { color: '#ebdbb2', fontSize: 11 },
           formatter: (params: any) => {
             const point = params[0];
-            return `Game ${point.name}<br/>Trailing 50-Game Win Rate: ${point.value.toFixed(1)}%`;
+            return `Window ${point.name}<br/>20-Game Win Rate: ${point.value.toFixed(1)}%`;
           }
         },
         grid: { left: '8%', right: '4%', top: '15%', bottom: '12%', containLabel: true },
@@ -232,7 +232,7 @@ export const UserStats: React.FC = () => {
           data: xData,
           axisLine: { lineStyle: { color: '#504945' } },
           axisLabel: { color: '#a89984', fontSize: 9, interval: Math.floor(xData.length / 10) },
-          name: 'Game Number (Last 100 Games)',
+          name: '20-Game Windows (Last 2000 Games)',
           nameTextStyle: { color: '#a89984', fontSize: 10 },
           nameLocation: 'middle',
           nameGap: 25
@@ -249,6 +249,7 @@ export const UserStats: React.FC = () => {
           data: yData,
           type: 'line',
           smooth: true,
+          symbol: 'none',
           lineStyle: { color: username === 'Shayne' ? '#fe8019' : '#b8bb26', width: 2 },
           areaStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [

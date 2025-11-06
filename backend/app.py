@@ -161,7 +161,7 @@ class GameDataManager:
                 & (df["shayne_character"] != "nan")
                 & (df["matt_character"] != "nan")
             ]
-            
+
             # Handle session_id column - add if missing
             if "session_id" not in df.columns:
                 df["session_id"] = None
@@ -172,11 +172,11 @@ class GameDataManager:
         except Exception as e:
             logger.error(f"Error loading data: {str(e)}")
             raise
-    
+
     def _generate_session_id(self, game_datetime: datetime) -> str:
         """Generate a session ID based on the game datetime."""
         return game_datetime.strftime("%Y-%m-%d-%H")
-    
+
     def _get_or_create_session_id(self, game_timestamp: float) -> str:
         """
         Determine the session ID for a new game.
@@ -184,26 +184,28 @@ class GameDataManager:
         """
         try:
             df = self._load_data()
-            
+
             if len(df) == 0:
                 # First game ever - create new session
                 game_time = datetime.fromtimestamp(game_timestamp)
                 return self._generate_session_id(game_time)
-            
+
             # Get the most recent game
             df = df.sort_values("timestamp", ascending=False)
             last_game = df.iloc[0]
             last_timestamp = float(last_game["timestamp"])
             last_session_id = last_game.get("session_id")
-            
+
             # Calculate time gap
             time_gap_hours = (game_timestamp - last_timestamp) / 3600
-            
+
             if time_gap_hours > self.session_gap_hours:
                 # Start new session
                 game_time = datetime.fromtimestamp(game_timestamp)
                 new_session_id = self._generate_session_id(game_time)
-                logger.info(f"Starting new session: {new_session_id} (gap: {time_gap_hours:.1f}h)")
+                logger.info(
+                    f"Starting new session: {new_session_id} (gap: {time_gap_hours:.1f}h)"
+                )
                 return new_session_id
             else:
                 # Continue current session
@@ -213,64 +215,68 @@ class GameDataManager:
                     # Last game doesn't have session_id, create one based on its time
                     last_game_time = datetime.fromtimestamp(last_timestamp)
                     return self._generate_session_id(last_game_time)
-                    
+
         except Exception as e:
             logger.error(f"Error determining session ID: {str(e)}")
             # Fallback to creating new session
             game_time = datetime.fromtimestamp(game_timestamp)
             return self._generate_session_id(game_time)
-    
+
     def get_sessions(self) -> list:
         """Get a list of all sessions with summary statistics."""
         try:
             df = self._load_data()
-            
+
             if len(df) == 0:
                 return []
-            
+
             # Ensure all games have session IDs
             df = self._assign_missing_session_ids(df)
-            
+
             # Save session IDs back to CSV if any were assigned
             if df["session_id"].notna().any():
                 self._save_session_ids(df)
-            
+
             # Group by session
             sessions = []
             for session_id in df["session_id"].unique():
                 if pd.isna(session_id):
                     continue
-                    
-                session_games = df[df["session_id"] == session_id].sort_values("datetime")
-                
+
+                session_games = df[df["session_id"] == session_id].sort_values(
+                    "datetime"
+                )
+
                 if len(session_games) == 0:
                     continue
-                
+
                 start_time = session_games.iloc[0]["datetime"]
                 end_time = session_games.iloc[-1]["datetime"]
                 duration_minutes = int((end_time - start_time).total_seconds() / 60)
-                
+
                 shayne_wins = len(session_games[session_games["winner"] == "Shayne"])
                 matt_wins = len(session_games[session_games["winner"] == "Matt"])
-                
-                sessions.append({
-                    "session_id": str(session_id),
-                    "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "total_games": len(session_games),
-                    "shayne_wins": int(shayne_wins),
-                    "matt_wins": int(matt_wins),
-                    "duration_minutes": duration_minutes
-                })
-            
+
+                sessions.append(
+                    {
+                        "session_id": str(session_id),
+                        "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "total_games": len(session_games),
+                        "shayne_wins": int(shayne_wins),
+                        "matt_wins": int(matt_wins),
+                        "duration_minutes": duration_minutes,
+                    }
+                )
+
             # Sort by start time, most recent first
             sessions.sort(key=lambda x: x["start_time"], reverse=True)
             return sessions
-            
+
         except Exception as e:
             logger.error(f"Error getting sessions: {str(e)}")
             return []
-    
+
     def _save_session_ids(self, df: pd.DataFrame) -> None:
         """Save the dataframe with session IDs back to CSV."""
         try:
@@ -280,27 +286,27 @@ class GameDataManager:
             logger.info("Session IDs saved to CSV")
         except Exception as e:
             logger.error(f"Error saving session IDs: {str(e)}")
-    
+
     def _assign_missing_session_ids(self, df: pd.DataFrame) -> pd.DataFrame:
         """Assign session IDs to any games that don't have them."""
         if len(df) == 0:
             return df
-        
+
         # Ensure timestamp is numeric
         df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
         df = df.sort_values("timestamp")
-        
+
         current_session_id = None
         last_timestamp = None
-        
+
         for idx, row in df.iterrows():
             if pd.notna(row.get("session_id")):
                 current_session_id = row["session_id"]
                 last_timestamp = float(row["timestamp"])
                 continue
-            
+
             timestamp = float(row["timestamp"])
-            
+
             if last_timestamp is None:
                 # First game
                 game_time = datetime.fromtimestamp(timestamp)
@@ -312,37 +318,37 @@ class GameDataManager:
                     # New session
                     game_time = datetime.fromtimestamp(timestamp)
                     current_session_id = self._generate_session_id(game_time)
-            
+
             df.at[idx, "session_id"] = current_session_id
             last_timestamp = timestamp
-        
+
         return df
-    
+
     def get_session_stats(self, session_id: str) -> Dict[str, Any]:
         """Get detailed statistics for a specific session."""
         try:
             df = self._load_data()
-            
+
             if len(df) == 0:
                 return {"success": False, "message": "No data available"}
-            
+
             # Ensure all games have session IDs
             df = self._assign_missing_session_ids(df)
-            
+
             # Filter for specific session
             session_games = df[df["session_id"] == session_id]
-            
+
             if len(session_games) == 0:
                 return {"success": False, "message": f"Session {session_id} not found"}
-            
+
             # Calculate stats (same as session_stats endpoint)
             total_games = len(session_games)
             shayne_wins = len(session_games[session_games["winner"] == "Shayne"])
             matt_wins = len(session_games[session_games["winner"] == "Matt"])
-            
+
             shayne_characters = {}
             matt_characters = {}
-            
+
             for _, row in session_games.iterrows():
                 shayne_characters[row["shayne_character"]] = (
                     shayne_characters.get(row["shayne_character"], 0) + 1
@@ -350,19 +356,22 @@ class GameDataManager:
                 matt_characters[row["matt_character"]] = (
                     matt_characters.get(row["matt_character"], 0) + 1
                 )
-            
+
             # Stage stats
             stage_counts = session_games["stage"].value_counts()
             stage_stats = [
-                {"stage": stage, "count": int(count)} for stage, count in stage_counts.items()
+                {"stage": stage, "count": int(count)}
+                for stage, count in stage_counts.items()
             ]
-            
+
             # Matchup stats
             matchup_stats = []
             if len(session_games) > 0:
                 matchup_counts = (
                     session_games.groupby(["shayne_character", "matt_character"])
-                    .agg({"winner": lambda x: (x == "Shayne").sum(), "datetime": "count"})
+                    .agg(
+                        {"winner": lambda x: (x == "Shayne").sum(), "datetime": "count"}
+                    )
                     .reset_index()
                 )
                 matchup_counts.columns = [
@@ -375,11 +384,11 @@ class GameDataManager:
                     matchup_counts["total_games"] - matchup_counts["shayne_wins"]
                 )
                 matchup_stats = matchup_counts.to_dict("records")
-            
+
             # Session metadata
             start_time = session_games.iloc[0]["datetime"]
             end_time = session_games.iloc[-1]["datetime"]
-            
+
             return {
                 "success": True,
                 "session_id": session_id,
@@ -393,70 +402,82 @@ class GameDataManager:
                 "stage_stats": stage_stats,
                 "matchup_stats": matchup_stats,
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting session stats: {str(e)}")
             return {"success": False, "message": str(e)}
 
     def get_user_win_rate_timeline(self, username: str) -> Dict[str, Any]:
         """
-        Get win rate timeline data for a user showing trailing 50-game win rate over last 100 games.
-        
+        Get win rate timeline data for a user showing average win rate across 20-game windows.
+
         Returns:
         - game_numbers: List of game indices (1-100)
-        - win_rates: List of trailing 50-game win rates at each point
+        - win_rates: List of win rates for each 20-game window
         - total_games: Total games in dataset
+        
+        Each data point represents the win rate across 20 games.
+        100 data points cover the last 2000 games (or fewer if not enough games exist).
         """
         try:
             df = self._load_data()
-            
+
             if len(df) == 0:
                 return {"success": False, "message": "No data available", "data": []}
-            
-            # Filter games for this user and sort by timestamp
-            df = df.sort_values('timestamp')
-            
-            # Get last 100 games
-            last_100 = df.tail(100)
-            
-            if len(last_100) < 50:
-                return {"success": False, "message": "Not enough games (need at least 50)", "data": []}
-            
+
+            # Sort by timestamp
+            df = df.sort_values("timestamp")
+
+            # Get last 2000 games (or all games if fewer)
+            max_games = 2000
+            recent_games = df.tail(max_games)
+
+            if len(recent_games) < 20:
+                return {
+                    "success": False,
+                    "message": "Not enough games (need at least 20)",
+                    "data": [],
+                }
+
             game_numbers = []
             win_rates = []
+
+            # Calculate win rate for each 20-game window
+            num_windows = len(recent_games) // 20
             
-            # Calculate trailing 50-game win rate for each game
-            for i in range(49, len(last_100)):  # Start at game 50 (index 49)
-                # Get the 50 games ending at this point
-                window = last_100.iloc[i-49:i+1]
-                wins = len(window[window['winner'] == username])
-                win_rate = (wins / 50) * 100
+            for i in range(num_windows):
+                start_idx = i * 20
+                end_idx = start_idx + 20
+                window = recent_games.iloc[start_idx:end_idx]
                 
-                game_numbers.append(i + 1)  # 1-indexed game number
+                wins = len(window[window["winner"] == username])
+                win_rate = (wins / 20) * 100
+
+                game_numbers.append(i + 1)  # 1-indexed window number
                 win_rates.append(round(win_rate, 1))
-            
+
             return {
                 "success": True,
-                "data": {
-                    "game_numbers": game_numbers,
-                    "win_rates": win_rates
-                },
-                "total_games": len(df)
+                "data": {"game_numbers": game_numbers, "win_rates": win_rates},
+                "total_games": len(df),
+                "windows": num_windows,
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting win rate timeline: {str(e)}")
             return {"success": False, "message": str(e), "data": []}
 
-    def get_user_heatmap_data(self, username: str, character: Optional[str] = None) -> Dict[str, Any]:
+    def get_user_heatmap_data(
+        self, username: str, character: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Get heatmap data for a user showing win rate and game count by day of week and hour.
         Optionally filter by character.
-        
+
         Args:
             username: The player name
             character: Optional character name to filter by
-        
+
         Returns a 7x24 grid where each cell contains:
         - day: 0-6 (Sunday-Saturday)
         - hour: 0-23
@@ -465,53 +486,61 @@ class GameDataManager:
         """
         try:
             df = self._load_data()
-            
+
             if len(df) == 0:
                 return {"success": False, "message": "No data available", "data": []}
-            
+
             # Filter by character if specified
             if character:
                 user_char_col = f"{username.lower()}_character"
                 df = df[df[user_char_col] == character]
-                
+
                 if len(df) == 0:
-                    return {"success": False, "message": f"No games found for {username} playing {character}", "data": []}
-            
+                    return {
+                        "success": False,
+                        "message": f"No games found for {username} playing {character}",
+                        "data": [],
+                    }
+
             # Convert datetime and add day of week and hour columns
             df["datetime"] = pd.to_datetime(df["datetime"])
             df["day_of_week"] = df["datetime"].dt.dayofweek  # Monday=0, Sunday=6
-            df["day_of_week"] = (df["day_of_week"] + 1) % 7  # Convert to Sunday=0, Saturday=6
+            df["day_of_week"] = (
+                df["day_of_week"] + 1
+            ) % 7  # Convert to Sunday=0, Saturday=6
             df["hour"] = df["datetime"].dt.hour
-            
+
             # Group by day and hour
             heatmap_data = []
-            
+
             for day in range(7):  # 0=Sunday, 6=Saturday
                 for hour in range(24):  # 0-23
                     # Filter games for this time slot
                     slot_games = df[(df["day_of_week"] == day) & (df["hour"] == hour)]
                     game_count = len(slot_games)
-                    
+
                     if game_count > 0:
                         wins = len(slot_games[slot_games["winner"] == username])
                         win_rate = (wins / game_count) * 100
                     else:
                         win_rate = 0
-                    
-                    heatmap_data.append({
-                        "hour": hour,
-                        "day": day,
-                        "win_rate": round(win_rate, 1),
-                        "game_count": game_count
-                    })
-            
+
+                    heatmap_data.append(
+                        {
+                            "hour": hour,
+                            "day": day,
+                            "win_rate": round(win_rate, 1),
+                            "game_count": game_count,
+                        }
+                    )
+
             return {
                 "success": True,
                 "data": heatmap_data,
                 "total_games": len(df),
-                "filtered_by_character": character
+                "filtered_by_character": character,
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting heatmap data: {str(e)}")
             return {"success": False, "message": str(e), "data": []}
@@ -550,10 +579,10 @@ class GameDataManager:
             eastern = pytz.timezone("US/Eastern")
             now = datetime.now(eastern)
             timestamp = now.timestamp()
-            
+
             # Determine session ID
             session_id = self._get_or_create_session_id(timestamp)
-            
+
             new_game = {
                 "datetime": now.strftime("%Y-%m-%d %H:%M:%S"),
                 "shayne_character": game_data["shayneCharacter"],
@@ -907,11 +936,11 @@ def session_stats():
     try:
         # Check if a specific session_id is requested
         session_id = request.args.get("session_id")
-        
+
         if session_id:
             # Return stats for specific session
             return jsonify(data_manager.get_session_stats(session_id))
-        
+
         # Otherwise, return current session stats (backward compatible)
         # Get current date in Eastern time
         eastern = pytz.timezone("US/Eastern")
@@ -1433,7 +1462,7 @@ def get_user_win_rate_timeline(username):
 def get_user_heatmap(username):
     """Get heatmap data for a user showing performance by day and hour. Optionally filter by character."""
     try:
-        character = request.args.get('character', None)
+        character = request.args.get("character", None)
         result = data_manager.get_user_heatmap_data(username, character)
         return jsonify(result)
     except Exception as e:
@@ -1448,44 +1477,57 @@ def get_character_heatmap(character):
         # Get heatmap data for both players and combine
         shayne_result = data_manager.get_user_heatmap_data("Shayne", character)
         matt_result = data_manager.get_user_heatmap_data("Matt", character)
-        
+
         # Combine the data
         combined_data = []
         if shayne_result.get("success") and matt_result.get("success"):
             shayne_data = {(d["day"], d["hour"]): d for d in shayne_result["data"]}
             matt_data = {(d["day"], d["hour"]): d for d in matt_result["data"]}
-            
+
             for day in range(7):
                 for hour in range(24):
                     key = (day, hour)
                     shayne_slot = shayne_data.get(key, {"win_rate": 0, "game_count": 0})
                     matt_slot = matt_data.get(key, {"win_rate": 0, "game_count": 0})
-                    
+
                     total_games = shayne_slot["game_count"] + matt_slot["game_count"]
                     if total_games > 0:
                         # Calculate combined win rate
-                        shayne_wins = (shayne_slot["win_rate"] / 100) * shayne_slot["game_count"]
-                        matt_wins = (matt_slot["win_rate"] / 100) * matt_slot["game_count"]
-                        combined_win_rate = ((shayne_wins + matt_wins) / total_games) * 100
+                        shayne_wins = (shayne_slot["win_rate"] / 100) * shayne_slot[
+                            "game_count"
+                        ]
+                        matt_wins = (matt_slot["win_rate"] / 100) * matt_slot[
+                            "game_count"
+                        ]
+                        combined_win_rate = (
+                            (shayne_wins + matt_wins) / total_games
+                        ) * 100
                     else:
                         combined_win_rate = 0
-                    
-                    combined_data.append({
-                        "hour": hour,
-                        "day": day,
-                        "win_rate": round(combined_win_rate, 1),
-                        "game_count": total_games
-                    })
-            
-            return jsonify({
-                "success": True,
-                "data": combined_data,
-                "total_games": shayne_result.get("total_games", 0) + matt_result.get("total_games", 0),
-                "character": character
-            })
+
+                    combined_data.append(
+                        {
+                            "hour": hour,
+                            "day": day,
+                            "win_rate": round(combined_win_rate, 1),
+                            "game_count": total_games,
+                        }
+                    )
+
+            return jsonify(
+                {
+                    "success": True,
+                    "data": combined_data,
+                    "total_games": shayne_result.get("total_games", 0)
+                    + matt_result.get("total_games", 0),
+                    "character": character,
+                }
+            )
         else:
-            return jsonify({"success": False, "message": "No data available", "data": []})
-            
+            return jsonify(
+                {"success": False, "message": "No data available", "data": []}
+            )
+
     except Exception as e:
         logger.error(f"Error in character heatmap endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e), "data": []})
@@ -1496,12 +1538,12 @@ def get_head_to_head_stats():
     """Get comprehensive head-to-head statistics between players."""
     try:
         df = data_manager._load_data()
-        
+
         if len(df) == 0:
             return jsonify({"success": False, "message": "No data available"})
-        
+
         df = df.sort_values("datetime")
-        
+
         # Recent form analysis
         recent_form = {}
         for n in [10, 20, 50]:
@@ -1509,41 +1551,49 @@ def get_head_to_head_stats():
             recent_form[f"last_{n}"] = {
                 "shayne_wins": int(len(recent_df[recent_df["winner"] == "Shayne"])),
                 "matt_wins": int(len(recent_df[recent_df["winner"] == "Matt"])),
-                "total_games": len(recent_df)
+                "total_games": len(recent_df),
             }
-        
+
         # Monthly breakdown
         df["month"] = pd.to_datetime(df["datetime"]).dt.strftime("%Y-%m")
         monthly_data = []
         for month in df["month"].unique():
             month_df = df[df["month"] == month]
-            monthly_data.append({
-                "month": month,
-                "shayne_wins": int(len(month_df[month_df["winner"] == "Shayne"])),
-                "matt_wins": int(len(month_df[month_df["winner"] == "Matt"])),
-                "total_games": len(month_df)
-            })
+            monthly_data.append(
+                {
+                    "month": month,
+                    "shayne_wins": int(len(month_df[month_df["winner"] == "Shayne"])),
+                    "matt_wins": int(len(month_df[month_df["winner"] == "Matt"])),
+                    "total_games": len(month_df),
+                }
+            )
         monthly_data.sort(key=lambda x: x["month"], reverse=True)
-        
+
         # Streak analysis
         current_streak_player = None
         current_streak_length = 0
-        longest_win_streaks = {"Shayne": {"length": 0, "date": None}, "Matt": {"length": 0, "date": None}}
-        longest_loss_streaks = {"Shayne": {"length": 0, "date": None}, "Matt": {"length": 0, "date": None}}
-        
+        longest_win_streaks = {
+            "Shayne": {"length": 0, "date": None},
+            "Matt": {"length": 0, "date": None},
+        }
+        longest_loss_streaks = {
+            "Shayne": {"length": 0, "date": None},
+            "Matt": {"length": 0, "date": None},
+        }
+
         temp_streak = {"player": None, "length": 0, "start_date": None}
-        
+
         for idx, row in df.iterrows():
             winner = row["winner"]
             date = row["datetime"]
-            
+
             # Track current streak
             if current_streak_player == winner:
                 current_streak_length += 1
             else:
                 current_streak_player = winner
                 current_streak_length = 1
-            
+
             # Track temp streak for longest calculations
             if temp_streak["player"] == winner:
                 temp_streak["length"] += 1
@@ -1551,84 +1601,93 @@ def get_head_to_head_stats():
                 # Save previous streak if it was a record
                 if temp_streak["player"] and temp_streak["length"] > 0:
                     prev_player = temp_streak["player"]
-                    if temp_streak["length"] > longest_win_streaks[prev_player]["length"]:
+                    if (
+                        temp_streak["length"]
+                        > longest_win_streaks[prev_player]["length"]
+                    ):
                         longest_win_streaks[prev_player] = {
                             "length": temp_streak["length"],
-                            "date": str(temp_streak["start_date"])
+                            "date": str(temp_streak["start_date"]),
                         }
-                
+
                 temp_streak = {"player": winner, "length": 1, "start_date": date}
-        
+
         # Check final streak
-        if temp_streak["player"] and temp_streak["length"] > longest_win_streaks[temp_streak["player"]]["length"]:
+        if (
+            temp_streak["player"]
+            and temp_streak["length"]
+            > longest_win_streaks[temp_streak["player"]]["length"]
+        ):
             longest_win_streaks[temp_streak["player"]] = {
                 "length": temp_streak["length"],
-                "date": str(temp_streak["start_date"])
+                "date": str(temp_streak["start_date"]),
             }
-        
+
         # Calculate longest loss streaks (inverse of win streaks)
         loser_streaks = {"Shayne": [], "Matt": []}
         current_loser = None
         current_loss_streak = 0
         loss_start_date = None
-        
+
         for idx, row in df.iterrows():
             winner = row["winner"]
             loser = "Matt" if winner == "Shayne" else "Shayne"
             date = row["datetime"]
-            
+
             if current_loser == loser:
                 current_loss_streak += 1
             else:
                 if current_loser and current_loss_streak > 0:
-                    loser_streaks[current_loser].append({
-                        "length": current_loss_streak,
-                        "date": loss_start_date
-                    })
+                    loser_streaks[current_loser].append(
+                        {"length": current_loss_streak, "date": loss_start_date}
+                    )
                 current_loser = loser
                 current_loss_streak = 1
                 loss_start_date = date
-        
+
         # Add final loss streak
         if current_loser and current_loss_streak > 0:
-            loser_streaks[current_loser].append({
-                "length": current_loss_streak,
-                "date": loss_start_date
-            })
-        
+            loser_streaks[current_loser].append(
+                {"length": current_loss_streak, "date": loss_start_date}
+            )
+
         for player in ["Shayne", "Matt"]:
             if loser_streaks[player]:
                 longest = max(loser_streaks[player], key=lambda x: x["length"])
                 longest_loss_streaks[player] = {
                     "length": longest["length"],
-                    "date": str(longest["date"])
+                    "date": str(longest["date"]),
                 }
-        
+
         # Average stock differential when winning
         avg_stock_diff = {}
         for player in ["Shayne", "Matt"]:
             player_wins = df[df["winner"] == player]
             if len(player_wins) > 0:
                 avg_stocks = player_wins["stocks_remaining"].mean()
-                avg_stock_diff[player.lower()] = round(float(avg_stocks), 2) if not pd.isna(avg_stocks) else 0
+                avg_stock_diff[player.lower()] = (
+                    round(float(avg_stocks), 2) if not pd.isna(avg_stocks) else 0
+                )
             else:
                 avg_stock_diff[player.lower()] = 0
-        
-        return jsonify({
-            "success": True,
-            "recent_form": recent_form,
-            "monthly_breakdown": monthly_data[:12],  # Last 12 months
-            "streaks": {
-                "current_streak": {
-                    "player": current_streak_player,
-                    "length": current_streak_length
+
+        return jsonify(
+            {
+                "success": True,
+                "recent_form": recent_form,
+                "monthly_breakdown": monthly_data[:12],  # Last 12 months
+                "streaks": {
+                    "current_streak": {
+                        "player": current_streak_player,
+                        "length": current_streak_length,
+                    },
+                    "longest_win_streaks": longest_win_streaks,
+                    "longest_loss_streaks": longest_loss_streaks,
                 },
-                "longest_win_streaks": longest_win_streaks,
-                "longest_loss_streaks": longest_loss_streaks
-            },
-            "avg_stock_differential": avg_stock_diff
-        })
-        
+                "avg_stock_differential": avg_stock_diff,
+            }
+        )
+
     except Exception as e:
         logger.error(f"Error in head_to_head_stats endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
@@ -1639,48 +1698,54 @@ def get_advanced_metrics():
     """Get advanced performance metrics."""
     try:
         df = data_manager._load_data()
-        
+
         if len(df) == 0:
             return jsonify({"success": False, "message": "No data available"})
-        
+
         df = df.sort_values("datetime")
-        
+
         # Two-stock wins (solid victories)
         two_stock_wins = {}
         for player in ["Shayne", "Matt"]:
             player_wins = df[df["winner"] == player]
             two_stock_count = len(player_wins[player_wins["stocks_remaining"] == 2])
             total_wins = len(player_wins)
-            
+
             two_stock_wins[player.lower()] = {
                 "two_stock_wins": two_stock_count,
                 "total_wins": total_wins,
-                "two_stock_rate": round((two_stock_count / total_wins * 100), 1) if total_wins > 0 else 0
+                "two_stock_rate": round((two_stock_count / total_wins * 100), 1)
+                if total_wins > 0
+                else 0,
             }
-        
+
         # Dominance factor (3-stock wins)
         dominance_factor = {}
         for player in ["Shayne", "Matt"]:
             player_wins = df[df["winner"] == player]
             three_stock_wins = len(player_wins[player_wins["stocks_remaining"] == 3])
             total_wins = len(player_wins)
-            
+
             dominance_factor[player.lower()] = {
                 "three_stock_wins": three_stock_wins,
                 "total_wins": total_wins,
-                "dominance_rate": round((three_stock_wins / total_wins * 100), 1) if total_wins > 0 else 0
+                "dominance_rate": round((three_stock_wins / total_wins * 100), 1)
+                if total_wins > 0
+                else 0,
             }
-        
+
         # Consistency score (std dev of stocks remaining)
         consistency_score = {}
         for player in ["Shayne", "Matt"]:
             player_wins = df[df["winner"] == player]
             if len(player_wins) > 0:
                 std_dev = player_wins["stocks_remaining"].std()
-                consistency_score[player.lower()] = round(float(std_dev), 2) if not pd.isna(std_dev) else 0
+                consistency_score[player.lower()] = (
+                    round(float(std_dev), 2) if not pd.isna(std_dev) else 0
+                )
             else:
                 consistency_score[player.lower()] = 0
-        
+
         # Momentum analysis (win after win vs win after loss)
         momentum_analysis = {}
         for player in ["Shayne", "Matt"]:
@@ -1688,11 +1753,11 @@ def get_advanced_metrics():
             games_after_win = 0
             wins_after_loss = 0
             games_after_loss = 0
-            
+
             prev_winner = None
             for idx, row in df.iterrows():
                 current_winner = row["winner"]
-                
+
                 if prev_winner is not None:
                     if prev_winner == player:
                         games_after_win += 1
@@ -1702,36 +1767,48 @@ def get_advanced_metrics():
                         games_after_loss += 1
                         if current_winner == player:
                             wins_after_loss += 1
-                
+
                 prev_winner = current_winner
-            
+
             momentum_analysis[player.lower()] = {
-                "win_after_win": round((wins_after_win / games_after_win * 100), 1) if games_after_win > 0 else 0,
-                "win_after_loss": round((wins_after_loss / games_after_loss * 100), 1) if games_after_loss > 0 else 0
+                "win_after_win": round((wins_after_win / games_after_win * 100), 1)
+                if games_after_win > 0
+                else 0,
+                "win_after_loss": round((wins_after_loss / games_after_loss * 100), 1)
+                if games_after_loss > 0
+                else 0,
             }
-        
+
         # Close game record (1 stock differential)
         close_game_record = {}
         for player in ["Shayne", "Matt"]:
-            close_wins = len(df[(df["winner"] == player) & (df["stocks_remaining"] == 1)])
-            close_losses = len(df[(df["winner"] != player) & (df["stocks_remaining"] == 1)])
+            close_wins = len(
+                df[(df["winner"] == player) & (df["stocks_remaining"] == 1)]
+            )
+            close_losses = len(
+                df[(df["winner"] != player) & (df["stocks_remaining"] == 1)]
+            )
             total_close = close_wins + close_losses
-            
+
             close_game_record[player.lower()] = {
                 "wins": close_wins,
                 "losses": close_losses,
-                "win_rate": round((close_wins / total_close * 100), 1) if total_close > 0 else 0
+                "win_rate": round((close_wins / total_close * 100), 1)
+                if total_close > 0
+                else 0,
             }
-        
-        return jsonify({
-            "success": True,
-            "two_stock_wins": two_stock_wins,
-            "dominance_factor": dominance_factor,
-            "consistency_score": consistency_score,
-            "momentum_analysis": momentum_analysis,
-            "close_game_record": close_game_record
-        })
-        
+
+        return jsonify(
+            {
+                "success": True,
+                "two_stock_wins": two_stock_wins,
+                "dominance_factor": dominance_factor,
+                "consistency_score": consistency_score,
+                "momentum_analysis": momentum_analysis,
+                "close_game_record": close_game_record,
+            }
+        )
+
     except Exception as e:
         logger.error(f"Error in advanced_metrics endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
@@ -1742,67 +1819,81 @@ def get_matchup_matrix():
     """Get character matchup matrix with win rates."""
     try:
         df = data_manager._load_data()
-        
+
         if len(df) == 0:
             return jsonify({"success": False, "message": "No data available"})
-        
+
         # Build matchup matrix
         matchup_matrix = {}
         matchup_list = []
-        
+
         for _, row in df.iterrows():
             shayne_char = row["shayne_character"]
             matt_char = row["matt_character"]
             winner = row["winner"]
-            
+
             matchup_key = f"{shayne_char}_vs_{matt_char}"
-            
+
             if matchup_key not in matchup_matrix:
                 matchup_matrix[matchup_key] = {
                     "shayne_character": shayne_char,
                     "matt_character": matt_char,
                     "total_games": 0,
                     "shayne_wins": 0,
-                    "matt_wins": 0
+                    "matt_wins": 0,
                 }
-            
+
             matchup_matrix[matchup_key]["total_games"] += 1
             if winner == "Shayne":
                 matchup_matrix[matchup_key]["shayne_wins"] += 1
             else:
                 matchup_matrix[matchup_key]["matt_wins"] += 1
-        
+
         # Calculate win rates and create list
         for key, data in matchup_matrix.items():
-            data["shayne_win_rate"] = round((data["shayne_wins"] / data["total_games"] * 100), 1)
-            data["matt_win_rate"] = round((data["matt_wins"] / data["total_games"] * 100), 1)
+            data["shayne_win_rate"] = round(
+                (data["shayne_wins"] / data["total_games"] * 100), 1
+            )
+            data["matt_win_rate"] = round(
+                (data["matt_wins"] / data["total_games"] * 100), 1
+            )
             matchup_list.append(data)
-        
+
         # Sort by total games
         matchup_list.sort(key=lambda x: x["total_games"], reverse=True)
-        
+
         # Get best/worst matchups for each player (min 5 games)
         qualified_matchups = [m for m in matchup_list if m["total_games"] >= 5]
-        
-        best_matchups_shayne = sorted(qualified_matchups, key=lambda x: x["shayne_win_rate"], reverse=True)[:10]
-        worst_matchups_shayne = sorted(qualified_matchups, key=lambda x: x["shayne_win_rate"])[:10]
-        best_matchups_matt = sorted(qualified_matchups, key=lambda x: x["matt_win_rate"], reverse=True)[:10]
-        worst_matchups_matt = sorted(qualified_matchups, key=lambda x: x["matt_win_rate"])[:10]
-        
-        return jsonify({
-            "success": True,
-            "matrix": matchup_matrix,
-            "top_matchups": matchup_list[:20],  # Top 20 most played
-            "best_matchups": {
-                "shayne": best_matchups_shayne,
-                "matt": best_matchups_matt
-            },
-            "worst_matchups": {
-                "shayne": worst_matchups_shayne,
-                "matt": worst_matchups_matt
+
+        best_matchups_shayne = sorted(
+            qualified_matchups, key=lambda x: x["shayne_win_rate"], reverse=True
+        )[:10]
+        worst_matchups_shayne = sorted(
+            qualified_matchups, key=lambda x: x["shayne_win_rate"]
+        )[:10]
+        best_matchups_matt = sorted(
+            qualified_matchups, key=lambda x: x["matt_win_rate"], reverse=True
+        )[:10]
+        worst_matchups_matt = sorted(
+            qualified_matchups, key=lambda x: x["matt_win_rate"]
+        )[:10]
+
+        return jsonify(
+            {
+                "success": True,
+                "matrix": matchup_matrix,
+                "top_matchups": matchup_list[:20],  # Top 20 most played
+                "best_matchups": {
+                    "shayne": best_matchups_shayne,
+                    "matt": best_matchups_matt,
+                },
+                "worst_matchups": {
+                    "shayne": worst_matchups_shayne,
+                    "matt": worst_matchups_matt,
+                },
             }
-        })
-        
+        )
+
     except Exception as e:
         logger.error(f"Error in matchup_matrix endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
@@ -1835,43 +1926,51 @@ def get_current_session():
     """Get the current active session information."""
     try:
         df = data_manager._load_data()
-        
+
         if len(df) == 0:
-            return jsonify({
-                "success": True,
-                "session_id": None,
-                "start_time": None,
-                "game_count": 0,
-                "is_active": False
-            })
-        
+            return jsonify(
+                {
+                    "success": True,
+                    "session_id": None,
+                    "start_time": None,
+                    "game_count": 0,
+                    "is_active": False,
+                }
+            )
+
         # Get the most recent game
         df = df.sort_values("timestamp", ascending=False)
         last_game = df.iloc[0]
         last_timestamp = float(last_game["timestamp"])
-        
+
         # Check if session is still active (less than 4 hours since last game)
         now = datetime.now().timestamp()
         time_gap_hours = (now - last_timestamp) / 3600
         is_active = time_gap_hours < data_manager.session_gap_hours
-        
+
         # Get or create session ID
         session_id = data_manager._get_or_create_session_id(last_timestamp)
-        
+
         # Count games in current session
         df = data_manager._assign_missing_session_ids(df)
         session_games = df[df["session_id"] == session_id]
-        
-        start_time = session_games.iloc[0]["datetime"] if len(session_games) > 0 else None
-        
-        return jsonify({
-            "success": True,
-            "session_id": session_id,
-            "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S") if start_time else None,
-            "game_count": len(session_games),
-            "is_active": is_active
-        })
-        
+
+        start_time = (
+            session_games.iloc[0]["datetime"] if len(session_games) > 0 else None
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "session_id": session_id,
+                "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S")
+                if start_time
+                else None,
+                "game_count": len(session_games),
+                "is_active": is_active,
+            }
+        )
+
     except Exception as e:
         logger.error(f"Error in current session endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
