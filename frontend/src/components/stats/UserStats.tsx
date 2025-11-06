@@ -280,6 +280,9 @@ export const UserStats: React.FC = () => {
           formatter: (params: any) => {
             const winRate = params.value[2];
             const games = params.value[3];
+            if (games === 0) {
+              return `${days[params.value[1]]} ${hours[params.value[0]]}<br/>No games played`;
+            }
             return `${days[params.value[1]]} ${hours[params.value[0]]}<br/>Win Rate: ${winRate}%<br/>Games: ${games}`;
           }
         },
@@ -314,6 +317,17 @@ export const UserStats: React.FC = () => {
           type: 'heatmap',
           data: data.map(item => {
             const [hour, day, winRate, gameCount] = item;
+            
+            // Special handling for cells with no games
+            if (gameCount === 0) {
+              // Use neutral yellow color with very low opacity
+              return {
+                value: [hour, day, 50, 0], // Show as 50% win rate
+                itemStyle: {
+                  color: 'rgba(250, 189, 47, 0.05)' // Yellow with 5% opacity
+                }
+              };
+            }
             
             // Calculate brightness based on game count (0.3 to 1.0)
             // More games = brighter, fewer games = darker
