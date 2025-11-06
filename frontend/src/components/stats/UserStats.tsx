@@ -226,7 +226,7 @@ export const UserStats: React.FC = () => {
           formatter: (params: any) => {
             const point = params[0];
             const windowIndex = point.dataIndex;
-            let tooltip = `Window ${point.name}<br/>20-Game Win Rate: ${point.value.toFixed(1)}%`;
+            let tooltip = `20-Game Win Rate: ${point.value.toFixed(1)}%`;
             
             // Add date range if available
             if (dateRanges.length > windowIndex) {
