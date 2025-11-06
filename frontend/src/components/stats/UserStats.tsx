@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Bar, Line } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
   PointElement,
   Title,
   Tooltip,
@@ -21,7 +20,6 @@ ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
   PointElement,
   Title,
   Tooltip,
@@ -85,6 +83,8 @@ export const UserStats: React.FC = () => {
   const [heatmapData, setHeatmapData] = useState<any>(null);
   const [usingSimulatedData, setUsingSimulatedData] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
+  const [timelineData, setTimelineData] = useState<any>(null);
+  const [usingSimulatedTimeline, setUsingSimulatedTimeline] = useState(false);
   
   // Refs for ECharts - must be declared before any early returns
   const winRateTimelineRef = useRef<HTMLDivElement>(null);
@@ -115,6 +115,33 @@ export const UserStats: React.FC = () => {
     fetchStats();
   }, [username]);
 
+  // Fetch timeline data
+  useEffect(() => {
+    if (!username) return;
+
+    const fetchTimelineData = async () => {
+      try {
+        const response = await fetch(`/api/users/${username}/win-rate-timeline`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch timeline data');
+        }
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          setTimelineData(result.data);
+          setUsingSimulatedTimeline(false);
+        } else {
+          setUsingSimulatedTimeline(true);
+        }
+      } catch (err) {
+        console.error('Error fetching timeline data:', err);
+        setUsingSimulatedTimeline(true);
+      }
+    };
+
+    fetchTimelineData();
+  }, [username]);
+
   // Fetch heatmap data
   useEffect(() => {
     if (!username) return;
@@ -138,7 +165,7 @@ export const UserStats: React.FC = () => {
           setUsingSimulatedData(true);
         }
       } catch (err) {
-        logger.error('Error fetching heatmap data:', err);
+        console.error('Error fetching heatmap data:', err);
         setUsingSimulatedData(true);
       }
     };
@@ -154,12 +181,38 @@ export const UserStats: React.FC = () => {
     if (winRateTimelineRef.current) {
       const chart = echarts.init(winRateTimelineRef.current);
       
-      // Generate rolling win rate data (last 50 games)
-      const recentGames = Math.min(50, stats.totalGames);
-      const xData = Array.from({ length: recentGames }, (_, i) => `${i + 1}`);
-      const yData = Array.from({ length: recentGames }, () => 
-        Math.random() * 30 + (stats.overallWinRate - 15) // Simulated rolling win rate
-      );
+      let xData: string[];
+      let yData: number[];
+      
+      if (timelineData && !usingSimulatedTimeline) {
+        // Use real data from backend
+        xData = timelineData.game_numbers.map((n: number) => `${n}`);
+        yData = timelineData.win_rates;
+      } else {
+        // Generate seeded random data for consistent display
+        const seed = (username?.charCodeAt(0) || 0) * 1000;
+        const random = seededRandom(seed);
+        
+        // Generate 51 data points (games 50-100)
+        const numPoints = 51;
+        xData = Array.from({ length: numPoints }, (_, i) => `${i + 50}`);
+        
+        // Create smooth simulated data that trends around overall win rate
+        const baseWinRate = stats.overallWinRate;
+        yData = [];
+        let currentValue = baseWinRate + (random() - 0.5) * 20;
+        
+        for (let i = 0; i < numPoints; i++) {
+          // Add some randomness but keep it smooth
+          const change = (random() - 0.5) * 8;
+          currentValue = Math.max(20, Math.min(80, currentValue + change));
+          
+          // Gradually pull towards overall win rate for realism
+          currentValue = currentValue * 0.95 + baseWinRate * 0.05;
+          
+          yData.push(parseFloat(currentValue.toFixed(1)));
+        }
+      }
 
       chart.setOption({
         backgroundColor: 'transparent',
@@ -167,10 +220,10 @@ export const UserStats: React.FC = () => {
           trigger: 'axis',
           backgroundColor: '#3c3836',
           borderColor: '#504945',
-          textStyle: { color: '#ebdbb2' },
+          textStyle: { color: '#ebdbb2', fontSize: 11 },
           formatter: (params: any) => {
             const point = params[0];
-            return `Game ${point.name}<br/>Win Rate: ${point.value.toFixed(1)}%`;
+            return `Game ${point.name}<br/>Trailing 50-Game Win Rate: ${point.value.toFixed(1)}%`;
           }
         },
         grid: { left: '8%', right: '4%', top: '15%', bottom: '12%', containLabel: true },
@@ -178,16 +231,16 @@ export const UserStats: React.FC = () => {
           type: 'category',
           data: xData,
           axisLine: { lineStyle: { color: '#504945' } },
-          axisLabel: { color: '#a89984', fontSize: 10, interval: 9 },
-          name: 'Last 50 Games',
-          nameTextStyle: { color: '#a89984', fontSize: 11 },
+          axisLabel: { color: '#a89984', fontSize: 9, interval: Math.floor(xData.length / 10) },
+          name: 'Game Number (Last 100 Games)',
+          nameTextStyle: { color: '#a89984', fontSize: 10 },
           nameLocation: 'middle',
           nameGap: 25
         },
         yAxis: {
           type: 'value',
           axisLine: { lineStyle: { color: '#504945' } },
-          axisLabel: { color: '#a89984', fontSize: 10, formatter: '{value}%' },
+          axisLabel: { color: '#a89984', fontSize: 9, formatter: '{value}%' },
           splitLine: { lineStyle: { color: '#3c3836', type: 'dashed' } },
           min: 0,
           max: 100
@@ -208,14 +261,14 @@ export const UserStats: React.FC = () => {
             symbol: 'none',
             lineStyle: { color: '#83a598', type: 'solid', width: 1 },
             data: [{ yAxis: stats.overallWinRate }],
-            label: { formatter: 'Avg: {c}%', color: '#83a598', fontSize: 10 }
+            label: { formatter: 'Overall Avg: {c}%', color: '#83a598', fontSize: 9 }
           }
         }]
       });
 
       return () => chart.dispose();
     }
-  }, [stats, username]);
+  }, [stats, username, timelineData, usingSimulatedTimeline]);
 
   useEffect(() => {
     if (!stats) return;
@@ -251,7 +304,7 @@ export const UserStats: React.FC = () => {
         // Use seeded random data for consistent display
         const random = seededRandom(username.charCodeAt(0) * 1000);
         
-        for (let d = 0; d < 7; d++) {
+      for (let d = 0; d < 7; d++) {
           for (let h = 0; h < 24; h++) {
             // Simulate realistic gaming patterns (higher activity in evenings)
             let baseValue = random() * 40;
@@ -573,7 +626,14 @@ export const UserStats: React.FC = () => {
       {/* Performance Visualizations */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
         <div className="card" style={{ padding: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>📈 Win Rate Trend</h3>
+          <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>
+            📈 Win Rate Trend
+            {usingSimulatedTimeline && (
+              <span style={{ fontSize: '0.7rem', color: '#fabd2f', marginLeft: '0.5rem', fontWeight: 'normal' }}>
+                ⚠️ Using simulated data
+              </span>
+            )}
+          </h3>
           <div ref={winRateTimelineRef} style={{ height: '220px', width: '100%' }}></div>
         </div>
         <div className="card" style={{ padding: '1rem' }}>

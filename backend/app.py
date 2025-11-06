@@ -1,6 +1,6 @@
 # app.py
 from flask import Flask, request, jsonify
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 import pandas as pd
 import os
 import logging
@@ -397,6 +397,56 @@ class GameDataManager:
         except Exception as e:
             logger.error(f"Error getting session stats: {str(e)}")
             return {"success": False, "message": str(e)}
+
+    def get_user_win_rate_timeline(self, username: str) -> Dict[str, Any]:
+        """
+        Get win rate timeline data for a user showing trailing 50-game win rate over last 100 games.
+        
+        Returns:
+        - game_numbers: List of game indices (1-100)
+        - win_rates: List of trailing 50-game win rates at each point
+        - total_games: Total games in dataset
+        """
+        try:
+            df = self._load_data()
+            
+            if len(df) == 0:
+                return {"success": False, "message": "No data available", "data": []}
+            
+            # Filter games for this user and sort by timestamp
+            df = df.sort_values('timestamp')
+            
+            # Get last 100 games
+            last_100 = df.tail(100)
+            
+            if len(last_100) < 50:
+                return {"success": False, "message": "Not enough games (need at least 50)", "data": []}
+            
+            game_numbers = []
+            win_rates = []
+            
+            # Calculate trailing 50-game win rate for each game
+            for i in range(49, len(last_100)):  # Start at game 50 (index 49)
+                # Get the 50 games ending at this point
+                window = last_100.iloc[i-49:i+1]
+                wins = len(window[window['winner'] == username])
+                win_rate = (wins / 50) * 100
+                
+                game_numbers.append(i + 1)  # 1-indexed game number
+                win_rates.append(round(win_rate, 1))
+            
+            return {
+                "success": True,
+                "data": {
+                    "game_numbers": game_numbers,
+                    "win_rates": win_rates
+                },
+                "total_games": len(df)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting win rate timeline: {str(e)}")
+            return {"success": False, "message": str(e), "data": []}
 
     def get_user_heatmap_data(self, username: str, character: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -1366,6 +1416,17 @@ def get_user_stats(username):
             "mostFacedCharacters": most_faced_chars,
         }
     )
+
+
+@app.route("/api/users/<username>/win-rate-timeline")
+def get_user_win_rate_timeline(username):
+    """Get win rate timeline data for a user showing trailing 50-game average over last 100 games."""
+    try:
+        result = data_manager.get_user_win_rate_timeline(username)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in win rate timeline endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e), "data": []})
 
 
 @app.route("/api/users/<username>/heatmap")
