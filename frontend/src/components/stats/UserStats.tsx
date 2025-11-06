@@ -68,11 +68,22 @@ interface UserStatsData {
   mostFacedCharacters: MostFacedCharacter[];
 }
 
+// Seeded random number generator for consistent simulated data
+function seededRandom(seed: number) {
+  let value = seed;
+  return function() {
+    value = (value * 9301 + 49297) % 233280;
+    return value / 233280;
+  };
+}
+
 export const UserStats: React.FC = () => {
   const { username = '' } = useParams<{ username: string }>();
   const [stats, setStats] = useState<UserStatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [heatmapData, setHeatmapData] = useState<any>(null);
+  const [usingSimulatedData, setUsingSimulatedData] = useState(false);
   
   // Refs for ECharts - must be declared before any early returns
   const winRateTimelineRef = useRef<HTMLDivElement>(null);
@@ -101,6 +112,34 @@ export const UserStats: React.FC = () => {
     };
 
     fetchStats();
+  }, [username]);
+
+  // Fetch heatmap data
+  useEffect(() => {
+    if (!username) return;
+
+    const fetchHeatmapData = async () => {
+      try {
+        const response = await fetch(`/api/users/${username}/heatmap`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch heatmap data');
+        }
+        const result = await response.json();
+        
+        if (result.success && result.data && result.data.length > 0) {
+          setHeatmapData(result.data);
+          setUsingSimulatedData(false);
+        } else {
+          // No real data available, use seeded random
+          setUsingSimulatedData(true);
+        }
+      } catch (err) {
+        logger.error('Error fetching heatmap data:', err);
+        setUsingSimulatedData(true);
+      }
+    };
+
+    fetchHeatmapData();
   }, [username]);
 
   // Initialize ECharts visualizations
@@ -189,30 +228,45 @@ export const UserStats: React.FC = () => {
         return `${i - 12}p`;
       });
       
-      // Simulated heatmap data with more granularity
       // Format: [hour, day, winRate, gameCount]
-      const data: [number, number, number, number][] = [];
-      const maxGames = 30; // Maximum games in any time slot for normalization
+      let data: [number, number, number, number][] = [];
+      let maxGames = 30;
       
-      for (let d = 0; d < 7; d++) {
-        for (let h = 0; h < 24; h++) {
-          // Simulate realistic gaming patterns (higher activity in evenings)
-          let baseValue = Math.random() * 40;
-          let gameCount = Math.floor(Math.random() * 5); // Base game count
-          
-          if (h >= 18 && h <= 23) {
-            baseValue += 40; // Evening boost
-            gameCount += Math.floor(Math.random() * 20) + 5; // More games in evening
-          } else if (h >= 12 && h < 18) {
-            baseValue += 20; // Afternoon boost
-            gameCount += Math.floor(Math.random() * 10) + 2; // Some games in afternoon
-          } else if (h >= 0 && h < 6) {
-            baseValue -= 20; // Late night penalty
-            gameCount = Math.floor(Math.random() * 3); // Very few games late night
+      if (heatmapData && !usingSimulatedData) {
+        // Use real data from backend
+        data = heatmapData.map((item: any) => [
+          item.hour,
+          item.day,
+          item.win_rate,
+          item.game_count
+        ]);
+        
+        // Calculate actual max games for normalization
+        maxGames = Math.max(...heatmapData.map((item: any) => item.game_count), 1);
+      } else {
+        // Use seeded random data for consistent display
+        const random = seededRandom(username.charCodeAt(0) * 1000);
+        
+        for (let d = 0; d < 7; d++) {
+          for (let h = 0; h < 24; h++) {
+            // Simulate realistic gaming patterns (higher activity in evenings)
+            let baseValue = random() * 40;
+            let gameCount = Math.floor(random() * 5); // Base game count
+            
+            if (h >= 18 && h <= 23) {
+              baseValue += 40; // Evening boost
+              gameCount += Math.floor(random() * 20) + 5; // More games in evening
+            } else if (h >= 12 && h < 18) {
+              baseValue += 20; // Afternoon boost
+              gameCount += Math.floor(random() * 10) + 2; // Some games in afternoon
+            } else if (h >= 0 && h < 6) {
+              baseValue -= 20; // Late night penalty
+              gameCount = Math.floor(random() * 3); // Very few games late night
+            }
+            
+            const winRate = Math.max(0, Math.min(100, baseValue + (random() * 30)));
+            data.push([h, d, Math.round(winRate), gameCount]);
           }
-          
-          const winRate = Math.max(0, Math.min(100, baseValue + (Math.random() * 30)));
-          data.push([h, d, Math.round(winRate), gameCount]);
         }
       }
 
@@ -308,7 +362,7 @@ export const UserStats: React.FC = () => {
 
       return () => chart.dispose();
     }
-  }, [stats]);
+  }, [stats, heatmapData, usingSimulatedData, username]);
 
   // Early returns after all hooks
   if (loading) return <div className="loading">Loading stats...</div>;
@@ -504,8 +558,15 @@ export const UserStats: React.FC = () => {
           <div ref={winRateTimelineRef} style={{ height: '220px', width: '100%' }}></div>
         </div>
         <div className="card" style={{ padding: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', color: '#fbf1c7' }}>🔥 Performance Heatmap (24hr)</h3>
-          <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+          <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', color: '#fbf1c7' }}>
+            🔥 Performance Heatmap (24hr)
+            {usingSimulatedData && (
+              <span style={{ fontSize: '0.7rem', color: '#fabd2f', marginLeft: '0.5rem', fontWeight: 'normal' }}>
+                ⚠️ Using simulated data
+              </span>
+            )}
+          </h3>
+          <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <span>Color = Win Rate (🔴 Low → 🟡 Mid → 🟢 High)</span>
             <span>Brightness = Games Played (Darker = Fewer, Brighter = More)</span>
           </div>

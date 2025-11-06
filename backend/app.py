@@ -398,6 +398,60 @@ class GameDataManager:
             logger.error(f"Error getting session stats: {str(e)}")
             return {"success": False, "message": str(e)}
 
+    def get_user_heatmap_data(self, username: str) -> Dict[str, Any]:
+        """
+        Get heatmap data for a user showing win rate and game count by day of week and hour.
+        
+        Returns a 7x24 grid where each cell contains:
+        - day: 0-6 (Sunday-Saturday)
+        - hour: 0-23
+        - win_rate: percentage (0-100)
+        - game_count: number of games played in that slot
+        """
+        try:
+            df = self._load_data()
+            
+            if len(df) == 0:
+                return {"success": False, "message": "No data available", "data": []}
+            
+            # Convert datetime and add day of week and hour columns
+            df["datetime"] = pd.to_datetime(df["datetime"])
+            df["day_of_week"] = df["datetime"].dt.dayofweek  # Monday=0, Sunday=6
+            df["day_of_week"] = (df["day_of_week"] + 1) % 7  # Convert to Sunday=0, Saturday=6
+            df["hour"] = df["datetime"].dt.hour
+            
+            # Group by day and hour
+            heatmap_data = []
+            
+            for day in range(7):  # 0=Sunday, 6=Saturday
+                for hour in range(24):  # 0-23
+                    # Filter games for this time slot
+                    slot_games = df[(df["day_of_week"] == day) & (df["hour"] == hour)]
+                    game_count = len(slot_games)
+                    
+                    if game_count > 0:
+                        wins = len(slot_games[slot_games["winner"] == username])
+                        win_rate = (wins / game_count) * 100
+                    else:
+                        win_rate = 0
+                    
+                    heatmap_data.append({
+                        "hour": hour,
+                        "day": day,
+                        "win_rate": round(win_rate, 1),
+                        "game_count": game_count
+                    })
+            
+            return {
+                "success": True,
+                "data": heatmap_data,
+                "total_games": len(df)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting heatmap data: {str(e)}")
+            return {"success": False, "message": str(e), "data": []}
+
     def add_game(self, game_data: Dict[str, Any]) -> bool:
         """
         Add a new game record to the CSV file.
@@ -1298,6 +1352,17 @@ def get_user_stats(username):
             "mostFacedCharacters": most_faced_chars,
         }
     )
+
+
+@app.route("/api/users/<username>/heatmap")
+def get_user_heatmap(username):
+    """Get heatmap data for a user showing performance by day and hour."""
+    try:
+        result = data_manager.get_user_heatmap_data(username)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in heatmap endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e), "data": []})
 
 
 @app.route("/api/head_to_head_stats")
