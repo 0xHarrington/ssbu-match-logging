@@ -249,62 +249,90 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
       {error && <div className="error" style={{ fontSize: '0.85rem', padding: '0.5rem' }}>{error}</div>}
       {!loading && !error && stats && lifetimeStats && headToHead && advancedMetrics && (
         <>
-          {/* Lifetime Stats Compact Banner */}
-          <div style={{ 
-            background: 'linear-gradient(135deg, #1d2021 0%, #282828 100%)',
-            borderRadius: '8px',
-            padding: '0.75rem',
-            marginBottom: '1rem',
-            border: '1px solid #3c3836',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '0.75rem'
+          {/* ========== LIFETIME STATS ========== */}
+          <div style={{
+            background: '#1d2021',
+            borderRadius: '10px',
+            padding: '0.9rem',
+            marginBottom: '1.25rem',
+            border: '2px solid #3c3836',
+            boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.3)'
           }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                All-Time
-              </div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 'bold' }}>
-                <span style={{ color: '#fe8019' }}>{lifetimeStats.shayne_wins}</span>
-                <span style={{ color: '#504945', margin: '0 0.3rem' }}>-</span>
-                <span style={{ color: '#b8bb26' }}>{lifetimeStats.matt_wins}</span>
-              </div>
-              <div style={{ fontSize: '0.65rem', color: '#a89984' }}>
-                {lifetimeStats.total_games} games
+            {/* Section Title */}
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '0.75rem',
+              paddingBottom: '0.5rem',
+              borderBottom: '1px solid #3c3836'
+            }}>
+              <div style={{
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                color: '#d79921',
+                textTransform: 'uppercase',
+                letterSpacing: '1.5px'
+              }}>
+                📊 Lifetime Stats
               </div>
             </div>
-            <div style={{ width: '1px', height: '40px', background: '#3c3836' }} />
-            <div style={{ flex: 1, textAlign: 'right' }}>
-              <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Win Rates
+
+            {/* Stats Content */}
+            <div style={{ 
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '0.75rem'
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  All-Time
+                </div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>
+                  <span style={{ color: '#fe8019' }}>{lifetimeStats.shayne_wins}</span>
+                  <span style={{ color: '#504945', margin: '0 0.3rem' }}>-</span>
+                  <span style={{ color: '#b8bb26' }}>{lifetimeStats.matt_wins}</span>
+                </div>
+                <div style={{ fontSize: '0.65rem', color: '#a89984' }}>
+                  {lifetimeStats.total_games} games
+                </div>
               </div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
-                <span style={{ color: '#fe8019' }}>{lifetimeStats.shayne_win_rate.toFixed(1)}%</span>
-                <span style={{ color: '#504945', margin: '0 0.3rem' }}>|</span>
-                <span style={{ color: '#b8bb26' }}>{lifetimeStats.matt_win_rate.toFixed(1)}%</span>
+              <div style={{ width: '2px', height: '45px', background: '#3c3836' }} />
+              <div style={{ flex: 1, textAlign: 'right' }}>
+                <div style={{ fontSize: '0.65rem', color: '#a89984', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Win Rates
+                </div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
+                  <span style={{ color: '#fe8019' }}>{lifetimeStats.shayne_win_rate.toFixed(1)}%</span>
+                  <span style={{ color: '#504945', margin: '0 0.3rem' }}>|</span>
+                  <span style={{ color: '#b8bb26' }}>{lifetimeStats.matt_win_rate.toFixed(1)}%</span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Today's Session Label */}
-          <div style={{ 
-            textAlign: 'center',
-            marginBottom: '0.75rem'
+          {/* ========== DIVIDER ========== */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            marginBottom: '1rem'
           }}>
+            <div style={{ flex: 1, height: '2px', background: 'linear-gradient(to right, transparent, #504945)' }} />
             <div style={{ 
-              display: 'inline-block',
-              background: '#83a598',
+              background: 'linear-gradient(135deg, #83a598, #8ec07c)',
               color: '#282828',
-              padding: '0.3rem 0.75rem',
-              borderRadius: '12px',
+              padding: '0.35rem 0.9rem',
+              borderRadius: '15px',
               fontSize: '0.7rem',
               fontWeight: 'bold',
               textTransform: 'uppercase',
-              letterSpacing: '1px'
+              letterSpacing: '1.5px',
+              boxShadow: '0 2px 8px rgba(131, 165, 152, 0.3)',
+              border: '1px solid #a3c0b8'
             }}>
-              📅 Today's Session
+              📅 Today
             </div>
+            <div style={{ flex: 1, height: '2px', background: 'linear-gradient(to left, transparent, #504945)' }} />
           </div>
 
           {/* Hero Stats with Mini Chart */}

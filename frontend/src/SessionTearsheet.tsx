@@ -361,70 +361,105 @@ function SessionTearsheet() {
           </div>
         </div>
 
-        {/* Lifetime Stats Banner */}
-        <div style={{ 
-          background: 'linear-gradient(135deg, #1d2021 0%, #282828 100%)',
-          borderRadius: '12px',
-          padding: '1rem',
-          marginBottom: '2rem',
-          border: '1px solid #3c3836',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
+        {/* ========== LIFETIME STATS SECTION ========== */}
+        <div style={{
+          background: '#1d2021',
+          borderRadius: '16px',
+          padding: '1.5rem',
+          marginBottom: '2.5rem',
+          border: '2px solid #3c3836',
+          boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.3)'
         }}>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              All-Time Record
-            </div>
-            <div style={{ fontSize: '1.3rem', fontWeight: 'bold' }}>
-              <span style={{ color: '#fe8019' }}>{lifetimeStats.shayne_wins}</span>
-              <span style={{ color: '#504945', margin: '0 0.5rem' }}>-</span>
-              <span style={{ color: '#b8bb26' }}>{lifetimeStats.matt_wins}</span>
-            </div>
-            <div style={{ fontSize: '0.7rem', color: '#a89984', marginTop: '0.2rem' }}>
-              {lifetimeStats.total_games} total games
+          {/* Section Title */}
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '1.25rem',
+            paddingBottom: '0.75rem',
+            borderBottom: '2px solid #3c3836'
+          }}>
+            <div style={{
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              color: '#d79921',
+              textTransform: 'uppercase',
+              letterSpacing: '2px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem'
+            }}>
+              <span>📊</span>
+              <span>Lifetime Statistics</span>
+              <span>📊</span>
             </div>
           </div>
-          <div style={{ width: '1px', height: '50px', background: '#3c3836' }} />
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              Win Rates
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>
-                  {lifetimeStats.shayne_win_rate.toFixed(1)}%
-                </div>
-                <div style={{ fontSize: '0.65rem', color: '#a89984' }}>Shayne</div>
+
+          {/* Lifetime Stats Content */}
+          <div style={{ 
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '2rem'
+          }}>
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                All-Time Record
               </div>
-              <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>
-                  {lifetimeStats.matt_win_rate.toFixed(1)}%
+              <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                <span style={{ color: '#fe8019' }}>{lifetimeStats.shayne_wins}</span>
+                <span style={{ color: '#504945', margin: '0 0.5rem' }}>-</span>
+                <span style={{ color: '#b8bb26' }}>{lifetimeStats.matt_wins}</span>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#a89984', marginTop: '0.3rem' }}>
+                {lifetimeStats.total_games} total games
+              </div>
+            </div>
+            <div style={{ width: '2px', height: '60px', background: '#3c3836' }} />
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Win Rates
+              </div>
+              <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#fe8019' }}>
+                    {lifetimeStats.shayne_win_rate.toFixed(1)}%
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Shayne</div>
                 </div>
-                <div style={{ fontSize: '0.65rem', color: '#a89984' }}>Matt</div>
+                <div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#b8bb26' }}>
+                    {lifetimeStats.matt_win_rate.toFixed(1)}%
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Session Stats Section Header */}
-        <div style={{ 
-          textAlign: 'center',
-          marginBottom: '1rem'
+        {/* ========== DIVIDER ========== */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          marginBottom: '2.5rem'
         }}>
+          <div style={{ flex: 1, height: '2px', background: 'linear-gradient(to right, transparent, #504945, transparent)' }} />
           <div style={{ 
-            display: 'inline-block',
-            background: '#83a598',
+            background: 'linear-gradient(135deg, #83a598, #8ec07c)',
             color: '#282828',
-            padding: '0.5rem 1.5rem',
-            borderRadius: '20px',
-            fontSize: '0.85rem',
+            padding: '0.6rem 2rem',
+            borderRadius: '25px',
+            fontSize: '0.9rem',
             fontWeight: 'bold',
             textTransform: 'uppercase',
-            letterSpacing: '1.5px'
+            letterSpacing: '2px',
+            boxShadow: '0 4px 12px rgba(131, 165, 152, 0.3)',
+            border: '2px solid #a3c0b8'
           }}>
             📅 Today's Session
           </div>
+          <div style={{ flex: 1, height: '2px', background: 'linear-gradient(to left, transparent, #504945, transparent)' }} />
         </div>
 
         {/* Hero Stats */}
