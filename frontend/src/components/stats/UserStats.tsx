@@ -177,18 +177,28 @@ export const UserStats: React.FC = () => {
   useEffect(() => {
     if (!stats) return;
 
-    // Performance Heatmap (Day of Week vs Hour)
+    // Performance Heatmap (Day of Week vs Hour) - More granular with 24 hours
     if (performanceHeatmapRef.current) {
       const chart = echarts.init(performanceHeatmapRef.current);
       
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const hours = ['12a', '4a', '8a', '12p', '4p', '8p'];
+      const hours = Array.from({ length: 24 }, (_, i) => {
+        if (i === 0) return '12a';
+        if (i < 12) return `${i}a`;
+        if (i === 12) return '12p';
+        return `${i - 12}p`;
+      });
       
-      // Simulated heatmap data
+      // Simulated heatmap data with more granularity
       const data: [number, number, number][] = [];
       for (let d = 0; d < 7; d++) {
-        for (let h = 0; h < 6; h++) {
-          const value = Math.random() * 100;
+        for (let h = 0; h < 24; h++) {
+          // Simulate realistic gaming patterns (higher activity in evenings)
+          let baseValue = Math.random() * 40;
+          if (h >= 18 && h <= 23) baseValue += 40; // Evening boost
+          else if (h >= 12 && h < 18) baseValue += 20; // Afternoon boost
+          else if (h >= 0 && h < 6) baseValue -= 20; // Late night penalty
+          const value = Math.max(0, Math.min(100, baseValue + (Math.random() * 30)));
           data.push([h, d, Math.round(value)]);
         }
       }
@@ -199,24 +209,32 @@ export const UserStats: React.FC = () => {
           position: 'top',
           backgroundColor: '#3c3836',
           borderColor: '#504945',
-          textStyle: { color: '#ebdbb2' },
+          textStyle: { color: '#ebdbb2', fontSize: 11 },
           formatter: (params: any) => {
-            return `${days[params.value[1]]} ${hours[params.value[0]]}<br/>Win Rate: ${params.value[2]}%`;
+            const games = Math.floor(Math.random() * 20) + 1; // Simulated game count
+            return `${days[params.value[1]]} ${hours[params.value[0]]}<br/>Win Rate: ${params.value[2]}%<br/>Games: ${games}`;
           }
         },
-        grid: { left: '12%', right: '4%', top: '5%', bottom: '12%', containLabel: true },
+        grid: { left: '8%', right: '2%', top: '3%', bottom: '15%', containLabel: true },
         xAxis: {
           type: 'category',
           data: hours,
-          splitArea: { show: true },
-          axisLine: { lineStyle: { color: '#504945' } },
-          axisLabel: { color: '#a89984', fontSize: 10 }
+          splitArea: { show: false },
+          axisLine: { show: false },
+          axisTick: { show: false },
+          axisLabel: { 
+            color: '#a89984', 
+            fontSize: 9,
+            interval: 2, // Show every 3rd hour
+            rotate: 0
+          }
         },
         yAxis: {
           type: 'category',
           data: days,
-          splitArea: { show: true },
-          axisLine: { lineStyle: { color: '#504945' } },
+          splitArea: { show: false },
+          axisLine: { show: false },
+          axisTick: { show: false },
           axisLabel: { color: '#a89984', fontSize: 10 }
         },
         visualMap: {
@@ -225,20 +243,30 @@ export const UserStats: React.FC = () => {
           calculable: true,
           orient: 'horizontal',
           left: 'center',
-          bottom: '0%',
-          textStyle: { color: '#a89984', fontSize: 10 },
+          bottom: '2%',
+          textStyle: { color: '#a89984', fontSize: 9 },
+          itemWidth: 12,
+          itemHeight: 120,
           inRange: {
-            color: ['#fb4934', '#fabd2f', '#b8bb26']
-          }
+            color: ['#fb4934', '#fe8019', '#fabd2f', '#b8bb26', '#98971a']
+          },
+          text: ['High', 'Low'],
+          textGap: 5
         },
         series: [{
           type: 'heatmap',
           data: data,
           label: { show: false },
+          itemStyle: {
+            borderColor: '#282828',
+            borderWidth: 1
+          },
           emphasis: {
             itemStyle: {
               shadowBlur: 10,
-              shadowColor: 'rgba(0, 0, 0, 0.5)'
+              shadowColor: 'rgba(0, 0, 0, 0.5)',
+              borderColor: '#fbf1c7',
+              borderWidth: 2
             }
           }
         }]
@@ -442,8 +470,8 @@ export const UserStats: React.FC = () => {
           <div ref={winRateTimelineRef} style={{ height: '220px', width: '100%' }}></div>
         </div>
         <div className="card" style={{ padding: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>🔥 Performance Heatmap</h3>
-          <div ref={performanceHeatmapRef} style={{ height: '220px', width: '100%' }}></div>
+          <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>🔥 Performance Heatmap (24hr)</h3>
+          <div ref={performanceHeatmapRef} style={{ height: '260px', width: '100%' }}></div>
         </div>
       </div>
 
