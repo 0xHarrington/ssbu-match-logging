@@ -586,6 +586,25 @@ def session_stats():
             {"stage": stage, "count": count} for stage, count in stage_counts.items()
         ]
 
+        # Calculate matchup stats
+        matchup_stats = []
+        if len(games) > 0:
+            matchup_counts = (
+                games.groupby(["shayne_character", "matt_character"])
+                .agg({"winner": lambda x: (x == "Shayne").sum(), "datetime": "count"})
+                .reset_index()
+            )
+            matchup_counts.columns = [
+                "shayne_character",
+                "matt_character",
+                "shayne_wins",
+                "total_games",
+            ]
+            matchup_counts["matt_wins"] = (
+                matchup_counts["total_games"] - matchup_counts["shayne_wins"]
+            )
+            matchup_stats = matchup_counts.to_dict("records")
+
         return jsonify(
             {
                 "success": True,
@@ -595,6 +614,7 @@ def session_stats():
                 "shayne_characters": shayne_characters,
                 "matt_characters": matt_characters,
                 "stage_stats": stage_stats,
+                "matchup_stats": matchup_stats,
             }
         )
 

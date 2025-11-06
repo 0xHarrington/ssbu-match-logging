@@ -35,6 +35,14 @@ interface StageStat {
   count: number;
 }
 
+interface MatchupStat {
+  shayne_character: string;
+  matt_character: string;
+  total_games: number;
+  shayne_wins: number;
+  matt_wins: number;
+}
+
 interface SessionStatsData {
   total_games: number;
   shayne_wins: number;
@@ -42,6 +50,7 @@ interface SessionStatsData {
   shayne_characters: CharacterUsage;
   matt_characters: CharacterUsage;
   stage_stats: StageStat[];
+  matchup_stats: MatchupStat[];
 }
 
 interface LifetimeStats {
@@ -669,6 +678,77 @@ function SessionTearsheet() {
             </div>
           </div>
         </div>
+
+        {/* Today's Matchups */}
+        {stats.matchup_stats && stats.matchup_stats.length > 0 && (
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{ 
+              fontSize: '1.2rem', 
+              marginBottom: '1rem', 
+              color: '#fbf1c7',
+              fontWeight: 'bold'
+            }}>
+              Today's Matchups
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {stats.matchup_stats.map((matchup, idx) => (
+                <div 
+                  key={idx}
+                  style={{
+                    background: '#3c3836',
+                    borderRadius: '10px',
+                    padding: '1rem',
+                    border: '1px solid #504945',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ 
+                      fontSize: '1rem',
+                      fontWeight: 'bold',
+                      marginBottom: '0.5rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem'
+                    }}>
+                      <span style={{ color: '#fe8019' }}>
+                        <CharacterDisplay character={matchup.shayne_character} />
+                      </span>
+                      <span style={{ color: '#a89984', fontSize: '0.85rem' }}>vs</span>
+                      <span style={{ color: '#b8bb26' }}>
+                        <CharacterDisplay character={matchup.matt_character} />
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#a89984' }}>
+                      {matchup.total_games} {matchup.total_games === 1 ? 'game' : 'games'} played
+                    </div>
+                  </div>
+                  <div style={{ 
+                    display: 'flex',
+                    gap: '1.5rem',
+                    alignItems: 'center'
+                  }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fe8019' }}>
+                        {matchup.shayne_wins}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Shayne</div>
+                    </div>
+                    <div style={{ fontSize: '1.2rem', color: '#504945' }}>-</div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#b8bb26' }}>
+                        {matchup.matt_wins}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Character Usage */}
         {(Object.keys(stats.shayne_characters).length > 0 || Object.keys(stats.matt_characters).length > 0) && (
