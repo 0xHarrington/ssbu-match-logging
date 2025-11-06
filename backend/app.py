@@ -1425,11 +1425,18 @@ def get_user_stats(username):
     for stage in stage_games.index:
         games = stage_games[stage]
         wins = stage_wins.get(stage, 0)
+        losses = games - wins
         win_rate = (wins / games) * 100 if games > 0 else 0
 
         if games >= 5:  # Only include stages with 5+ games
             stage_stats.append(
-                {"stage": stage, "winRate": win_rate, "totalGames": int(games)}
+                {
+                    "stage": stage,
+                    "winRate": win_rate,
+                    "totalGames": int(games),
+                    "wins": int(wins),
+                    "losses": int(losses),
+                }
             )
 
     # Sort by number of games, then win rate
@@ -1825,6 +1832,7 @@ def get_advanced_metrics():
             return jsonify({"success": False, "message": "No data available"})
 
         df = df.sort_values("datetime")
+        total_games = len(df)
 
         # Two-stock wins (solid victories)
         two_stock_wins = {}
@@ -1838,6 +1846,9 @@ def get_advanced_metrics():
                 "total_wins": total_wins,
                 "two_stock_rate": round((two_stock_count / total_wins * 100), 1)
                 if total_wins > 0
+                else 0,
+                "of_all_games": round((two_stock_count / total_games * 100), 1)
+                if total_games > 0
                 else 0,
             }
 
@@ -1853,6 +1864,9 @@ def get_advanced_metrics():
                 "total_wins": total_wins,
                 "dominance_rate": round((three_stock_wins / total_wins * 100), 1)
                 if total_wins > 0
+                else 0,
+                "of_all_games": round((three_stock_wins / total_games * 100), 1)
+                if total_games > 0
                 else 0,
             }
 
@@ -1904,19 +1918,18 @@ def get_advanced_metrics():
         # Close game record (1 stock differential)
         close_game_record = {}
         for player in ["Shayne", "Matt"]:
-            close_wins = len(
-                df[(df["winner"] == player) & (df["stocks_remaining"] == 1)]
-            )
-            close_losses = len(
-                df[(df["winner"] != player) & (df["stocks_remaining"] == 1)]
-            )
-            total_close = close_wins + close_losses
+            player_wins = df[df["winner"] == player]
+            close_wins = len(player_wins[player_wins["stocks_remaining"] == 1])
+            total_wins = len(player_wins)
 
             close_game_record[player.lower()] = {
                 "wins": close_wins,
-                "losses": close_losses,
-                "win_rate": round((close_wins / total_close * 100), 1)
-                if total_close > 0
+                "total_wins": total_wins,
+                "win_rate": round((close_wins / total_wins * 100), 1)
+                if total_wins > 0
+                else 0,
+                "of_all_games": round((close_wins / total_games * 100), 1)
+                if total_games > 0
                 else 0,
             }
 
