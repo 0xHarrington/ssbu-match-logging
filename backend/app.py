@@ -7,6 +7,7 @@ import logging
 from typing import Dict, Any, Optional
 import json
 import pytz
+import shutil
 
 app = Flask(__name__)
 
@@ -34,6 +35,7 @@ class GameDataManager:
         self.session_gap_hours = 4  # Hours of inactivity before starting new session
         self._ensure_csv_exists()
         self._ensure_characters_file_exists()
+        self._create_session_backup()
 
     def _ensure_csv_exists(self) -> None:
         """Create CSV file with headers if it doesn't exist."""
@@ -138,6 +140,43 @@ class GameDataManager:
             ]
             with open(self.characters_path, "w") as f:
                 json.dump(default_characters, f)
+
+    def _create_session_backup(self) -> None:
+        """Create a timestamped backup of the CSV file once per application session."""
+        try:
+            # Only create backup if CSV file exists and has content
+            if not os.path.exists(self.csv_path):
+                logger.info("CSV file does not exist yet, skipping backup")
+                return
+
+            # Check if file has content (more than just headers)
+            try:
+                df = pd.read_csv(self.csv_path)
+                if len(df) == 0:
+                    logger.info("CSV file is empty, skipping backup")
+                    return
+            except Exception as e:
+                logger.warning(f"Could not read CSV for backup check: {str(e)}")
+                return
+
+            # Create backups directory if it doesn't exist
+            backup_dir = "backups"
+            if not os.path.exists(backup_dir):
+                os.makedirs(backup_dir)
+                logger.info(f"Created backup directory: {backup_dir}")
+
+            # Generate timestamped backup filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_filename = f"game_results_backup_{timestamp}.csv"
+            backup_path = os.path.join(backup_dir, backup_filename)
+
+            # Copy the CSV file to backup location
+            shutil.copy2(self.csv_path, backup_path)
+            logger.info(f"Session backup created: {backup_path}")
+
+        except Exception as e:
+            logger.error(f"Error creating session backup: {str(e)}")
+            # Don't raise - backup failure shouldn't prevent app from starting
 
     def _load_data(self) -> pd.DataFrame:
         """Load the current CSV data into a pandas DataFrame."""
@@ -2108,6 +2147,178 @@ def get_current_session():
 
     except Exception as e:
         logger.error(f"Error in current session endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/users/<username>/tearsheet")
+def get_user_tearsheet(username):
+    """Get comprehensive tearsheet data for a specific player."""
+    try:
+        df = data_manager._load_data()
+        
+        if len(df) == 0:
+            return jsonify({"success": False, "message": "No data available"})
+        
+        df["datetime"] = pd.to_datetime(df["datetime"])
+        df = df.sort_values("datetime")
+        
+        # Basic stats
+        total_games = len(df)
+        user_wins = len(df[df["winner"] == username])
+        overall_win_rate = (user_wins / total_games) * 100 if total_games > 0 else 0
+        
+        # Opponent info
+        opponent = "Matt" if username == "Shayne" else "Shayne"
+        opponent_wins = total_games - user_wins
+        
+        # Average stocks remaining when winning
+        avg_stocks = df[df["winner"] == username]["stocks_remaining"].mean()
+        avg_stocks = float(avg_stocks) if not pd.isna(avg_stocks) else 0
+        
+        # Calculate streaks
+        current_streak = 0
+        max_win_streak = 0
+        current_streak_type = None
+        temp_win_streak = 0
+        
+        for winner in df["winner"]:
+            if winner == username:
+                if current_streak_type == "win" or current_streak_type is None:
+                    current_streak += 1
+                    temp_win_streak += 1
+                    current_streak_type = "win"
+                else:
+                    current_streak = 1
+                    temp_win_streak = 1
+                    current_streak_type = "win"
+                max_win_streak = max(max_win_streak, temp_win_streak)
+            else:
+                if current_streak_type == "loss" or current_streak_type is None:
+                    current_streak += 1
+                    current_streak_type = "loss"
+                else:
+                    current_streak = 1
+                    current_streak_type = "loss"
+                temp_win_streak = 0
+        
+        # Recent form (last 100 games)
+        last_100 = df.tail(100)
+        last_100_wins = len(last_100[last_100["winner"] == username])
+        last_100_rate = (last_100_wins / len(last_100) * 100) if len(last_100) > 0 else 0
+        
+        # Dominance stats
+        user_char_col = f"{username.lower()}_character"
+        three_stock_wins = len(df[(df["winner"] == username) & (df["stocks_remaining"] == 3)])
+        two_stock_wins = len(df[(df["winner"] == username) & (df["stocks_remaining"] == 2)])
+        two_stock_rate = (two_stock_wins / user_wins * 100) if user_wins > 0 else 0
+        
+        # Top characters
+        if user_char_col in df.columns:
+            char_games = df.groupby(user_char_col).size()
+            char_wins = df[df["winner"] == username].groupby(user_char_col).size()
+            
+            character_usage = []
+            for char in char_games.index:
+                games = int(char_games[char])
+                wins = int(char_wins.get(char, 0))
+                win_rate = (wins / games) * 100 if games > 0 else 0
+                
+                character_usage.append({
+                    "character": char,
+                    "games": games,
+                    "wins": wins,
+                    "win_rate": round(win_rate, 1)
+                })
+            
+            # Sort by games played
+            character_usage.sort(key=lambda x: (-x["games"], -x["win_rate"]))
+        else:
+            character_usage = []
+        
+        # Stage performance
+        stage_games = df[df["stage"] != "No Stage"].groupby("stage").size()
+        stage_wins = df[(df["winner"] == username) & (df["stage"] != "No Stage")].groupby("stage").size()
+        
+        stage_stats = []
+        for stage in stage_games.index:
+            games = int(stage_games[stage])
+            wins = int(stage_wins.get(stage, 0))
+            win_rate = (wins / games) * 100 if games > 0 else 0
+            
+            stage_stats.append({
+                "stage": stage,
+                "games": games,
+                "wins": wins,
+                "win_rate": round(win_rate, 1)
+            })
+        
+        # Sort by games played
+        stage_stats.sort(key=lambda x: (-x["games"], -x["win_rate"]))
+        
+        # Best and worst matchups (opponent characters)
+        opponent_char_col = "matt_character" if username == "Shayne" else "shayne_character"
+        opp_char_games = df.groupby(opponent_char_col).size()
+        opp_char_wins = df[df["winner"] == username].groupby(opponent_char_col).size()
+        
+        matchup_stats = []
+        for char in opp_char_games.index:
+            games = int(opp_char_games[char])
+            wins = int(opp_char_wins.get(char, 0))
+            losses = games - wins
+            win_rate = (wins / games) * 100 if games > 0 else 0
+            
+            if games >= 5:  # Only include matchups with 5+ games
+                matchup_stats.append({
+                    "opponent_character": char,
+                    "games": games,
+                    "wins": wins,
+                    "losses": losses,
+                    "win_rate": round(win_rate, 1)
+                })
+        
+        # Sort by win rate for best/worst
+        matchup_stats.sort(key=lambda x: -x["win_rate"])
+        best_matchups = matchup_stats[:5]
+        worst_matchups = sorted(matchup_stats, key=lambda x: x["win_rate"])[:5]
+        
+        return jsonify({
+            "success": True,
+            "username": username,
+            "opponent": opponent,
+            "overall_stats": {
+                "total_games": total_games,
+                "wins": user_wins,
+                "losses": opponent_wins,
+                "win_rate": round(overall_win_rate, 1),
+                "avg_stocks_when_winning": round(avg_stocks, 2)
+            },
+            "streaks": {
+                "current_streak": {
+                    "count": current_streak,
+                    "type": current_streak_type
+                },
+                "max_win_streak": max_win_streak
+            },
+            "recent_form": {
+                "last_100": {
+                    "wins": last_100_wins,
+                    "games": len(last_100),
+                    "win_rate": round(last_100_rate, 1)
+                }
+            },
+            "dominance": {
+                "three_stock_wins": three_stock_wins,
+                "two_stock_wins": two_stock_wins,
+                "two_stock_rate": round(two_stock_rate, 1)
+            },
+            "character_usage": character_usage[:10],  # Top 10 characters
+            "stage_stats": stage_stats[:9],  # Top 9 stages
+            "best_matchups": best_matchups,
+            "worst_matchups": worst_matchups
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in user tearsheet endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
