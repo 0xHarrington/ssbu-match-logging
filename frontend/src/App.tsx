@@ -8,6 +8,7 @@ import { UserStats } from './components/stats/UserStats';
 import CharacterAnalytics from './CharacterAnalytics';
 import CharacterDetail from './CharacterDetail';
 import SessionTearsheet from './SessionTearsheet';
+import PlayerTearsheet from './PlayerTearsheet';
 import SessionHistory from './SessionHistory';
 import SessionDetail from './SessionDetail';
 import SessionComparison from './SessionComparison';
@@ -271,6 +272,7 @@ function App() {
           <Route path="/sessions/compare" element={<SessionComparison />} />
           <Route path="/sessions/:session_id" element={<SessionDetail />} />
           <Route path="/session-tearsheet" element={<SessionTearsheet />} />
+          <Route path="/player-tearsheet" element={<PlayerTearsheet />} />
         </Routes>
       </main>
     </div>

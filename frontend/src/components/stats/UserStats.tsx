@@ -581,12 +581,45 @@ export const UserStats: React.FC = () => {
     ],
   };
 
+  const openPlayerTearsheet = () => {
+    window.open(`/player-tearsheet?username=${username}`, '_blank');
+  };
+
   return (
     <div className={styles['stats-container']}>
       {/* Compact Header */}
       <div className={styles['stats-header']}>
         <div className={styles['stats-header-content']}>
-          <h1 style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>{username}'s Dashboard</h1>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <h1 style={{ fontSize: '1.8rem', margin: 0 }}>{username}'s Dashboard</h1>
+            <button
+              onClick={openPlayerTearsheet}
+              style={{
+                padding: '0.6rem 1.2rem',
+                background: '#83a598',
+                color: '#282828',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 8px rgba(131, 165, 152, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#a3c0b8';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(131, 165, 152, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#83a598';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(131, 165, 152, 0.3)';
+              }}
+            >
+              📊 View Tearsheet
+            </button>
+          </div>
           <p className={styles['stats-subtitle']} style={{ fontSize: '0.95rem', margin: '0.5rem 0' }}>
             {stats.totalGames} matches • <span className={styles['player-tag']}>{stats.overallWinRate.toFixed(1)}% WR</span>
           </p>
