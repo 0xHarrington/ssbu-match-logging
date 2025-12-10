@@ -906,13 +906,21 @@ def log_game():
                 & (df["matt_character"] == data["mattCharacter"])
             ]
 
+            # Prepare recent games with only needed columns and handle NaN values
+            recent_games_df = matchup_data.sort_values("datetime", ascending=False).head(5)
+            recent_games = []
+            for _, row in recent_games_df.iterrows():
+                recent_games.append({
+                    "datetime": row["datetime"].strftime("%Y-%m-%d %H:%M:%S") if pd.notna(row["datetime"]) else None,
+                    "winner": row["winner"] if pd.notna(row["winner"]) else None,
+                    "stocks_remaining": float(row["stocks_remaining"]) if pd.notna(row["stocks_remaining"]) else None,
+                })
+
             stats = {
                 "total_games": len(matchup_data),
                 "shayne_wins": len(matchup_data[matchup_data["winner"] == "Shayne"]),
                 "matt_wins": len(matchup_data[matchup_data["winner"] == "Matt"]),
-                "recent_games": matchup_data.sort_values("datetime", ascending=False)
-                .head(5)
-                .to_dict("records"),
+                "recent_games": recent_games,
             }
 
             return jsonify(
@@ -972,13 +980,21 @@ def get_matchup_stats():
             {"total_games": 0, "shayne_wins": 0, "matt_wins": 0, "recent_games": []}
         )
 
+    # Prepare recent games with only needed columns and handle NaN values
+    recent_games_df = matchup_data.sort_values("datetime", ascending=False).head(5)
+    recent_games = []
+    for _, row in recent_games_df.iterrows():
+        recent_games.append({
+            "datetime": row["datetime"].strftime("%Y-%m-%d %H:%M:%S") if pd.notna(row["datetime"]) else None,
+            "winner": row["winner"] if pd.notna(row["winner"]) else None,
+            "stocks_remaining": float(row["stocks_remaining"]) if pd.notna(row["stocks_remaining"]) else None,
+        })
+
     stats = {
         "total_games": len(matchup_data),
         "shayne_wins": len(matchup_data[matchup_data["winner"] == "Shayne"]),
         "matt_wins": len(matchup_data[matchup_data["winner"] == "Matt"]),
-        "recent_games": matchup_data.sort_values("datetime", ascending=False)
-        .head(5)
-        .to_dict("records"),
+        "recent_games": recent_games,
     }
 
     return jsonify(stats)
