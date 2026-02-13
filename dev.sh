@@ -1,6 +1,6 @@
-# Start Flask backend
+# Start Flask backend (must run from backend/ so game_results.csv and characters.json resolve)
 source backend/venv/bin/activate
-python3 app.py &
+(cd backend && python3 app.py) &
 BACKEND_PID=$!
 
 echo "Started backend (PID $BACKEND_PID) on http://127.0.0.1:5000"
