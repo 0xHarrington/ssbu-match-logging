@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import * as echarts from 'echarts';
 
 interface Session {
   session_id: string;
@@ -98,22 +97,6 @@ function SessionComparison() {
       hour: 'numeric',
       minute: '2-digit'
     });
-  };
-
-  const formatDuration = (minutes: number) => {
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
-  };
-
-  const calculateDiff = (val1: number, val2: number) => {
-    const diff = val1 - val2;
-    return {
-      value: Math.abs(diff),
-      positive: diff > 0,
-      percentage: val2 !== 0 ? ((diff / val2) * 100).toFixed(1) : '∞'
-    };
   };
 
   const renderSessionSelector = (sessionNum: 1 | 2, selectedId: string | null) => (
