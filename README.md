@@ -1,109 +1,177 @@
 # Smash Bros Match Logger
 
-A full-stack web app for tracking Super Smash Bros Ultimate matches between two players (Shayne vs Matt). Built with a Flask backend and React (Vite) frontend, using CSV-based storage with session grouping and rich analytics.
+A full-stack web app for tracking Super Smash Bros Ultimate matches between two
+players (Shayne vs Matt). A Flask API and a React (Vite) single-page app ship as
+one container, backed by CSV storage with session grouping and rich analytics.
+Roughly 3,200 historical matches are already logged.
+
+**Stack:** React 19 · react-router 6 · Vite 6 · TypeScript 5.8 · Recharts +
+[dither-kit](https://www.tripwire.sh/dither-kit) charts · Flask 3.1 · gunicorn ·
+pandas / numpy · deployed on Fly.io.
+
+## System design
+
+One container runs everything: gunicorn fronts the Flask app, which serves both
+the built React bundle (with SPA fallback) and the REST API, and reads/writes a
+single CSV on a persistent volume. The whole app sits behind HTTP Basic auth
+until real multi-user auth ships.
+
+```mermaid
+flowchart TB
+    subgraph client["Client — browser (Matt / Shayne)"]
+        SPA["React 19 SPA<br/>react-router · Recharts · dither-kit"]
+    end
+
+    subgraph fly["Fly.io — single container · ewr · shared-cpu-1x 512MB"]
+        GU["gunicorn<br/>1 worker · 8 threads · :8080"]
+        subgraph flask["Flask (app.py)"]
+            AUTH["HTTP Basic auth gate<br/>SITE_PASSWORD"]
+            API["REST API<br/>/api/*"]
+            STATIC["Static + SPA fallback<br/>serves built Vite bundle"]
+            DM["GameDataManager<br/>in-process write lock · boot backup"]
+        end
+        VOL[("Persistent volume /data<br/>game_results.csv + backups/")]
+    end
+
+    SPA -->|"HTTPS + Basic auth"| GU
+    GU --> AUTH
+    AUTH --> API
+    AUTH --> STATIC
+    API --> DM
+    DM --> VOL
+    STATIC -.serves bundle.-> SPA
+```
+
+Build and release pipeline — CI is a gate only; deploys are manual, mirroring
+the nesty deployment pattern:
+
+```mermaid
+flowchart LR
+    DEV["Local dev<br/>./dev.sh — Vite :5173 + Flask :5000"] --> PUSH["git push / PR"]
+    PUSH --> CI["GitHub Actions CI<br/>lint · tsc · vite build<br/>backend smoke · docker build"]
+    CI -->|green| MERGE["merge to main"]
+    MERGE --> DEPLOY["fly deploy --remote-only<br/>(manual)"]
+    DEPLOY --> PROD["ssbu-match-logger.fly.dev<br/>gunicorn + /data volume"]
+```
 
 ## Features
 
-- **Match logging**: Character search with win rates, stage selection (sticky across matches), winner + stocks remaining, and a 10-second undo window after each log
-- **Session tracking**: Games grouped into sessions (4+ hour gap starts a new session)
-- **Statistics dashboard**: Win rates, streaks, monthly activity, top matchups, head-to-head breakdown
-- **Per-player stats**: Win rate timelines, performance heatmaps (day/hour), character and stage stats, tearsheets
-- **Character analytics**: Per-character win rates, matchup performance, stage performance, usage overview
-- **Session history**: Browse sessions, session detail views, session comparison
-- **Local CSV storage**: Timestamped entries with automatic session backups
+- **Match logging**: character search with win rates, sticky stage selection,
+  winner + stocks remaining, and a 10-second undo window after each log
+- **Session tracking**: games auto-group into sessions (a 4+ hour gap starts a
+  new one)
+- **Statistics dashboard**: win rates, streaks, monthly activity, top matchups,
+  head-to-head breakdown, advanced metrics, matchup matrix
+- **Per-player stats**: win-rate timelines, day/hour performance heatmaps,
+  character and stage stats, tearsheets
+- **Character analytics**: per-character win rates, matchup performance, stage
+  performance, and a usage overview / tier list
+- **Session history**: browse sessions, session detail views, session comparison
+- **Local CSV storage**: timestamped entries with an automatic backup on each boot
 - **Dark UI**: Gruvbox-inspired theme
 
-## Setup
+## Live deployment (Fly.io)
+
+Production is a single Fly.io app in `ewr` serving the API and the built frontend
+from one container, gated by HTTP Basic auth via the `SITE_PASSWORD` secret. Match
+data lives on a persistent volume (`DATA_DIR=/data`), never in the image, with
+14-day volume snapshots plus a boot-time CSV backup.
+
+- **URL**: `https://ssbu-match-logger.fly.dev` (enter any username + the shared password)
+- **Deploy**: `fly deploy --remote-only --ha=false`
+- **Full runbook** (first deploy, seeding data, rollback, backups): [docs/DEPLOY.md](docs/DEPLOY.md)
+- **Roadmap** (public-launch plan, data-layer migration): [docs/ROADMAP.md](docs/ROADMAP.md)
+
+Scale-to-zero is on (`min_machines_running = 0`): the machine sleeps when idle and
+cold-starts in a few seconds on the first request — right for a bursty session logger.
+
+## Local setup
 
 1. Clone the repository:
 
-```bash
-git clone https://github.com/0xHarrington/ssbu-match-logging.git
-cd ssbu-match-logging
-```
+   ```bash
+   git clone https://github.com/0xHarrington/ssbu-match-logging.git
+   cd ssbu-match-logging
+   ```
 
 2. Set up the backend:
 
-```bash
-# Create and activate virtual environment
-python3 -m venv backend/venv
-source backend/venv/bin/activate  # On Windows: backend\venv\Scripts\activate
-
-# Install dependencies (from project root)
-pip install -r backend/requirements.txt
-```
+   ```bash
+   python3 -m venv backend/venv
+   source backend/venv/bin/activate  # Windows: backend\venv\Scripts\activate
+   pip install -r backend/requirements.txt
+   ```
 
 3. Set up the frontend:
 
-```bash
-cd frontend
-npm install
-cd ..
+   ```bash
+   cd frontend && npm install && cd ..
+   ```
+
+4. Run both servers (requires `nvm` for Node):
+
+   ```bash
+   ./dev.sh
+   ```
+
+   - Backend: http://127.0.0.1:5000
+   - Frontend: http://localhost:5173
+
+   Or run them separately — **backend must run from `backend/`** so CSV and config
+   paths resolve:
+
+   ```bash
+   source backend/venv/bin/activate
+   cd backend && python3 app.py     # terminal 1
+   cd frontend && npm run dev        # terminal 2
+   ```
+
+## Project structure
+
+```
+backend/
+  app.py                # Flask app: GameDataManager + all /api/* endpoints + SPA fallback
+  characters.json       # character roster / metadata
+  game_results.csv      # match store (dev; on the Fly volume in prod)
+  .env.example          # SITE_PASSWORD, DATA_DIR, FLASK_DEBUG
+frontend/src/
+  App.tsx               # router + nav (routes are code-split)
+  MatchLogger.tsx       # logging homepage
+  StatsPage / Session*  # dashboards, session views, tearsheets
+  CharacterAnalytics/Detail.tsx
+  components/           # CharacterDisplay, PerformanceHeatmap, Feedback, stats/
+  lib/stages.ts         # shared stage-image map
+docs/DEPLOY.md          # Fly.io runbook
+docs/ROADMAP.md         # public-launch roadmap
+Dockerfile              # 2-stage build: Vite bundle -> Python runtime
+fly.toml                # Fly config (ewr, volume mount, scale-to-zero)
+.github/workflows/ci.yml
 ```
 
-4. Run the application:
+## Data format
 
-Easiest option—run both servers with the script (requires `nvm` for Node):
+Match data is stored in `game_results.csv` (on `/data` in production) with columns:
 
-```bash
-./dev.sh
-```
+| Column | Meaning |
+|---|---|
+| `datetime` | match timestamp |
+| `shayne_character` / `matt_character` | characters used |
+| `winner` | `Shayne` or `Matt` |
+| `stocks_remaining` | winner's stocks left (optional) |
+| `stage` | stage name (or `No Stage`) |
+| `timestamp` | Unix timestamp |
+| `session_id` | session identifier, derived from time gaps |
 
-This starts:
+## Development notes
 
-- Backend at http://127.0.0.1:5000  
-- Frontend at http://localhost:5173  
-
-Or run them separately:
-
-**Backend** (must run from `backend/` so CSV and config paths resolve):
-
-```bash
-source backend/venv/bin/activate
-cd backend
-python3 app.py
-```
-
-**Frontend** (from project root):
-
-```bash
-cd frontend
-npm run dev
-```
-
-## Data Format
-
-Match data is stored in `backend/game_results.csv` with columns:
-
-- **datetime**: Match timestamp
-- **shayne_character** / **matt_character**: Characters used
-- **winner**: "Shayne" or "Matt"
-- **stocks_remaining**: Winner’s stocks left (optional)
-- **stage**: Stage name (or "No Stage")
-- **timestamp**: Unix timestamp
-- **session_id**: Session identifier (derived from time gaps)
-
-## Deployment
-
-Production runs as a single Docker container (gunicorn serving the API and the
-built frontend) on Fly.io, gated by HTTP Basic auth via the `SITE_PASSWORD`
-secret. See [docs/DEPLOY.md](docs/DEPLOY.md) for the runbook and
-[docs/ROADMAP.md](docs/ROADMAP.md) for the public-launch roadmap. CI
-(`.github/workflows/ci.yml`) gates pushes/PRs; deploys are manual (`fly deploy`).
-
-## Development Notes
-
-- `backend/venv` is in `.gitignore`; activate it before running or developing the backend.
-- After adding Python dependencies: `pip freeze > requirements.txt` and ensure `backend/requirements.txt` is updated (or run from `backend/` and use `pip freeze > requirements.txt` there).
-- Deactivate the venv when done: `deactivate`.
-
-## Contributing
-
-Issues and pull requests are welcome. Possible extensions:
-
-- Export (e.g. CSV/JSON)
-- Support for more than two players
-- Additional visualizations or filters
+- `backend/venv` is gitignored; activate it before running or developing the backend.
+- After adding Python deps: run `pip freeze > requirements.txt` from `backend/` and
+  commit `backend/requirements.txt`.
+- **Keep gunicorn at `--workers 1`**: the CSV write lock is in-process, so multiple
+  workers would reintroduce lost-write races. Lift this only after the data layer
+  moves to SQLite/Postgres (see [docs/ROADMAP.md](docs/ROADMAP.md)).
+- CI gates every push/PR (frontend lint + `tsc` + `vite build`, backend compile +
+  import smoke test, full Docker build). It never deploys — deploys stay manual.
 
 ## License
 
