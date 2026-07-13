@@ -2,29 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import * as echarts from 'echarts';
 import CharacterDisplay from './components/CharacterDisplay';
-
-// Import stage images
-import bfImage from './assets/stages/bf.avif';
-import fdImage from './assets/stages/fd.avif';
-import ps2Image from './assets/stages/ps2.avif';
-import sbfImage from './assets/stages/sbf.avif';
-import tncImage from './assets/stages/tnc.avif';
-import kalosImage from './assets/stages/kalos.avif';
-import hollowImage from './assets/stages/hollow.avif';
-import yoshisImage from './assets/stages/yoshis.avif';
-import smashvilleImage from './assets/stages/smashville.avif';
-
-const stageImages: { [key: string]: string } = {
-  'Battlefield': bfImage,
-  'Small Battlefield': sbfImage,
-  'Final Destination': fdImage,
-  'Pokemon Stadium 2': ps2Image,
-  'Smashville': smashvilleImage,
-  'Town & City': tncImage,
-  'Kalos Pokemon League': kalosImage,
-  'Yoshi\'s Story': yoshisImage,
-  'Hollow Bastion': hollowImage,
-};
+import { LoadingState, ErrorState } from './components/Feedback';
+import { stageImages } from './lib/stages';
 
 interface SessionStats {
   success: boolean;
@@ -147,19 +126,11 @@ function SessionDetail() {
   };
 
   if (loading) {
-    return (
-      <div style={{ padding: '2rem', textAlign: 'center', color: '#a89984' }}>
-        Loading session...
-      </div>
-    );
+    return <LoadingState label="Loading session..." />;
   }
 
   if (error || !stats) {
-    return (
-      <div style={{ padding: '2rem', textAlign: 'center', color: '#fb4934' }}>
-        Error: {error || 'Session not found'}
-      </div>
-    );
+    return <ErrorState message={`Error: ${error || 'Session not found'}`} onRetry={fetchSessionStats} />;
   }
 
   return (

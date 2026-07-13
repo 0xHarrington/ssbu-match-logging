@@ -1,31 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import CharacterDisplay from './components/CharacterDisplay';
-
-// Import stage images
-import bfImage from './assets/stages/bf.avif';
-import fdImage from './assets/stages/fd.avif';
-import ps2Image from './assets/stages/ps2.avif';
-import sbfImage from './assets/stages/sbf.avif';
-import tncImage from './assets/stages/tnc.avif';
-import kalosImage from './assets/stages/kalos.avif';
-import hollowImage from './assets/stages/hollow.avif';
-import yoshisImage from './assets/stages/yoshis.avif';
-import smashvilleImage from './assets/stages/smashville.avif';
-
-// Stage image mapping
-const stageImages: { [key: string]: string } = {
-  'Battlefield': bfImage,
-  'Small Battlefield': sbfImage,
-  'Final Destination': fdImage,
-  'Pokemon Stadium 2': ps2Image,
-  'Smashville': smashvilleImage,
-  'Town & City': tncImage,
-  'Kalos Pokemon League': kalosImage,
-  'Yoshi\'s Story': yoshisImage,
-  'Hollow Bastion': hollowImage,
-};
+import { LoadingState, ErrorState } from './components/Feedback';
+import { stageImages } from './lib/stages';
 
 interface CharacterUsage {
   [character: string]: number;
@@ -105,50 +83,50 @@ function SessionTearsheet() {
   const [generating, setGenerating] = useState(false);
   const tearsheetRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Build session stats URL with optional session_id parameter
-        const sessionStatsUrl = sessionId 
-          ? `/api/session_stats?session_id=${sessionId}`
-          : '/api/session_stats';
-        
-        const [sessionRes, lifetimeRes, h2hRes, advRes, gamesRes] = await Promise.all([
-          fetch(sessionStatsUrl),
-          fetch('/api/stats'),
-          fetch('/api/head_to_head_stats'),
-          fetch('/api/advanced_metrics'),
-          fetch('/api/recent_games'),
-        ]);
-        
-        const sessionData = await sessionRes.json();
-        const lifetimeData = await lifetimeRes.json();
-        const h2hData = await h2hRes.json();
-        const advData = await advRes.json();
-        const gamesData = await gamesRes.json();
-        
-        if (!sessionData.success) throw new Error(sessionData.message || 'Failed to load session stats');
-        if (!lifetimeData.success) throw new Error(lifetimeData.message || 'Failed to load lifetime stats');
-        if (!h2hData.success) throw new Error(h2hData.message || 'Failed to load head-to-head stats');
-        if (!advData.success) throw new Error(advData.message || 'Failed to load advanced metrics');
-        if (!gamesData.success) throw new Error(gamesData.message || 'Failed to load recent games');
-        
-        setStats(sessionData);
-        setLifetimeStats(lifetimeData.stats);
-        setHeadToHead(h2hData);
-        setAdvancedMetrics(advData);
-        setRecentGames(gamesData.games);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Build session stats URL with optional session_id parameter
+      const sessionStatsUrl = sessionId 
+        ? `/api/session_stats?session_id=${sessionId}`
+        : '/api/session_stats';
+      
+      const [sessionRes, lifetimeRes, h2hRes, advRes, gamesRes] = await Promise.all([
+        fetch(sessionStatsUrl),
+        fetch('/api/stats'),
+        fetch('/api/head_to_head_stats'),
+        fetch('/api/advanced_metrics'),
+        fetch('/api/recent_games'),
+      ]);
+      
+      const sessionData = await sessionRes.json();
+      const lifetimeData = await lifetimeRes.json();
+      const h2hData = await h2hRes.json();
+      const advData = await advRes.json();
+      const gamesData = await gamesRes.json();
+      
+      if (!sessionData.success) throw new Error(sessionData.message || 'Failed to load session stats');
+      if (!lifetimeData.success) throw new Error(lifetimeData.message || 'Failed to load lifetime stats');
+      if (!h2hData.success) throw new Error(h2hData.message || 'Failed to load head-to-head stats');
+      if (!advData.success) throw new Error(advData.message || 'Failed to load advanced metrics');
+      if (!gamesData.success) throw new Error(gamesData.message || 'Failed to load recent games');
+      
+      setStats(sessionData);
+      setLifetimeStats(lifetimeData.stats);
+      setHeadToHead(h2hData);
+      setAdvancedMetrics(advData);
+      setRecentGames(gamesData.games);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }, [sessionId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const generatePNG = async () => {
     if (!tearsheetRef.current) return;
@@ -231,7 +209,7 @@ function SessionTearsheet() {
         justifyContent: 'center',
         padding: '2rem'
       }}>
-        <div style={{ fontSize: '1.2rem', color: '#a89984' }}>Loading session stats...</div>
+        <LoadingState label="Loading session stats..." />
       </div>
     );
   }
@@ -247,9 +225,7 @@ function SessionTearsheet() {
         justifyContent: 'center',
         padding: '2rem'
       }}>
-        <div style={{ fontSize: '1.2rem', color: '#fb4934' }}>
-          {error || 'Failed to load session stats'}
-        </div>
+        <ErrorState message={error || 'Failed to load session stats'} onRetry={fetchData} />
       </div>
     );
   }
