@@ -1,17 +1,72 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import MatchLogger from './MatchLogger';
 import RecentMatches, { type RecentMatchesRef } from './RecentMatches';
 import SessionStats, { type SessionStatsRef } from './SessionStats';
-import StatsPage from './StatsPage';
-import { UserStats } from './components/stats/UserStats';
-import CharacterAnalytics from './CharacterAnalytics';
-import CharacterDetail from './CharacterDetail';
-import SessionTearsheet from './SessionTearsheet';
-import PlayerTearsheet from './PlayerTearsheet';
-import SessionHistory from './SessionHistory';
-import SessionDetail from './SessionDetail';
-import SessionComparison from './SessionComparison';
+
+// Route-level code splitting: everything outside the logging homepage loads on demand.
+const StatsPage = lazy(() => import('./StatsPage'));
+const UserStats = lazy(() =>
+  import('./components/stats/UserStats').then(m => ({ default: m.UserStats }))
+);
+const CharacterAnalytics = lazy(() => import('./CharacterAnalytics'));
+const CharacterDetail = lazy(() => import('./CharacterDetail'));
+const SessionTearsheet = lazy(() => import('./SessionTearsheet'));
+const PlayerTearsheet = lazy(() => import('./PlayerTearsheet'));
+const SessionHistory = lazy(() => import('./SessionHistory'));
+const SessionDetail = lazy(() => import('./SessionDetail'));
+const SessionComparison = lazy(() => import('./SessionComparison'));
+
+function RouteFallback() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '50vh',
+        background: 'var(--bg0, #282828)',
+        color: 'var(--fg, #ebdbb2)'
+      }}
+    >
+      Loading…
+    </div>
+  );
+}
+
+function NotFound() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '50vh',
+        gap: '1rem',
+        color: 'var(--fg, #ebdbb2)'
+      }}
+    >
+      <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--fg-light, #fbf1c7)' }}>
+        Page not found
+      </div>
+      <Link
+        to="/"
+        style={{
+          textDecoration: 'none',
+          padding: '0.4rem 0.75rem',
+          borderRadius: 8,
+          background: 'var(--blue, #83a598)',
+          color: 'var(--bg0, #282828)',
+          fontSize: '0.875rem',
+          transition: 'all 0.2s'
+        }}
+      >
+        Back to Game Logger
+      </Link>
+    </div>
+  );
+}
 
 function LoggingHome() {
   const recentMatchesRef = useRef<RecentMatchesRef>(null);
@@ -262,18 +317,21 @@ function App() {
       <PageTitle />
       <Header />
       <main style={{ flex: 1, width: '100%', maxWidth: 1920, margin: '0 auto' }}>
-        <Routes>
-          <Route path="/" element={<LoggingHome />} />
-          <Route path="/stats" element={<StatsPage />} />
-          <Route path="/users/:username" element={<UserStats />} />
-          <Route path="/characters" element={<CharacterAnalytics />} />
-          <Route path="/characters/:character" element={<CharacterDetail />} />
-          <Route path="/sessions" element={<SessionHistory />} />
-          <Route path="/sessions/compare" element={<SessionComparison />} />
-          <Route path="/sessions/:session_id" element={<SessionDetail />} />
-          <Route path="/session-tearsheet" element={<SessionTearsheet />} />
-          <Route path="/player-tearsheet" element={<PlayerTearsheet />} />
-        </Routes>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/" element={<LoggingHome />} />
+            <Route path="/stats" element={<StatsPage />} />
+            <Route path="/users/:username" element={<UserStats />} />
+            <Route path="/characters" element={<CharacterAnalytics />} />
+            <Route path="/characters/:character" element={<CharacterDetail />} />
+            <Route path="/sessions" element={<SessionHistory />} />
+            <Route path="/sessions/compare" element={<SessionComparison />} />
+            <Route path="/sessions/:session_id" element={<SessionDetail />} />
+            <Route path="/session-tearsheet" element={<SessionTearsheet />} />
+            <Route path="/player-tearsheet" element={<PlayerTearsheet />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </main>
     </div>
   );

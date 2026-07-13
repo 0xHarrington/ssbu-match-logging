@@ -193,7 +193,13 @@ export const PerformanceHeatmap: React.FC<HeatmapProps> = ({
       }]
     });
 
-    return () => chart.dispose();
+    const resizeObserver = new ResizeObserver(() => chart.resize());
+    resizeObserver.observe(heatmapRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      chart.dispose();
+    };
   }, [data, usingSimulatedData, username, character, height]);
 
   return <div ref={heatmapRef} style={{ height, width: '100%' }}></div>;

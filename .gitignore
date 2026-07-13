@@ -13,9 +13,10 @@ archives/
 # backup files
 backups/
 
-# Markdown files (except README)
+# Markdown files (except README and docs/)
 *.md
 !README.md
+!docs/*.md
 
 # Python
 __pycache__/
@@ -29,6 +30,9 @@ venv/
 instance/
 .webassets-cache
 
+# Built frontend copied into the backend for local production smoke tests
+/backend/static/
+
 # React frontend
 /frontend/node_modules
 /frontend/dist
@@ -38,6 +42,5 @@ instance/
 /frontend/.vscode
 /frontend/.vite
 
-# (Optional) lock files if you don't want to commit them
-/frontend/package-lock.json
+# package-lock.json is committed: npm ci in CI and the Docker build require it
 /frontend/yarn.lock

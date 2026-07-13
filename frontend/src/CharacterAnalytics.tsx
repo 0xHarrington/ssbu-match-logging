@@ -42,7 +42,7 @@ const CharacterAnalytics: React.FC = () => {
         } else {
           setError(result.message || 'Failed to load character data');
         }
-      } catch (err) {
+      } catch {
         setError('Failed to fetch character analytics');
       } finally {
         setLoading(false);
@@ -154,7 +154,13 @@ const CharacterAnalytics: React.FC = () => {
         }]
       });
 
-      return () => chart.dispose();
+      const resizeObserver = new ResizeObserver(() => chart.resize());
+      resizeObserver.observe(usageChartRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+        chart.dispose();
+      };
     }
   }, [data]);
 
@@ -274,7 +280,13 @@ const CharacterAnalytics: React.FC = () => {
         }]
       });
 
-      return () => chart.dispose();
+      const resizeObserver = new ResizeObserver(() => chart.resize());
+      resizeObserver.observe(winRateDistRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+        chart.dispose();
+      };
     }
   }, [data]);
 

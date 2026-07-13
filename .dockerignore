@@ -1,0 +1,14 @@
+.git
+.gitignore
+**/.DS_Store
+**/node_modules
+**/dist
+**/.vite
+backend/venv
+backend/backups
+backend/instance
+backend/spare data
+backend/*.csv
+backend/.env
+backend/prototyping.ipynb
+*.md

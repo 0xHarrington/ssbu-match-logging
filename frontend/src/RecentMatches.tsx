@@ -14,7 +14,7 @@ export interface RecentMatchesRef {
   refresh: () => void;
 }
 
-const RecentMatches = forwardRef<RecentMatchesRef>((props, ref) => {
+const RecentMatches = forwardRef<RecentMatchesRef>((_props, ref) => {
   const [matches, setMatches] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

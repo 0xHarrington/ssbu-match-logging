@@ -1,0 +1,38 @@
+# Fly.io config — mirrors the nesty deployment pattern (single machine, ewr,
+# data on a persistent volume, secrets via `flyctl secrets set`).
+#
+# First-time setup (see docs/DEPLOY.md for the full runbook):
+#   fly launch --no-deploy --copy-config
+#   fly volumes create ssbu_data --region ewr --size 1
+#   fly secrets set SITE_PASSWORD=<shared password>
+#   fly deploy --remote-only --ha=false
+
+app = "ssbu-match-logger"
+primary_region = "ewr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DATA_DIR = "/data"
+  FLASK_DEBUG = "0"
+  PORT = "8080"
+
+[[mounts]]
+  source = "ssbu_data"
+  destination = "/data"
+  initial_size = "1gb"
+  snapshot_retention = 14
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # Scale-to-zero: a match logger is bursty (used during sessions only).
+  # First request after idle takes a few seconds to wake the machine.
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

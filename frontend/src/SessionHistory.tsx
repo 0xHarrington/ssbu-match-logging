@@ -243,7 +243,13 @@ function SessionHistory() {
       ]
     });
 
-    return () => chart.dispose();
+    const resizeObserver = new ResizeObserver(() => chart.resize());
+    resizeObserver.observe(timelineChartRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      chart.dispose();
+    };
   }, [timelineData]);
 
   if (loading) {

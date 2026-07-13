@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import CharacterDisplay from './components/CharacterDisplay';
+import CharacterDisplay, { getCharacterIconUrl } from './components/CharacterDisplay';
 
 // Import stage images
 import bfImage from './assets/stages/bf.avif';
@@ -16,7 +16,7 @@ import smashvilleImage from './assets/stages/smashville.avif';
 
 const stages = [
   "Battlefield", "Small Battlefield", "Final Destination", "Pokemon Stadium 2", "Smashville", "Town & City",
-  "Kalos Pokemon League", "Yoshi's Story", "Hollow Bastion"
+  "Kalos Pokemon League", "Hollow Bastion"
 ];
 
 // Stage image mapping
@@ -142,8 +142,8 @@ function CharacterSearch({ label, value, setValue, localStorageKey, characterWin
         <div className="search-input-container">
           {value && (
             <div className="selected-character-icon">
-              <img 
-                src={`/src/assets/characters/${value.replace(/\s+/g, '')}.png`} 
+              <img
+                src={getCharacterIconUrl(value)}
                 alt={value}
                 style={{ width: '20px', height: '20px', objectFit: 'contain' }}
               />
@@ -250,12 +250,18 @@ export interface MatchLoggerProps {
 export default function MatchLogger({ onMatchLogged, onCharacterSelect, selectedCharacters }: MatchLoggerProps) {
   const [shayneCharacter, setShayneCharacter] = useState(selectedCharacters?.shayneCharacter || '');
   const [mattCharacter, setMattCharacter] = useState(selectedCharacters?.mattCharacter || '');
-  const [stage, setStage] = useState('');
+  // Sticky stage: restore last-used stage, but only if it's still a valid option
+  const [stage, setStage] = useState(() => {
+    const saved = localStorage.getItem('lastStage');
+    return saved && stages.includes(saved) ? saved : '';
+  });
   const [winner, setWinner] = useState('');
   const [stocks, setStocks] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [undoAvailable, setUndoAvailable] = useState(false);
+  const [undoing, setUndoing] = useState(false);
   const [characterWinRates, setCharacterWinRates] = useState<CharacterWinRatesData | null>(null);
 
   // Fetch character win rates
@@ -282,13 +288,16 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
     }
   }, [selectedCharacters]);
 
-  // Make success message disappear after 2 seconds
+  // Success bar: 10s window while Undo is available, 2s for plain messages
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => setSuccess(null), 2000);
+      const timer = setTimeout(() => {
+        setSuccess(null);
+        setUndoAvailable(false);
+      }, undoAvailable ? 10000 : 2000);
       return () => clearTimeout(timer);
     }
-  }, [success]);
+  }, [success, undoAvailable]);
 
   // Notify parent of character selections, but only when they actually change
   const handleShayneCharacterChange = (char: string) => {
@@ -331,12 +340,13 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
       let data;
       try {
         data = await res.json();
-      } catch (jsonErr) {
+      } catch {
         throw new Error('Server returned an invalid response.');
       }
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed to log match');
-      setSuccess('Match logged successfully!');
-      setStage('');
+      setSuccess('Match logged!');
+      setUndoAvailable(true);
+      // Keep stage selected (rematches are usually same stage)
       setWinner('');
       setStocks('');
       // Don't clear character selections (per original logic)
@@ -345,6 +355,36 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
       setError(err.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleStageSelect = (s: string) => {
+    setStage(s);
+    localStorage.setItem('lastStage', s);
+  };
+
+  const handleUndo = async () => {
+    if (undoing) return;
+    setUndoing(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/undo_last_game', { method: 'POST' });
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error('Server returned an invalid response.');
+      }
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to undo match');
+      setUndoAvailable(false);
+      setSuccess('Match removed');
+      if (onMatchLogged) onMatchLogged();
+    } catch (err: any) {
+      setUndoAvailable(false);
+      setSuccess(null);
+      setError(err.message);
+    } finally {
+      setUndoing(false);
     }
   };
 
@@ -384,7 +424,7 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
                   type="button"
                   key={s}
                   className={`stage-button${stage === s ? ' selected' : ''}`}
-                  onClick={() => setStage(s)}
+                  onClick={() => handleStageSelect(s)}
                   style={{
                     backgroundImage: `url(${stageImages[s]})`,
                     backgroundSize: 'cover',
@@ -445,7 +485,31 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
           </div>
 
           {error && <div className="error" style={{ marginTop: '0.5rem', padding: '0.5rem', fontSize: '0.85rem' }}>{error}</div>}
-          {success && <div className="success" style={{ marginTop: '0.5rem', padding: '0.5rem', fontSize: '0.85rem' }}>{success}</div>}
+          {success && (
+            <div className="success" style={{ marginTop: '0.5rem', padding: '0.5rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+              <span>{success}</span>
+              {undoAvailable && (
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  disabled={undoing}
+                  style={{
+                    background: '#3c3836',
+                    color: '#ebdbb2',
+                    border: '1px solid #665c54',
+                    borderRadius: '4px',
+                    padding: '0.25rem 0.75rem',
+                    fontSize: '0.8rem',
+                    cursor: undoing ? 'default' : 'pointer',
+                    opacity: undoing ? 0.6 : 1,
+                    flexShrink: 0,
+                  }}
+                >
+                  {undoing ? 'Undoing...' : 'Undo'}
+                </button>
+              )}
+            </div>
+          )}
           <button type="submit" className="submit-button" disabled={submitting} style={{ padding: '0.75rem', fontSize: '0.95rem', marginTop: '0.75rem' }}>
             {submitting ? 'Logging...' : 'Log Match'}
           </button>

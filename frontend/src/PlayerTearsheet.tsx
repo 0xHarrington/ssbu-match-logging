@@ -1,32 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import * as echarts from 'echarts';
 import CharacterDisplay from './components/CharacterDisplay';
-
-// Import stage images
-import bfImage from './assets/stages/bf.avif';
-import fdImage from './assets/stages/fd.avif';
-import ps2Image from './assets/stages/ps2.avif';
-import sbfImage from './assets/stages/sbf.avif';
-import tncImage from './assets/stages/tnc.avif';
-import kalosImage from './assets/stages/kalos.avif';
-import hollowImage from './assets/stages/hollow.avif';
-import yoshisImage from './assets/stages/yoshis.avif';
-import smashvilleImage from './assets/stages/smashville.avif';
-
-// Stage image mapping
-const stageImages: { [key: string]: string } = {
-  'Battlefield': bfImage,
-  'Small Battlefield': sbfImage,
-  'Final Destination': fdImage,
-  'Pokemon Stadium 2': ps2Image,
-  'Smashville': smashvilleImage,
-  'Town & City': tncImage,
-  'Kalos Pokemon League': kalosImage,
-  'Yoshi\'s Story': yoshisImage,
-  'Hollow Bastion': hollowImage,
-};
+import { LoadingState, ErrorState } from './components/Feedback';
+import { stageImages } from './lib/stages';
 
 interface CharacterUsage {
   character: string;
@@ -129,37 +107,37 @@ function PlayerTearsheet() {
   const playerColor = username === 'Shayne' ? '#fe8019' : '#b8bb26';
   const opponentColor = username === 'Shayne' ? '#b8bb26' : '#fe8019';
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [tearsheetRes, timelineRes, heatmapRes] = await Promise.all([
-          fetch(`/api/users/${username}/tearsheet`),
-          fetch(`/api/users/${username}/win-rate-timeline`),
-          fetch(`/api/users/${username}/heatmap`)
-        ]);
-        
-        const tearsheetResult = await tearsheetRes.json();
-        const timelineResult = await timelineRes.json();
-        const heatmapResult = await heatmapRes.json();
-        
-        if (!tearsheetResult.success) {
-          throw new Error(tearsheetResult.message || 'Failed to load player stats');
-        }
-        
-        setData(tearsheetResult);
-        if (timelineResult.success) setTimelineData(timelineResult);
-        if (heatmapResult.success) setHeatmapData(heatmapResult);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [tearsheetRes, timelineRes, heatmapRes] = await Promise.all([
+        fetch(`/api/users/${username}/tearsheet`),
+        fetch(`/api/users/${username}/win-rate-timeline`),
+        fetch(`/api/users/${username}/heatmap`)
+      ]);
+      
+      const tearsheetResult = await tearsheetRes.json();
+      const timelineResult = await timelineRes.json();
+      const heatmapResult = await heatmapRes.json();
+      
+      if (!tearsheetResult.success) {
+        throw new Error(tearsheetResult.message || 'Failed to load player stats');
       }
-    };
-
-    fetchData();
+      
+      setData(tearsheetResult);
+      if (timelineResult.success) setTimelineData(timelineResult);
+      if (heatmapResult.success) setHeatmapData(heatmapResult);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }, [username]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Initialize Win Rate Timeline Chart
   useEffect(() => {
@@ -253,7 +231,13 @@ function PlayerTearsheet() {
       }]
     });
 
-    return () => chart.dispose();
+    const resizeObserver = new ResizeObserver(() => chart.resize());
+    resizeObserver.observe(winRateTimelineRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      chart.dispose();
+    };
   }, [data, timelineData, username, playerColor]);
 
   // Initialize Performance Heatmap
@@ -389,7 +373,13 @@ function PlayerTearsheet() {
       }]
     });
 
-    return () => chart.dispose();
+    const resizeObserver = new ResizeObserver(() => chart.resize());
+    resizeObserver.observe(performanceHeatmapRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      chart.dispose();
+    };
   }, [data, heatmapData]);
 
   const generatePNG = async () => {
@@ -467,7 +457,7 @@ function PlayerTearsheet() {
         justifyContent: 'center',
         padding: '2rem'
       }}>
-        <div style={{ fontSize: '1.2rem', color: '#a89984' }}>Loading player stats...</div>
+        <LoadingState label="Loading player stats..." />
       </div>
     );
   }
@@ -483,9 +473,7 @@ function PlayerTearsheet() {
         justifyContent: 'center',
         padding: '2rem'
       }}>
-        <div style={{ fontSize: '1.2rem', color: '#fb4934' }}>
-          {error || 'Failed to load player stats'}
-        </div>
+        <ErrorState message={error || 'Failed to load player stats'} onRetry={fetchData} />
       </div>
     );
   }
