@@ -4,7 +4,7 @@ A full-stack web app for tracking Super Smash Bros Ultimate matches between two 
 
 ## Features
 
-- **Match logging**: Character selection (dropdowns), winner selection, optional stocks remaining, stage selection
+- **Match logging**: Character search with win rates, stage selection (sticky across matches), winner + stocks remaining, and a 10-second undo window after each log
 - **Session tracking**: Games grouped into sessions (4+ hour gap starts a new session)
 - **Statistics dashboard**: Win rates, streaks, monthly activity, top matchups, head-to-head breakdown
 - **Per-player stats**: Win rate timelines, performance heatmaps (day/hour), character and stage stats, tearsheets
@@ -82,6 +82,14 @@ Match data is stored in `backend/game_results.csv` with columns:
 - **stage**: Stage name (or "No Stage")
 - **timestamp**: Unix timestamp
 - **session_id**: Session identifier (derived from time gaps)
+
+## Deployment
+
+Production runs as a single Docker container (gunicorn serving the API and the
+built frontend) on Fly.io, gated by HTTP Basic auth via the `SITE_PASSWORD`
+secret. See [docs/DEPLOY.md](docs/DEPLOY.md) for the runbook and
+[docs/ROADMAP.md](docs/ROADMAP.md) for the public-launch roadmap. CI
+(`.github/workflows/ci.yml`) gates pushes/PRs; deploys are manual (`fly deploy`).
 
 ## Development Notes
 
