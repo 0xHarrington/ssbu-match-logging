@@ -1,55 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
 import * as echarts from 'echarts';
 import styles from './UserStats.module.css';
 import CharacterDisplay from '../CharacterDisplay';
-
-// Import stage images
-import bfImage from '../../assets/stages/bf.avif';
-import fdImage from '../../assets/stages/fd.avif';
-import ps2Image from '../../assets/stages/ps2.avif';
-import sbfImage from '../../assets/stages/sbf.avif';
-import tncImage from '../../assets/stages/tnc.avif';
-import kalosImage from '../../assets/stages/kalos.avif';
-import hollowImage from '../../assets/stages/hollow.avif';
-import yoshisImage from '../../assets/stages/yoshis.avif';
-import smashvilleImage from '../../assets/stages/smashville.avif';
-
-// Stage image mapping
-const stageImages: { [key: string]: string } = {
-  'Battlefield': bfImage,
-  'Small Battlefield': sbfImage,
-  'Final Destination': fdImage,
-  'Pokemon Stadium 2': ps2Image,
-  'Smashville': smashvilleImage,
-  'Town & City': tncImage,
-  'Kalos Pokemon League': kalosImage,
-  'Yoshi\'s Story': yoshisImage,
-  'Hollow Bastion': hollowImage,
-};
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend,
-  ChartDataLabels
-);
+import { LoadingState, ErrorState } from '../Feedback';
+import { stageImages } from '../../lib/stages';
 
 interface CharacterStats {
   character: string;
@@ -115,31 +70,34 @@ export const UserStats: React.FC = () => {
   // Refs for ECharts - must be declared before any early returns
   const winRateTimelineRef = useRef<HTMLDivElement>(null);
   const performanceHeatmapRef = useRef<HTMLDivElement>(null);
+  const characterChartRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const fetchStats = useCallback(async () => {
     if (!username) {
       setError('Username is required');
       setLoading(false);
       return;
     }
 
-    const fetchStats = async () => {
-      try {
-        const response = await fetch(`/api/users/${username}/stats`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch user stats');
-        }
-        const data = await response.json();
-        setStats(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/users/${username}/stats`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch user stats');
       }
-    };
-
-    fetchStats();
+      const data = await response.json();
+      setStats(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
   }, [username]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   // Fetch timeline data
   useEffect(() => {
@@ -312,7 +270,13 @@ export const UserStats: React.FC = () => {
         }]
       });
 
-      return () => chart.dispose();
+      const resizeObserver = new ResizeObserver(() => chart.resize());
+      resizeObserver.observe(winRateTimelineRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+        chart.dispose();
+      };
     }
   }, [stats, username, timelineData, usingSimulatedTimeline]);
 
@@ -478,14 +442,106 @@ export const UserStats: React.FC = () => {
         }]
       });
 
-      return () => chart.dispose();
+      const resizeObserver = new ResizeObserver(() => chart.resize());
+      resizeObserver.observe(performanceHeatmapRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+        chart.dispose();
+      };
     }
   }, [stats, heatmapData, usingSimulatedData, username]);
 
+  // Character Performance bar chart (win rate + usage per character)
+  useEffect(() => {
+    if (!stats || !characterChartRef.current) return;
+
+    const chart = echarts.init(characterChartRef.current);
+
+    const playerColor = username === 'Shayne' ? '#fe8019' : '#b8bb26';
+    const barLabel = {
+      show: true,
+      position: 'top' as const,
+      color: '#a89984',
+      fontSize: 9,
+      formatter: (params: any) => `${Number(params.value).toFixed(0)}%`
+    };
+
+    chart.setOption({
+      backgroundColor: 'transparent',
+      legend: {
+        top: 0,
+        textStyle: { color: '#ebdbb2', fontSize: 11 },
+        itemWidth: 12,
+        itemHeight: 12,
+        itemGap: 10
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        backgroundColor: '#3c3836',
+        borderColor: '#504945',
+        borderWidth: 1,
+        padding: 10,
+        textStyle: { color: '#ebdbb2', fontSize: 11 },
+        formatter: (params: any) => {
+          const lines = [`<strong>${params[0].name}</strong>`];
+          params.forEach((p: any) => {
+            const label = p.seriesName === 'Games Played'
+              ? `Usage: ${Number(p.value).toFixed(1)}%`
+              : `Win Rate: ${Number(p.value).toFixed(1)}%`;
+            lines.push(`${p.marker} ${label}`);
+          });
+          return lines.join('<br/>');
+        }
+      },
+      grid: { left: '3%', right: '3%', top: 40, bottom: '3%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: stats.characterStats.map(stat => stat.character),
+        axisLine: { lineStyle: { color: '#504945' } },
+        axisTick: { show: false },
+        axisLabel: { color: '#a89984', fontSize: 10, rotate: 45 }
+      },
+      yAxis: {
+        type: 'value',
+        min: 0,
+        max: 100,
+        axisLine: { show: false },
+        axisLabel: { color: '#a89984', fontSize: 10, formatter: '{value}%' },
+        splitLine: { lineStyle: { color: '#3c3836', width: 0.5 } }
+      },
+      series: [
+        {
+          name: 'Win Rate (%)',
+          type: 'bar',
+          data: stats.characterStats.map(stat => stat.winRate),
+          itemStyle: { color: playerColor, borderColor: '#282828', borderWidth: 1 },
+          label: barLabel
+        },
+        {
+          name: 'Games Played',
+          type: 'bar',
+          data: stats.characterStats.map(stat => (stat.totalGames / stats.totalGames) * 100),
+          itemStyle: { color: '#83a598', borderColor: '#282828', borderWidth: 1 },
+          label: barLabel
+        }
+      ]
+    });
+
+    const resizeObserver = new ResizeObserver(() => chart.resize());
+    resizeObserver.observe(characterChartRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      chart.dispose();
+    };
+  }, [stats, username]);
+
   // Early returns after all hooks
-  if (loading) return <div className="loading">Loading stats...</div>;
-  if (error) return <div className="error">{error}</div>;
-  if (!stats) return <div className="error">No stats available</div>;
+  if (loading) return <LoadingState label="Loading stats..." />;
+  if (error) return <ErrorState message={error} onRetry={fetchStats} />;
+  if (!stats) return <ErrorState message="No stats available" onRetry={fetchStats} />;
 
   // Calculate win rate trend (comparing recent to overall)
   const winRateTrend = stats.recentPerformance.winRate - stats.overallWinRate;
@@ -496,90 +552,6 @@ export const UserStats: React.FC = () => {
   const bestChar = stats.characterStats
     .filter(char => char.totalGames >= 20) // Minimum 20 games for significance
     .sort((a, b) => b.winRate - a.winRate)[0];
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      datalabels: {
-        display: false, // Disable for cleaner look
-      },
-      legend: {
-        position: 'top' as const,
-        labels: {
-          color: '#ebdbb2',
-          font: { size: 11 },
-          padding: 10,
-          boxWidth: 12,
-          boxHeight: 12
-        },
-      },
-      title: {
-        display: false,
-      },
-      tooltip: {
-        backgroundColor: '#3c3836',
-        titleColor: '#ebdbb2',
-        bodyColor: '#ebdbb2',
-        borderColor: '#504945',
-        borderWidth: 1,
-        padding: 10,
-        titleFont: { size: 12, weight: 'bold' as const },
-        bodyFont: { size: 11 },
-        callbacks: {
-          label: (context: any) => {
-            const value = context.raw;
-            const label = context.dataset.label;
-            if (label === 'Games Played') {
-              return `Usage: ${value.toFixed(1)}%`;
-            }
-            return `Win Rate: ${value.toFixed(1)}%`;
-          },
-        },
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        max: 100,
-        grid: { color: '#3c3836', lineWidth: 0.5 },
-        ticks: {
-          color: '#a89984',
-          font: { size: 10 },
-          callback: (value: any) => `${value}%`
-        },
-      },
-      x: {
-        grid: { display: false },
-        ticks: {
-          color: '#a89984',
-          font: { size: 10 },
-          maxRotation: 45,
-          minRotation: 0,
-        },
-      },
-    },
-  };
-
-  const characterChartData = {
-    labels: stats.characterStats.map(stat => stat.character),
-    datasets: [
-      {
-        label: 'Win Rate (%)',
-        data: stats.characterStats.map(stat => stat.winRate),
-        backgroundColor: username && username === 'Shayne' ? '#fe8019' : '#b8bb26',
-        borderColor: '#282828',
-        borderWidth: 1,
-      },
-      {
-        label: 'Games Played',
-        data: stats.characterStats.map(stat => (stat.totalGames / stats.totalGames) * 100),
-        backgroundColor: '#83a598',
-        borderColor: '#282828',
-        borderWidth: 1,
-      },
-    ],
-  };
 
   const openPlayerTearsheet = () => {
     window.open(`/player-tearsheet?username=${username}`, '_blank');
@@ -780,7 +752,7 @@ export const UserStats: React.FC = () => {
         <div className="card" style={{ padding: '1rem' }}>
           <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>👊 Character Performance</h2>
           <div style={{ height: '280px', marginBottom: '0.75rem' }}>
-            <Bar data={characterChartData} options={chartOptions} />
+            <div ref={characterChartRef} style={{ width: '100%', height: '100%' }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
             {stats.characterStats.slice(0, 4).map((stat) => (

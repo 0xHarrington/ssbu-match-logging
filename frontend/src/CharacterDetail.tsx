@@ -1,32 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import * as echarts from 'echarts';
 import CharacterDisplay from './components/CharacterDisplay';
 import { PerformanceHeatmap } from './components/PerformanceHeatmap';
-
-// Import stage images
-import bfImage from './assets/stages/bf.avif';
-import fdImage from './assets/stages/fd.avif';
-import ps2Image from './assets/stages/ps2.avif';
-import sbfImage from './assets/stages/sbf.avif';
-import tncImage from './assets/stages/tnc.avif';
-import kalosImage from './assets/stages/kalos.avif';
-import hollowImage from './assets/stages/hollow.avif';
-import yoshisImage from './assets/stages/yoshis.avif';
-import smashvilleImage from './assets/stages/smashville.avif';
-
-// Stage image mapping
-const stageImages: { [key: string]: string } = {
-  'Battlefield': bfImage,
-  'Small Battlefield': sbfImage,
-  'Final Destination': fdImage,
-  'Pokemon Stadium 2': ps2Image,
-  'Smashville': smashvilleImage,
-  'Town & City': tncImage,
-  'Kalos Pokemon League': kalosImage,
-  'Yoshi\'s Story': yoshisImage,
-  'Hollow Bastion': hollowImage,
-};
+import { LoadingState, ErrorState } from './components/Feedback';
+import { stageImages } from './lib/stages';
 
 interface MatchupData {
   opponent: string;
@@ -87,30 +65,31 @@ const CharacterDetail: React.FC = () => {
   const [timelineData, setTimelineData] = useState<TimelineData[]>([]);
   const matchupRadarRef = useRef<HTMLDivElement>(null);
   const playerComparisonRef = useRef<HTMLDivElement>(null);
-  const heatmapRef = useRef<HTMLDivElement>(null);
   const timelineChartRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (!character) return;
 
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`/api/characters/${encodeURIComponent(character)}/stats`);
-        const result = await response.json();
-        if (result.success) {
-          setData(result);
-        } else {
-          setError(result.message || 'Failed to load character data');
-        }
-      } catch (err) {
-        setError('Failed to fetch character details');
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/characters/${encodeURIComponent(character)}/stats`);
+      const result = await response.json();
+      if (result.success) {
+        setData(result);
+      } else {
+        setError(result.message || 'Failed to load character data');
       }
-    };
-
-    fetchData();
+    } catch (err) {
+      setError('Failed to fetch character details');
+    } finally {
+      setLoading(false);
+    }
   }, [character]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Fetch heatmap data
   useEffect(() => {
@@ -274,7 +253,13 @@ const CharacterDetail: React.FC = () => {
         });
       }
 
-      return () => chart.dispose();
+      const resizeObserver = new ResizeObserver(() => chart.resize());
+      resizeObserver.observe(matchupRadarRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+        chart.dispose();
+      };
     }
   }, [data]);
 
@@ -328,7 +313,13 @@ const CharacterDetail: React.FC = () => {
         ]
       });
 
-      return () => chart.dispose();
+      const resizeObserver = new ResizeObserver(() => chart.resize());
+      resizeObserver.observe(playerComparisonRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+        chart.dispose();
+      };
     }
   }, [data]);
 
@@ -468,45 +459,37 @@ const CharacterDetail: React.FC = () => {
       ]
       });
 
-      return () => chart.dispose();
+      const resizeObserver = new ResizeObserver(() => chart.resize());
+      resizeObserver.observe(timelineChartRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+        chart.dispose();
+      };
   }, [timelineData]);
 
   if (loading) {
-  return (
-      <div className="stats-container" style={{ 
+    return (
+      <div className="stats-container" style={{
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-      <div style={{
-          textAlign: 'center', 
-          padding: '3rem', 
-          fontSize: '1.2rem',
-          color: '#a89984'
-        }}>
-          Loading character details...
-        </div>
+        <LoadingState label="Loading character details..." />
       </div>
     );
   }
-  
+
   if (error) {
     return (
-      <div className="stats-container" style={{ 
+      <div className="stats-container" style={{
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <div style={{ 
-          textAlign: 'center', 
-          padding: '2rem',
-          fontSize: '1.2rem',
-          color: '#fb4934'
-        }}>
-          {error}
-        </div>
+        <ErrorState message={error} onRetry={fetchData} />
       </div>
     );
   }

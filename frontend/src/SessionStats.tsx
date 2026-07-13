@@ -1,30 +1,8 @@
 import { useEffect, useState, forwardRef, useImperativeHandle, useRef } from 'react';
-import * as echarts from 'echarts';
+import type { ECharts } from 'echarts';
 import CharacterDisplay from './components/CharacterDisplay';
-
-// Import stage images
-import bfImage from './assets/stages/bf.avif';
-import fdImage from './assets/stages/fd.avif';
-import ps2Image from './assets/stages/ps2.avif';
-import sbfImage from './assets/stages/sbf.avif';
-import tncImage from './assets/stages/tnc.avif';
-import kalosImage from './assets/stages/kalos.avif';
-import hollowImage from './assets/stages/hollow.avif';
-import yoshisImage from './assets/stages/yoshis.avif';
-import smashvilleImage from './assets/stages/smashville.avif';
-
-// Stage image mapping
-const stageImages: { [key: string]: string } = {
-  'Battlefield': bfImage,
-  'Small Battlefield': sbfImage,
-  'Final Destination': fdImage,
-  'Pokemon Stadium 2': ps2Image,
-  'Smashville': smashvilleImage,
-  'Town & City': tncImage,
-  'Kalos Pokemon League': kalosImage,
-  'Yoshi\'s Story': yoshisImage,
-  'Hollow Bastion': hollowImage,
-};
+import { LoadingState, ErrorState } from './components/Feedback';
+import { stageImages } from './lib/stages';
 
 interface CharacterUsage {
   [character: string]: number;
@@ -67,6 +45,8 @@ interface MatchupStats {
 interface HeadToHeadStats {
   recent_form: {
     last_10: { shayne_wins: number; matt_wins: number; total_games: number };
+    last_20: { shayne_wins: number; matt_wins: number; total_games: number };
+    last_50: { shayne_wins: number; matt_wins: number; total_games: number };
   };
   streaks: {
     current_streak: { player: string; length: number };
@@ -110,7 +90,7 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
-  const chartInstanceRef = useRef<echarts.ECharts | null>(null);
+  const chartInstanceRef = useRef<ECharts | null>(null);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -175,11 +155,14 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
   }, [shayneCharacter, mattCharacter]);
 
   // Mini donut chart for win distribution
+  // echarts is dynamically imported so it stays out of the eager index chunk
+  // (SessionStats renders on the homepage; all other chart pages are lazy routes).
   useEffect(() => {
     if (!chartRef.current || !stats) return;
 
-    const chartInstance = echarts.init(chartRef.current);
-    chartInstanceRef.current = chartInstance;
+    let disposed = false;
+    let chartInstance: ECharts | null = null;
+    let handleResize: (() => void) | null = null;
 
     const option = {
       backgroundColor: 'transparent',
@@ -205,14 +188,29 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
       }]
     };
 
-    chartInstance.setOption(option);
+    import('echarts')
+      .then((echarts) => {
+        if (disposed || !chartRef.current) return;
 
-    const handleResize = () => chartInstance.resize();
-    window.addEventListener('resize', handleResize);
+        chartInstance = echarts.init(chartRef.current);
+        chartInstanceRef.current = chartInstance;
+        chartInstance.setOption(option);
+
+        handleResize = () => chartInstance?.resize();
+        window.addEventListener('resize', handleResize);
+      })
+      .catch((err) => {
+        console.error('Failed to load echarts:', err);
+      });
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      chartInstance.dispose();
+      disposed = true;
+      if (handleResize) window.removeEventListener('resize', handleResize);
+      if (chartInstance) {
+        chartInstance.dispose();
+        chartInstance = null;
+      }
+      if (chartInstanceRef.current) chartInstanceRef.current = null;
     };
   }, [stats]);
 
@@ -254,8 +252,8 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
           </button>
         )}
       </div>
-      {loading && <div style={{ fontSize: '0.85rem', color: '#a89984' }}>Loading...</div>}
-      {error && <div className="error" style={{ fontSize: '0.85rem', padding: '0.5rem' }}>{error}</div>}
+      {loading && <LoadingState />}
+      {error && <ErrorState message={error} onRetry={fetchStats} />}
       {!loading && !error && stats && lifetimeStats && headToHead && advancedMetrics && (
         <>
           {/* ========== DIVIDER ========== */}
