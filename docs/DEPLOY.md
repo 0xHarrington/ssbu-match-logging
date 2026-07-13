@@ -38,16 +38,25 @@ fly secrets set SITE_PASSWORD='<shared password for you + Shayne>'
 fly deploy --remote-only --ha=false
 ```
 
-Seed the existing 3,197 matches (one-time):
+Seed the existing 3,197 matches (one-time). **Gotcha:** the app creates an
+empty `game_results.csv` on first boot, and sftp `put` will NOT overwrite it —
+it fails with `file exists on VM` (easy to miss; it looks like output, but the
+upload did not happen). Remove the empty file first:
 
 ```bash
+fly ssh console -C "rm /data/game_results.csv"
 fly ssh sftp shell
 # inside the sftp shell:
 put backend/game_results.csv /data/game_results.csv
+# Ctrl-D to exit
+
+# verify the seed landed (expect 3198 = 3197 matches + header):
+fly ssh console -C "wc -l /data/game_results.csv"
 ```
 
-Then open `https://ssbu-match-logger.fly.dev`, enter any username + the shared
-password, and verify Recent Matches shows the historical data.
+No restart needed (the CSV is read per request). Open
+`https://ssbu-match-logger.fly.dev`, enter any username + the shared password,
+and verify Recent Matches shows the historical data.
 
 ## Routine deploys
 
