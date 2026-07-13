@@ -1,15 +1,25 @@
 # app.py
-from flask import Flask, request, jsonify
+from flask import Flask, Response, request, jsonify, send_from_directory
 from datetime import datetime
+import hmac
 import pandas as pd
 import os
 import logging
+import threading
 from typing import Dict, Any, Optional
 import json
 import pytz
 import shutil
 
 app = Flask(__name__)
+
+# Directory holding game_results.csv and backups/. Defaults to cwd (dev);
+# set DATA_DIR=/data in production so match data lives on a persistent volume.
+DATA_DIR = os.environ.get("DATA_DIR", ".")
+
+# Built frontend (vite build output) served in production; absent in dev,
+# where Vite's dev server proxies /api to this app instead.
+FRONTEND_DIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -33,6 +43,8 @@ class GameDataManager:
             "session_id",  # Session identifier
         ]
         self.session_gap_hours = 4  # Hours of inactivity before starting new session
+        # Serializes CSV read-modify-write cycles; pandas to_csv is not atomic
+        self._write_lock = threading.Lock()
         self._ensure_csv_exists()
         self._ensure_characters_file_exists()
         self._create_session_backup()
@@ -159,8 +171,8 @@ class GameDataManager:
                 logger.warning(f"Could not read CSV for backup check: {str(e)}")
                 return
 
-            # Create backups directory if it doesn't exist
-            backup_dir = "backups"
+            # Create backups directory alongside the CSV (persists with the volume in prod)
+            backup_dir = os.path.join(os.path.dirname(self.csv_path) or ".", "backups")
             if not os.path.exists(backup_dir):
                 os.makedirs(backup_dir)
                 logger.info(f"Created backup directory: {backup_dir}")
@@ -321,7 +333,8 @@ class GameDataManager:
         try:
             # Ensure the column order matches self.columns
             columns_to_save = [col for col in self.columns if col in df.columns]
-            df[columns_to_save].to_csv(self.csv_path, index=False)
+            with self._write_lock:
+                df[columns_to_save].to_csv(self.csv_path, index=False)
             logger.info("Session IDs saved to CSV")
         except Exception as e:
             logger.error(f"Error saving session IDs: {str(e)}")
@@ -661,14 +674,11 @@ class GameDataManager:
             # Log the processed game data
             logger.info(f"Processed game data: {new_game}")
 
-            # Load existing data
-            df = self._load_data()
-
-            # Append new game
-            df = pd.concat([df, pd.DataFrame([new_game])], ignore_index=True)
-
-            # Save updated DataFrame
-            df.to_csv(self.csv_path, index=False)
+            # Load-append-save under the write lock so concurrent logs can't drop rows
+            with self._write_lock:
+                df = self._load_data()
+                df = pd.concat([df, pd.DataFrame([new_game])], ignore_index=True)
+                df.to_csv(self.csv_path, index=False)
 
             logger.info(f"Successfully logged game: {new_game}")
             return True
@@ -677,6 +687,37 @@ class GameDataManager:
             logger.error(f"Error adding game: {str(e)}")
             logger.error(f"Game data that caused error: {game_data}")
             return False
+
+    def undo_last_game(self) -> Optional[Dict[str, Any]]:
+        """
+        Remove the most recently logged game (by timestamp) from the CSV file.
+
+        Returns:
+            The removed game as a plain JSON-serializable dict, or None if
+            there are no games to undo.
+        """
+        with self._write_lock:
+            df = pd.read_csv(self.csv_path)
+            if len(df) == 0:
+                return None
+
+            df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
+            last_idx = df["timestamp"].idxmax()
+            removed_row = df.loc[last_idx]
+
+            df = df.drop(index=last_idx)
+            df.to_csv(self.csv_path, index=False)
+
+        removed: Dict[str, Any] = {}
+        for key, value in removed_row.items():
+            if pd.isna(value):
+                removed[str(key)] = None
+            elif hasattr(value, "item"):
+                # Convert numpy scalar types to native Python types
+                removed[str(key)] = value.item()
+            else:
+                removed[str(key)] = value
+        return removed
 
     def get_recent_games(self, n: int = 5) -> pd.DataFrame:
         """Get the n most recent games."""
@@ -888,7 +929,27 @@ class GameDataManager:
 
 
 # Initialize data manager
-data_manager = GameDataManager("game_results.csv")
+data_manager = GameDataManager(os.path.join(DATA_DIR, "game_results.csv"))
+
+
+@app.before_request
+def require_site_password() -> Optional[Response]:
+    """Gate the whole app behind HTTP Basic auth when SITE_PASSWORD is set.
+
+    Unset in dev (no-op); required for any non-local deployment until real
+    multi-user auth ships.
+    """
+    site_password = os.environ.get("SITE_PASSWORD")
+    if not site_password:
+        return None
+    auth = request.authorization
+    if auth and auth.password and hmac.compare_digest(auth.password, site_password):
+        return None
+    return Response(
+        "Authentication required",
+        401,
+        {"WWW-Authenticate": 'Basic realm="ssbu-match-logger"'},
+    )
 
 
 @app.route("/log_game", methods=["POST"])
@@ -1100,6 +1161,20 @@ def session_stats():
 @app.route("/api/log_game", methods=["POST"])
 def api_log_game():
     return log_game()
+
+
+@app.route("/api/undo_last_game", methods=["POST"])
+def undo_last_game() -> Any:
+    """Remove the most recently logged match."""
+    try:
+        removed = data_manager.undo_last_game()
+        if removed is None:
+            return jsonify({"success": False, "message": "No matches to undo"}), 404
+        logger.info(f"Undid last game: {removed}")
+        return jsonify({"success": True, "removed": removed})
+    except Exception as e:
+        logger.error(f"Error in undo_last_game endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 @app.route("/api/characters")
@@ -2338,5 +2413,20 @@ def get_user_tearsheet(username):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+@app.route("/", methods=["GET"])
+@app.route("/<path:path>", methods=["GET"])
+def serve_frontend(path: str = "index.html") -> Any:
+    """Serve the built React app (production). API routes above take precedence;
+    unknown paths fall back to index.html for client-side routing."""
+    if os.path.isfile(os.path.join(FRONTEND_DIST, path)):
+        return send_from_directory(FRONTEND_DIST, path)
+    if os.path.isfile(os.path.join(FRONTEND_DIST, "index.html")):
+        return send_from_directory(FRONTEND_DIST, "index.html")
+    return (
+        jsonify({"success": False, "message": "Frontend build not found; use the Vite dev server in development"}),
+        404,
+    )
+
+
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0")
+    app.run(debug=os.environ.get("FLASK_DEBUG", "1") == "1", host="0.0.0.0")
