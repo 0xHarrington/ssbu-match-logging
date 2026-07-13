@@ -137,9 +137,12 @@ leverage-per-effort:
    that already exist in `index.css` (~700 literals). Unblocks LAUNCH.md's
    theme-switcher question and arbitrary player colors (P3 needs
    non-Shayne/Matt colors).
-2. **Shared fetch hook** with error/loading/abort — per-component raw `fetch`
-   is still duplicated everywhere (Feedback components landed; the data layer
-   under them didn't).
+2. **Shared fetch hook + typed API layer** with error/loading/abort —
+   per-component raw `fetch` is still duplicated everywhere (Feedback
+   components landed; the data layer under them didn't). Typing the API
+   payloads and ECharts callbacks also clears the ~40 `no-explicit-any`
+   warnings, at which point re-promote that ESLint rule to `error`
+   (`frontend/eslint.config.js`).
 3. **Empty states** for brand-new rivalries (P3 onboarding).
 4. **Quick rematch** button repeating characters+stage in one tap (sticky
    stage + undo shipped; this is the last logger-ergonomics item).
