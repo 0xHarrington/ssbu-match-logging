@@ -340,7 +340,7 @@ export default function MatchLogger({ onMatchLogged, onCharacterSelect, selected
       let data;
       try {
         data = await res.json();
-      } catch (jsonErr) {
+      } catch {
         throw new Error('Server returned an invalid response.');
       }
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed to log match');

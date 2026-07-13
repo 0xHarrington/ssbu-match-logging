@@ -42,7 +42,7 @@ const CharacterAnalytics: React.FC = () => {
         } else {
           setError(result.message || 'Failed to load character data');
         }
-      } catch (err) {
+      } catch {
         setError('Failed to fetch character analytics');
       } finally {
         setLoading(false);

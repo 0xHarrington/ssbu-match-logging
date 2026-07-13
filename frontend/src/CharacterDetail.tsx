@@ -80,7 +80,7 @@ const CharacterDetail: React.FC = () => {
       } else {
         setError(result.message || 'Failed to load character data');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to fetch character details');
     } finally {
       setLoading(false);

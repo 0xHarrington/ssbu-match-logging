@@ -16,6 +16,7 @@ app = Flask(__name__)
 # Directory holding game_results.csv and backups/. Defaults to cwd (dev);
 # set DATA_DIR=/data in production so match data lives on a persistent volume.
 DATA_DIR = os.environ.get("DATA_DIR", ".")
+os.makedirs(DATA_DIR, exist_ok=True)
 
 # Built frontend (vite build output) served in production; absent in dev,
 # where Vite's dev server proxies /api to this app instead.
