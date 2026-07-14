@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import * as echarts from 'echarts';
 import CharacterDisplay from './components/CharacterDisplay';
+import MatchEditorModal, { type EditableMatch } from './components/MatchEditorModal';
 import { LoadingState, ErrorState } from './components/Feedback';
 import { stageImages } from './lib/stages';
 
@@ -25,16 +26,28 @@ interface SessionStats {
   }>;
 }
 
+interface SessionMatchesResponse {
+  success: boolean;
+  matches: EditableMatch[];
+  total: number;
+  message?: string;
+}
+
 function SessionDetail() {
   const { session_id } = useParams<{ session_id: string }>();
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [matches, setMatches] = useState<EditableMatch[]>([]);
+  const [matchesLoading, setMatchesLoading] = useState(true);
+  const [matchesError, setMatchesError] = useState<string | null>(null);
+  const [editingMatch, setEditingMatch] = useState<EditableMatch | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (session_id) {
       fetchSessionStats();
+      fetchMatches();
     }
   }, [session_id]);
 
@@ -44,17 +57,42 @@ function SessionDetail() {
     try {
       const res = await fetch(`/api/sessions/${session_id}`);
       const data = await res.json();
-      
+
       if (!data.success) {
         throw new Error(data.message || 'Failed to load session stats');
       }
-      
+
       setStats(data);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchMatches = async () => {
+    if (!session_id) return;
+    setMatchesLoading(true);
+    setMatchesError(null);
+    try {
+      const res = await fetch(`/api/matches?session_id=${encodeURIComponent(session_id)}&limit=200`);
+      const data: SessionMatchesResponse = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to load session matches');
+      }
+
+      setMatches(data.matches);
+    } catch (err: unknown) {
+      setMatchesError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setMatchesLoading(false);
+    }
+  };
+
+  const handleMatchSaved = () => {
+    fetchMatches();
+    fetchSessionStats();
   };
 
   // Mini donut chart
@@ -107,6 +145,16 @@ function SessionDetail() {
       hour: 'numeric',
       minute: '2-digit'
     });
+  };
+
+  const formatMatchTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  const formatStocks = (value: EditableMatch['stocks_remaining']): string => {
+    if (value === null || value === undefined || value === '') return '—';
+    return `${value} stk`;
   };
 
   const calculateDuration = () => {
@@ -458,6 +506,107 @@ function SessionDetail() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Matches */}
+      <div style={{ marginTop: '2rem' }}>
+        <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem', color: '#fbf1c7', fontWeight: 'bold' }}>
+          Matches
+        </h3>
+        <div style={{
+          background: '#3c3836',
+          borderRadius: '12px',
+          border: '1px solid #504945',
+          padding: '0.75rem'
+        }}>
+          {matchesLoading && (
+            <div style={{ fontSize: '0.85rem', color: '#a89984', padding: '0.5rem' }}>Loading matches...</div>
+          )}
+          {matchesError && (
+            <div className="error" style={{ fontSize: '0.85rem', padding: '0.5rem' }}>{matchesError}</div>
+          )}
+          {!matchesLoading && !matchesError && matches.length === 0 && (
+            <div style={{ fontSize: '0.85rem', color: '#a89984', padding: '0.5rem' }}>No matches found for this session.</div>
+          )}
+          {!matchesLoading && !matchesError && matches.map((match) => {
+            const isShayneWin = match.winner === 'Shayne';
+            return (
+              <div
+                key={match.match_id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  flexWrap: 'wrap',
+                  padding: '0.6rem 0.5rem',
+                  borderBottom: '1px solid #504945',
+                  borderLeft: `3px solid ${isShayneWin ? '#fe8019' : '#b8bb26'}`,
+                  borderRadius: '4px',
+                  marginBottom: '0.25rem',
+                  background: '#32302f'
+                }}
+              >
+                <span style={{ fontSize: '0.75rem', color: '#a89984', fontVariantNumeric: 'tabular-nums', minWidth: '40px' }}>
+                  {formatMatchTime(match.datetime)}
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', flex: 1, minWidth: '160px', fontSize: '0.85rem' }}>
+                  <span style={{ color: '#fe8019' }}>
+                    <CharacterDisplay character={match.shayne_character} />
+                  </span>
+                  <span style={{ color: '#a89984', fontSize: '0.75rem' }}>vs</span>
+                  <span style={{ color: '#b8bb26' }}>
+                    <CharacterDisplay character={match.matt_character} />
+                  </span>
+                </span>
+                <span style={{
+                  fontSize: '0.7rem',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  color: '#282828',
+                  background: isShayneWin ? '#fe8019' : '#b8bb26',
+                  borderRadius: '4px',
+                  padding: '0.15rem 0.5rem'
+                }}>
+                  {match.winner}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: '#a89984', minWidth: '90px' }}>
+                  {match.stage || 'No stage'}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: '#a89984', minWidth: '38px', textAlign: 'right' }}>
+                  {formatStocks(match.stocks_remaining)}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Edit match"
+                  title="Edit match"
+                  onClick={() => setEditingMatch(match)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#a89984',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    padding: '0.2rem',
+                    lineHeight: 1
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#fbf1c7'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#a89984'; }}
+                >
+                  ✎
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {editingMatch && (
+        <MatchEditorModal
+          match={editingMatch}
+          onClose={() => setEditingMatch(null)}
+          onSaved={handleMatchSaved}
+        />
       )}
     </div>
   );
