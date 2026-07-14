@@ -2,6 +2,7 @@
 from flask import Flask, Response, request, jsonify, send_from_directory
 from datetime import datetime
 import csv
+import glob
 import hmac
 import pandas as pd
 import os
@@ -196,6 +197,23 @@ class GameDataManager:
             # Copy the CSV file to backup location
             shutil.copy2(self.csv_path, backup_path)
             logger.info(f"Session backup created: {backup_path}")
+
+            # Prune old backups: fly.toml scale-to-zero means every couch
+            # session is a boot, so backups/ grows unbounded without this.
+            # Filenames are `game_results_backup_YYYYMMDD_HHMMSS.csv`, which
+            # sort lexicographically in chronological order.
+            backup_files = sorted(
+                glob.glob(os.path.join(backup_dir, "game_results_backup_*.csv"))
+            )
+            retain = 20
+            stale = backup_files[:-retain] if len(backup_files) > retain else []
+            for stale_path in stale:
+                try:
+                    os.remove(stale_path)
+                except OSError as e:
+                    logger.warning(f"Could not prune old backup {stale_path}: {str(e)}")
+            if stale:
+                logger.info(f"Pruned {len(stale)} old backup(s), kept newest {retain}")
 
         except Exception as e:
             logger.error(f"Error creating session backup: {str(e)}")

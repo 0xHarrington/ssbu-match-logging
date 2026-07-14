@@ -118,3 +118,59 @@ class TestListMatchesQueryParams:
         # Clamped to 0 -> identical page to an explicit offset=0 request.
         baseline = client.get("/api/matches?offset=0").get_json()
         assert body["matches"] == baseline["matches"]
+
+
+class TestBackupPruning:
+    """(g) `_create_session_backup` copies the CSV on every boot with no
+    pruning; fly.toml scale-to-zero means every couch session is a boot, so
+    backups/ grows unbounded. Keep only the newest RETENTION.
+    """
+
+    RETENTION = 20
+
+    def test_prunes_old_backups_keeping_newest_n(self, appmod, tmp_path: Path) -> None:
+        csv_path = tmp_path / "game_results.csv"
+        pd.DataFrame(
+            [
+                {
+                    "datetime": "2025-12-11 21:05:18",
+                    "shayne_character": "Fox",
+                    "matt_character": "Falco",
+                    "winner": "Matt",
+                    "stocks_remaining": 2,
+                    "stage": "Battlefield",
+                    "timestamp": 1765505118.0,
+                    "session_id": "2025-12-11-21",
+                    "match_id": "backuptest01",
+                }
+            ]
+        ).to_csv(csv_path, index=False)
+
+        backups_dir = tmp_path / "backups"
+        backups_dir.mkdir()
+        # 25 fake backups, all dated well before "today" so the backup
+        # freshly created below always sorts as the newest.
+        fake_names = [
+            f"game_results_backup_202501{str(i).zfill(2)}_000000.csv"
+            for i in range(1, 26)
+        ]
+        for name in fake_names:
+            (backups_dir / name).write_text("fake")
+
+        before = {p.name for p in backups_dir.glob("game_results_backup_*.csv")}
+        assert len(before) == 25
+
+        # Constructing a fresh GameDataManager triggers _create_session_backup.
+        appmod.GameDataManager(str(csv_path))
+
+        after = sorted(p.name for p in backups_dir.glob("game_results_backup_*.csv"))
+        assert len(after) == self.RETENTION
+
+        new_files = set(after) - before
+        assert len(new_files) == 1  # the backup just created by construction
+
+        # Oldest fake backups (lexicographically first) are pruned first.
+        n_pruned = len(fake_names) - (self.RETENTION - 1)
+        oldest_fake = sorted(fake_names)[:n_pruned]
+        for name in oldest_fake:
+            assert name not in after
