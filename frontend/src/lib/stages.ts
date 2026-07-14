@@ -21,3 +21,18 @@ export const stageImages: { [key: string]: string } = {
   'Yoshi\'s Story': yoshisImage,
   'Hollow Bastion': hollowImage,
 };
+
+/** The 8 active stages, in the picker order the design specifies. Typed
+ *  against stageImages's keys so a typo/renamed stage fails to compile
+ *  instead of silently falling back to a placeholder texture. Yoshi's Story
+ *  is deliberately excluded (see stageImages above). */
+export const ACTIVE_STAGES: Extract<keyof typeof stageImages, string>[] = [
+  'Battlefield',
+  'Small Battlefield',
+  'Final Destination',
+  'Pokemon Stadium 2',
+  'Smashville',
+  'Town & City',
+  'Kalos Pokemon League',
+  'Hollow Bastion',
+];
