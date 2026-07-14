@@ -15,6 +15,11 @@ import shutil
 
 app = Flask(__name__)
 
+# Session IDs and other Eastern-local timestamps are always generated from
+# this fixed zone, independent of the host/container's process timezone
+# (the Fly container runs UTC; dev machines are typically already ET).
+EASTERN = pytz.timezone("US/Eastern")
+
 # Directory holding game_results.csv and backups/. Defaults to cwd (dev);
 # set DATA_DIR=/data in production so match data lives on a persistent volume.
 DATA_DIR = os.environ.get("DATA_DIR", ".")
@@ -244,7 +249,7 @@ class GameDataManager:
 
             if len(df) == 0:
                 # First game ever - create new session
-                game_time = datetime.fromtimestamp(game_timestamp)
+                game_time = datetime.fromtimestamp(game_timestamp, tz=EASTERN)
                 return self._generate_session_id(game_time)
 
             # Get the most recent game
@@ -258,7 +263,7 @@ class GameDataManager:
 
             if time_gap_hours > self.session_gap_hours:
                 # Start new session
-                game_time = datetime.fromtimestamp(game_timestamp)
+                game_time = datetime.fromtimestamp(game_timestamp, tz=EASTERN)
                 new_session_id = self._generate_session_id(game_time)
                 logger.info(
                     f"Starting new session: {new_session_id} (gap: {time_gap_hours:.1f}h)"
@@ -270,13 +275,13 @@ class GameDataManager:
                     return str(last_session_id)
                 else:
                     # Last game doesn't have session_id, create one based on its time
-                    last_game_time = datetime.fromtimestamp(last_timestamp)
+                    last_game_time = datetime.fromtimestamp(last_timestamp, tz=EASTERN)
                     return self._generate_session_id(last_game_time)
 
         except Exception as e:
             logger.error(f"Error determining session ID: {str(e)}")
             # Fallback to creating new session
-            game_time = datetime.fromtimestamp(game_timestamp)
+            game_time = datetime.fromtimestamp(game_timestamp, tz=EASTERN)
             return self._generate_session_id(game_time)
 
     def get_sessions(self) -> list:
@@ -353,14 +358,14 @@ class GameDataManager:
 
             if last_timestamp is None:
                 # First game
-                game_time = datetime.fromtimestamp(timestamp)
+                game_time = datetime.fromtimestamp(timestamp, tz=EASTERN)
                 current_session_id = self._generate_session_id(game_time)
             else:
                 # Check time gap
                 time_gap_hours = (timestamp - last_timestamp) / 3600
                 if time_gap_hours > self.session_gap_hours:
                     # New session
-                    game_time = datetime.fromtimestamp(timestamp)
+                    game_time = datetime.fromtimestamp(timestamp, tz=EASTERN)
                     current_session_id = self._generate_session_id(game_time)
 
             df.at[idx, "session_id"] = current_session_id
@@ -645,7 +650,7 @@ class GameDataManager:
                 return False
 
             # Create a new entry with Eastern time
-            eastern = pytz.timezone("US/Eastern")
+            eastern = EASTERN
             now = datetime.now(eastern)
             timestamp = now.timestamp()
 
@@ -741,7 +746,7 @@ class GameDataManager:
                     changed = True
 
                 df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
-                eastern = pytz.timezone("US/Eastern")
+                eastern = EASTERN
                 missing_ts = df["timestamp"].isna() & df["datetime"].notna()
                 for idx in df.index[missing_ts]:
                     try:
@@ -1251,7 +1256,7 @@ def session_stats():
 
         # Otherwise, return current session stats (backward compatible)
         # Get current date in Eastern time
-        eastern = pytz.timezone("US/Eastern")
+        eastern = EASTERN
         now = datetime.now(eastern)
         today_start = eastern.localize(datetime(now.year, now.month, now.day))
         today_end = eastern.localize(datetime(now.year, now.month, now.day, 23, 59, 59))
@@ -1427,9 +1432,7 @@ def _append_edit_log(
                 )
             writer.writerow(
                 [
-                    datetime.now(pytz.timezone("US/Eastern")).strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    ),
+                    datetime.now(EASTERN).strftime("%Y-%m-%d %H:%M:%S"),
                     editor,
                     action,
                     match_id,
