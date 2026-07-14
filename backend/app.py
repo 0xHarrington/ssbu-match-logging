@@ -1159,6 +1159,18 @@ def get_matchup_stats():
     if not shayne_char or not matt_char:
         return jsonify({"error": "Both characters must be specified"}), 400
 
+    # Optional rolling window: `recent_n` returns the head-to-head record over
+    # the most recent N games of this matchup (redesign's on-deck "last 50" card).
+    recent_n = None
+    recent_n_raw = request.args.get("recent_n")
+    if recent_n_raw is not None:
+        try:
+            recent_n = int(recent_n_raw)
+        except (TypeError, ValueError):
+            return jsonify({"error": "recent_n must be an integer"}), 400
+        if recent_n <= 0:
+            return jsonify({"error": "recent_n must be a positive integer"}), 400
+
     df = data_manager._load_data()
 
     # Filter for this specific matchup
@@ -1167,9 +1179,15 @@ def get_matchup_stats():
     ]
 
     if len(matchup_data) == 0:
-        return jsonify(
-            {"total_games": 0, "shayne_wins": 0, "matt_wins": 0, "recent_games": []}
-        )
+        empty = {"total_games": 0, "shayne_wins": 0, "matt_wins": 0, "recent_games": []}
+        if recent_n is not None:
+            empty["recent_n"] = {
+                "n": recent_n,
+                "games": 0,
+                "shayne_wins": 0,
+                "matt_wins": 0,
+            }
+        return jsonify(empty)
 
     # Prepare recent games with only needed columns and handle NaN values
     recent_games_df = matchup_data.sort_values("datetime", ascending=False).head(5)
@@ -1187,6 +1205,15 @@ def get_matchup_stats():
         "matt_wins": len(matchup_data[matchup_data["winner"] == "Matt"]),
         "recent_games": recent_games,
     }
+
+    if recent_n is not None:
+        window = matchup_data.sort_values("datetime", ascending=False).head(recent_n)
+        stats["recent_n"] = {
+            "n": recent_n,
+            "games": len(window),
+            "shayne_wins": len(window[window["winner"] == "Shayne"]),
+            "matt_wins": len(window[window["winner"] == "Matt"]),
+        }
 
     return jsonify(stats)
 

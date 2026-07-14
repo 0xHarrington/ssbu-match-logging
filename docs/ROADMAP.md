@@ -135,24 +135,44 @@ Rate limiting (Flask-Limiter), signup captcha, error monitoring (Sentry free
 tier), a landing page, custom domain, privacy notes, then LAUNCH.md Phase 5
 (soft launch → r/smashbros).
 
-## 4. UX improvement backlog
+## 4. UX overhaul — Session command center SHIPPED 2026-07-14
 
-Remaining items (the 2026-07-12/13 wave shipped the rest — see §1), ordered by
-leverage-per-effort:
+The homepage was rebuilt from the couch-side logger into a **live session command
+center** (Claude Design handoff, "Smash Rivalry Redesign"). Gruvbox retained,
+elevated with a Space Grotesk / IBM Plex Mono type system.
 
-1. **Theme via CSS variables**: replace inline hex with the `--gruvbox-*` vars
-   that already exist in `index.css` (~700 literals). Unblocks LAUNCH.md's
-   theme-switcher question and arbitrary player colors (P3 needs
-   non-Shayne/Matt colors).
-2. **Shared fetch hook + typed API layer** with error/loading/abort —
-   per-component raw `fetch` is still duplicated everywhere (Feedback
-   components landed; the data layer under them didn't). Typing the API
-   payloads and ECharts callbacks also clears the ~40 `no-explicit-any`
-   warnings, at which point re-promote that ESLint rule to `error`
-   (`frontend/eslint.config.js`).
-3. **Empty states** for brand-new rivalries (P3 onboarding).
-4. **Quick rematch** button repeating characters+stage in one tap (sticky
-   stage + undo shipped; this is the last logger-ergonomics item).
+- **App shell** (`components/shell/AppShell.tsx`): the top-header nav is replaced
+  by a desktop sidebar (SmashLog logo, icon nav, active-rivalry card) and a mobile
+  top-bar + left drawer. Existing pages re-home into the frame unchanged.
+- **Desktop Session dashboard** (`session/SessionDesktop.tsx`): cinematic VS
+  scoreboard (real roster icons), on-deck matchup history (all-time / last-50 /
+  this-session), session-scoped tiles, match feed, stages-this-session, docked
+  log rail; see-all + edit-match modals on the real match-editor endpoints.
+- **Mobile Session app** (`session/mobile/`): a Session/Log/Stats/History tab app
+  with three hero directions (Scoreboard · Momentum sparkline · Tale of the tape).
+  All-time stats live on the Stats tab; the homepage stays session-scoped.
+- **Live-session data** is derived client-side (`hooks/useLiveSession.ts`) from
+  existing routes — run pips, momentum series, stage splits, on-deck matchup —
+  plus one additive backend param (`recent_n` on `/matchup_stats`, 25 routes now).
+- **Typed API layer landed** (`lib/api.ts` + `types.ts`) for the new screens —
+  the long-standing §4 item (2). Older pages still use raw `fetch`; the sweep to
+  clear the remaining `no-explicit-any` warnings and re-promote the ESLint rule is
+  still open.
+- **Quick rematch** (former §4 item 4) shipped: pre-fills the on-deck matchup +
+  sticky stage in one tap. **Empty states** for new sessions shipped (desktop +
+  mobile).
+
+Remaining UX backlog, ordered by leverage-per-effort:
+
+1. **Theme via CSS variables**: replace inline hex with the Gruvbox vars in
+   `index.css` (~700 literals; the redesign added `--shayne`/`--matt`/depth
+   tokens but kept many inline). Unblocks LAUNCH.md's theme-switcher question and
+   arbitrary player colors (P3 needs non-Shayne/Matt colors).
+2. **Extend the typed API layer** to the older stats/tearsheet pages and clear
+   the ~30 remaining `no-explicit-any` warnings, then re-promote that ESLint rule
+   to `error` (`frontend/eslint.config.js`).
+3. **Interior-page reskin**: Statistics / Characters / Sessions / Tearsheets were
+   re-framed into the new shell but keep their pre-redesign internals.
 
 ## 5. Dither-kit adoption — SHIPPED 2026-07-14
 
@@ -234,7 +254,10 @@ result-screen crop as evidence for the confirm card is opt-in.
 **Vision approach — escalate only as needed:**
 
 - **M0 (no ML):** pairing + a manual one-tap "log it" remote on the phone.
-  Ships the transport and confirm-queue plumbing alone.
+  Ships the transport and confirm-queue plumbing alone. *(The 2026-07-14 redesign
+  added the confirm-sheet UI as a labelled roadmap preview — an "Auto-detect"
+  pill/button that explains the feature and routes to manual logging; it writes
+  no data and has no detection behind it yet.)*
 - **M1 (classical CV):** detect the "GAME!" splash and results screen via
   template matching / perceptual hash — SSBU's UI is fixed-layout, high-contrast.
   OpenCV.js in a web worker. This alone answers *when* a match ended and

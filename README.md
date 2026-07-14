@@ -7,7 +7,8 @@ Roughly 3,200 historical matches are already logged.
 
 **Stack:** React 19 · react-router 6 · Vite 6 · TypeScript 5.8 ·
 [dither-kit](https://www.tripwire.sh/dither-kit) charts (vendored, MIT) ·
-Flask 3.1 · gunicorn · pandas / numpy · deployed on Fly.io.
+Space Grotesk / IBM Plex Mono type system · Flask 3.1 · gunicorn · pandas / numpy ·
+deployed on Fly.io.
 
 ## System design
 
@@ -56,11 +57,18 @@ flowchart LR
 
 ## Features
 
-- **Match logging**: character search with win rates, sticky stage selection,
-  winner + stocks remaining, and a 10-second undo window after each log
+- **Session command center** (homepage): a live scoreboard for the current
+  session. On desktop, a sidebar-framed dashboard — cinematic VS scoreboard,
+  on-deck matchup history (all-time / last-50 / this-session), session-scoped
+  tiles, the match feed, stages-this-session, and a docked log rail. On mobile,
+  a tabbed phone app (Session / Log / Stats / History) with three switchable
+  hero directions (Scoreboard · Momentum sparkline · Tale of the tape). Global
+  all-time stats live on the Stats tab, keeping the homepage session-scoped.
+- **Match logging**: fighter pickers pre-filled from the on-deck matchup, sticky
+  stage, winner + stocks, and a one-tap undo toast after each log
 - **Match editor**: fix mislogged matches (characters, winner, stage, stocks) or
-  delete bogus rows from Recent Matches or any session's match list; every
-  edit is recorded in an audit log (`edit_log.csv`)
+  delete bogus rows from the session feed's see-all/edit modals; every edit is
+  recorded in an audit log (`edit_log.csv`)
 - **Session tracking**: games auto-group into sessions (a 4+ hour gap starts a
   new one)
 - **Statistics dashboard**: win rates, streaks, monthly activity, top matchups,
@@ -71,7 +79,8 @@ flowchart LR
   performance, and a usage overview / tier list
 - **Session history**: browse sessions, session detail views, session comparison
 - **Local CSV storage**: timestamped entries with an automatic backup on each boot
-- **Dark UI**: Gruvbox-inspired theme
+- **Dark UI**: Gruvbox palette, elevated with a Space Grotesk / IBM Plex Mono type
+  system; responsive shell (desktop sidebar / mobile bottom-tabs + drawer)
 
 ## Live deployment (Fly.io)
 
@@ -138,12 +147,16 @@ backend/
   game_results.csv      # match store (dev; on the Fly volume in prod)
   .env.example          # SITE_PASSWORD, DATA_DIR, FLASK_DEBUG
 frontend/src/
-  App.tsx               # router + nav (routes are code-split)
-  MatchLogger.tsx       # logging homepage
+  App.tsx               # router (routes are code-split); wraps pages in AppShell
+  session/              # Session command center: SessionPage + Desktop/Mobile
+                        #   layouts, components/, mobile/, useLogForm, format
+  hooks/                # useLiveSession (derives the live session), useMediaQuery
+  lib/api.ts            # typed API client (new screens); lib/stages.ts stage map
+  types.ts              # shared domain types for the redesign
   StatsPage / Session*  # dashboards, session views, tearsheets
   CharacterAnalytics/Detail.tsx
-  components/           # CharacterDisplay, PerformanceHeatmap, Feedback, stats/
-  lib/stages.ts         # shared stage-image map
+  components/shell/     # AppShell (sidebar / bottom-tabs + drawer), nav icons
+  components/           # CharacterDisplay, PerformanceHeatmap, Feedback, dither/, stats/
 docs/DEPLOY.md          # Fly.io runbook
 docs/ROADMAP.md         # public-launch roadmap
 Dockerfile              # 2-stage build: Vite bundle -> Python runtime
