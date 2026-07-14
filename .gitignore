@@ -17,6 +17,9 @@ backups/
 *.md
 !README.md
 !docs/*.md
+!CLAUDE.md
+!plans/
+!plans/*.md
 
 # Python
 __pycache__/
