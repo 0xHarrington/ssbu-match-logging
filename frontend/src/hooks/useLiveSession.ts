@@ -93,6 +93,25 @@ function computeCurrentRun(matchesNewestFirst: Match[]): { player: Player; lengt
   return run;
 }
 
+/** The server clamps `limit` to 200 (backend/app.py), so long sessions need
+ *  paginated follow-up requests to get the full match list — the pips /
+ *  momentum / stages / currentRun derivations below need every game, not just
+ *  the newest 200, to agree with the authoritative `session.total_games`. */
+async function fetchAllSessionMatches(sessionId: string): Promise<{ matches: Match[]; total: number }> {
+  const first = await getMatches({ sessionId, limit: 200 });
+  let matches = first.matches;
+  const total = first.total;
+  const maxIterations = Math.ceil(total / 200) + 1;
+  let iterations = 1;
+  while (matches.length < total && iterations < maxIterations) {
+    const page = await getMatches({ sessionId, limit: 200, offset: matches.length });
+    if (page.matches.length === 0) break; // guard: server returned nothing further
+    matches = matches.concat(page.matches);
+    iterations += 1;
+  }
+  return { matches, total };
+}
+
 function deriveStageSplits(matches: Match[]): StageSplit[] {
   const byStage = new Map<string, StageSplit>();
   for (const m of matches) {
@@ -134,13 +153,13 @@ export function useLiveSession(): UseLiveSessionResult {
         const sessionId = current.session_id;
 
         // Fan out the per-session reads together.
-        const [session, matchesResp, sessions] = await Promise.all([
+        const [session, matchesData, sessions] = await Promise.all([
           getSession(sessionId),
-          getMatches({ sessionId, limit: 200 }),
+          fetchAllSessionMatches(sessionId),
           getSessions().catch(() => [] as SessionSummary[]),
         ]);
 
-        const matches = matchesResp.matches;
+        const matches = matchesData.matches;
         if (matches.length === 0) {
           if (!cancelled) {
             setEmpty(true);
