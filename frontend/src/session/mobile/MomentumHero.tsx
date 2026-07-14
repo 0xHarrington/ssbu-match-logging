@@ -1,5 +1,5 @@
 // MomentumHero — hero direction B: session-lead sparkline + recent match feed.
-import { Sparkline } from '../../components/dither';
+import { LineChart, Line } from '../../components/dither';
 import MatchRow from '../components/MatchRow';
 import type { LiveSession } from '../../hooks/useLiveSession';
 
@@ -7,8 +7,9 @@ export default function MomentumHero({ live }: { live: LiveSession }) {
   const lead = live.shayneWins - live.mattWins;
   const leadLabel = lead === 0 ? 'Even' : lead > 0 ? `Shayne +${lead}` : `Matt +${-lead}`;
   const leadColor = lead === 0 ? 'var(--gray)' : lead > 0 ? 'var(--shayne)' : 'var(--matt)';
-  // Sparkline needs >=2 points; pad a single-game session with a leading zero.
+  // Line needs >=2 points; pad a single-game session with a leading zero.
   const series = live.momentum.length >= 2 ? live.momentum : [0, ...live.momentum];
+  const chartData = series.map((v, i) => ({ i, v }));
 
   return (
     <div style={{ animation: 'popIn 0.3s ease' }}>
@@ -21,7 +22,9 @@ export default function MomentumHero({ live }: { live: LiveSession }) {
           <span>SHAYNE</span>
         </div>
         <div style={{ height: 74, width: '100%' }}>
-          <Sparkline data={series} color="aqua" variant="gradient" />
+          <LineChart data={chartData} config={{ v: { label: 'Session lead', color: 'aqua' } }} interactive={false} animate={false} margins={{ top: 6, right: 4, bottom: 6, left: 4 }}>
+            <Line dataKey="v" variant="gradient" />
+          </LineChart>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--faint)', fontFamily: 'var(--font-mono)' }}>
           <span>MATT</span>

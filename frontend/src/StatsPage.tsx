@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import CharacterDisplay from './components/CharacterDisplay';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, DitherHeatmap, Grid, type DitherHeatmapCell } from './components/dither';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, DitherHeatmap, Grid, type DitherHeatmapCell } from './components/dither';
 import { LoadingState, ErrorState } from './components/Feedback';
 import { PageColumn, PageHeader, SectionTitle, Card, GlowPanel, StatTile } from './components/ui';
 import { SplitBar } from './session/components/bars';
@@ -352,11 +352,11 @@ const StatsPage: React.FC = () => {
         <Card>
           <SectionTitle hint="rolling win rate · Shayne">Head-to-head over time</SectionTitle>
           <div style={{ width: '100%', height: 180 }}>
-            <AreaChart data={timelineData} config={{ wr: { label: 'Shayne win rate', color: 'orange' } }}>
+            <LineChart data={timelineData} config={{ wr: { label: 'Shayne win rate', color: 'orange' } }}>
               <Grid />
               <YAxis tickFormatter={(v) => `${Math.round(v)}%`} />
-              <Area dataKey="wr" variant="gradient" />
-            </AreaChart>
+              <Line dataKey="wr" variant="gradient" />
+            </LineChart>
           </div>
         </Card>
       )}

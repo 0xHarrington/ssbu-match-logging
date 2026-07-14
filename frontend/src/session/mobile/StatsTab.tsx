@@ -2,7 +2,7 @@
 // win-rate-over-time sparkline. This is where global/all-time stats live (the
 // Session tab stays session-scoped, per the design's key decision).
 import { useEffect, useState } from 'react';
-import { PieChart, Pie, Sparkline } from '../../components/dither';
+import { PieChart, Pie, LineChart, Line } from '../../components/dither';
 import { ErrorState, LoadingState } from '../../components/Feedback';
 import { getAllTimeStats, getHeadToHead, getSessions, getWinRateTimeline } from '../../lib/api';
 import type { AllTimeStats, HeadToHeadStats } from '../../types';
@@ -102,7 +102,9 @@ export default function StatsTab() {
           <div style={{ fontSize: 11, color: 'var(--gray)', fontFamily: 'var(--font-mono)', marginBottom: 10 }}>SHAYNE WIN RATE OVER TIME</div>
           <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: '14px 12px 8px' }}>
             <div style={{ height: 70, width: '100%' }}>
-              <Sparkline data={winRates} color="orange" variant="gradient" />
+              <LineChart data={winRates.map((v, i) => ({ i, v }))} config={{ v: { label: 'Win rate', color: 'orange' } }} interactive={false} animate={false} margins={{ top: 6, right: 4, bottom: 6, left: 4 }}>
+                <Line dataKey="v" variant="gradient" />
+              </LineChart>
             </div>
           </div>
         </>
