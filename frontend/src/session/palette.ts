@@ -40,4 +40,15 @@ export function winnerColorVar(winner: string): string {
   return 'var(--faint)';
 }
 
+/** Session-lead label + color from each player's win count. */
+export function sessionLead(
+  shayneWins: number,
+  mattWins: number,
+): { lead: number; label: string; color: string } {
+  const lead = shayneWins - mattWins;
+  const label = lead === 0 ? 'Even' : lead > 0 ? `Shayne +${lead}` : `Matt +${-lead}`;
+  const color = lead === 0 ? 'var(--gray)' : lead > 0 ? 'var(--shayne)' : 'var(--matt)';
+  return { lead, label, color };
+}
+
 export const OTHER: Record<Player, Player> = { Shayne: 'Matt', Matt: 'Shayne' };

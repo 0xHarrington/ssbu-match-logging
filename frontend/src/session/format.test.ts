@@ -2,6 +2,7 @@
 // helpers. Pure functions, no DOM/network — plain vitest.
 import { describe, it, expect } from 'vitest';
 import { matchTime, formatDuration, sessionDisplayName, stocksLabel, parseStocks } from './format';
+import { sessionLead } from './palette';
 
 describe('matchTime', () => {
   it('extracts HH:MM from a "YYYY-MM-DD HH:MM:SS" datetime', () => {
@@ -65,6 +66,20 @@ describe('parseStocks', () => {
 
   it('returns null for an empty string', () => {
     expect(parseStocks('')).toBeNull();
+  });
+});
+
+describe('sessionLead', () => {
+  it('labels an even score', () => {
+    expect(sessionLead(3, 3)).toEqual({ lead: 0, label: 'Even', color: 'var(--gray)' });
+  });
+
+  it('labels a Shayne lead', () => {
+    expect(sessionLead(5, 2)).toEqual({ lead: 3, label: 'Shayne +3', color: 'var(--shayne)' });
+  });
+
+  it('labels a Matt lead', () => {
+    expect(sessionLead(2, 5)).toEqual({ lead: -3, label: 'Matt +3', color: 'var(--matt)' });
   });
 });
 

@@ -2,6 +2,7 @@
 // session (global/all-time stats live on the Stats page, per the design).
 import type { LiveSession } from '../../hooks/useLiveSession';
 import { parseStocks } from '../format';
+import { sessionLead } from '../palette';
 
 interface Tile {
   value: string;
@@ -10,10 +11,7 @@ interface Tile {
 }
 
 function deriveTiles(live: LiveSession): Tile[] {
-  const lead = live.shayneWins - live.mattWins;
-  const leadLabel =
-    lead === 0 ? 'Even' : lead > 0 ? `Shayne +${lead}` : `Matt +${-lead}`;
-  const leadColor = lead === 0 ? 'var(--gray)' : lead > 0 ? 'var(--shayne)' : 'var(--matt)';
+  const { label: leadLabel, color: leadColor } = sessionLead(live.shayneWins, live.mattWins);
 
   const run = live.currentRun;
   const runLabel = run ? `${run.player} W${run.length}` : '—';
