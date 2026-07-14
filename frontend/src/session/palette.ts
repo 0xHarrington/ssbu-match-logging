@@ -50,5 +50,3 @@ export function sessionLead(
   const color = lead === 0 ? 'var(--gray)' : lead > 0 ? 'var(--shayne)' : 'var(--matt)';
   return { lead, label, color };
 }
-
-export const OTHER: Record<Player, Player> = { Shayne: 'Matt', Matt: 'Shayne' };
