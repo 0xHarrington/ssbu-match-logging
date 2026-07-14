@@ -78,6 +78,14 @@ It never deploys — deploys stay manual, same as nesty.
 | Shell into machine | `fly ssh console` |
 | Pull data down | `fly ssh sftp get /data/game_results.csv` |
 
+## One-time CSV rewrite on upgrade (match-editor release)
+
+The first boot after deploying the match-editor release runs an idempotent
+repair pass: it adds a `match_id` column and derives missing unix timestamps
+from `datetime` strings (218 legacy rows). The whole CSV is rewritten once,
+under the write lock, with the boot backup taken beforehand. Subsequent boots
+are no-ops. Match edits/deletes are audited in `/data/edit_log.csv`.
+
 ## Backups
 
 1. **Fly volume snapshots** — automatic, block-level, `snapshot_retention = 14` days (configured in fly.toml).

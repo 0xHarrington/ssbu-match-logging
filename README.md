@@ -58,6 +58,9 @@ flowchart LR
 
 - **Match logging**: character search with win rates, sticky stage selection,
   winner + stocks remaining, and a 10-second undo window after each log
+- **Match editor**: fix mislogged matches (characters, winner, stage, stocks) or
+  delete bogus rows from Recent Matches or any session's match list; every
+  edit is recorded in an audit log (`edit_log.csv`)
 - **Session tracking**: games auto-group into sessions (a 4+ hour gap starts a
   new one)
 - **Statistics dashboard**: win rates, streaks, monthly activity, top matchups,

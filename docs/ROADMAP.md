@@ -39,6 +39,13 @@ zero tests, two-player assumption baked into the CSV schema itself
 - 404 route; dead plotly stub, stray root `package.json`, and empty backend
   scaffold dirs removed; `frontend/package-lock.json` now committed (CI/Docker
   need it).
+- **Match editor** (2026-07-14): every match has a stable `match_id`
+  (idempotent startup backfill, which also repaired 218 legacy rows missing
+  timestamps); `GET /api/matches`, `PUT/DELETE /api/matches/<id>` with
+  validation + `edit_log.csv` audit trail; edit modal reachable from Recent
+  Matches and session detail. First backend pytest suite landed with it
+  (seed of the P2 characterization harness). `match_id` becomes the primary
+  key in the P2 SQLite migration.
 
 **Known debt** (ranked, from the survey):
 
