@@ -64,3 +64,31 @@ class TestStreakNonContiguousIndex:
         # Chronologically last two surviving rows are both Shayne wins in a
         # row after the Matt win at the start.
         assert body["stats"]["current_streak"] == {"player": "Shayne", "length": 1}
+
+
+class TestSessionStatsDstAmbiguous:
+    """(b) `dt.tz_localize("US/Eastern")` defaults to ambiguous="raise" /
+    nonexistent="raise". A match logged during the 01:00-01:59 fall-back
+    repeat hour poisons the whole /api/session_stats endpoint.
+    """
+
+    def test_ambiguous_local_time_does_not_500(self, client, data_dir: Path) -> None:
+        # 2025-11-02 01:30:00 is the DST fall-back repeated hour in US/Eastern.
+        rows = [
+            {
+                "datetime": "2025-11-02 01:30:00",
+                "shayne_character": "Fox",
+                "matt_character": "Falco",
+                "winner": "Matt",
+                "stocks_remaining": 2,
+                "stage": "Battlefield",
+                "timestamp": 1762061400.0,
+                "session_id": "2025-11-02-01",
+                "match_id": "dstmatch01",
+            },
+        ]
+        pd.DataFrame(rows).to_csv(data_dir / "game_results.csv", index=False)
+
+        res = client.get("/api/session_stats")
+        assert res.status_code == 200
+        assert res.get_json()["success"] is True

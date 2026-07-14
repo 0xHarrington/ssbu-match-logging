@@ -1265,7 +1265,9 @@ def session_stats():
         df = data_manager._load_data()
 
         # Convert datetime column to datetime objects in Eastern timezone
-        df["datetime"] = pd.to_datetime(df["datetime"]).dt.tz_localize("US/Eastern")
+        df["datetime"] = pd.to_datetime(df["datetime"]).dt.tz_localize(
+            "US/Eastern", ambiguous=True, nonexistent="shift_forward"
+        )
 
         # Filter for today's games
         games = df[(df["datetime"] >= today_start) & (df["datetime"] <= today_end)]
