@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import CharacterDisplay from './components/CharacterDisplay';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, type ChartConfig } from './components/dither';
+import { LoadingState, ErrorState } from './components/Feedback';
+import { PageColumn, PageHeader, SectionTitle, Card, TierBadge, winRateTier } from './components/ui';
+import CharToken from './session/components/CharToken';
+import type { Player } from './types';
 
 interface CharacterOverviewData {
   total_games: number;
@@ -34,6 +37,8 @@ interface WinRateBinRow {
   count: number;
 }
 
+// win_rate is a PERCENT (0-100): the bins compare directly against it and it is
+// rendered with a trailing "%". winRateTier() also expects a percent.
 const WIN_RATE_BINS = [0, 20, 40, 50, 60, 80, 100];
 const WIN_RATE_BIN_LABELS = ['0-20%', '20-40%', '40-50%', '50-60%', '60-80%', '80-100%'];
 
@@ -45,32 +50,38 @@ const winRateDistConfig: ChartConfig = {
   count: { label: 'Characters', color: 'blue' },
 };
 
+/** Whoever uses this character more sets its token color. */
+const dominantPlayer = (stats: CharacterOverviewData): Player =>
+  stats.shayne_usage >= stats.matt_usage ? 'Shayne' : 'Matt';
+
 const CharacterAnalytics: React.FC = () => {
   const [data, setData] = useState<CharactersStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'usage_rate' | 'win_rate' | 'total_games'>('usage_rate');
+  const [sortBy, setSortBy] = useState<'usage_rate' | 'win_rate' | 'total_games'>('win_rate');
   const [filterMinGames, setFilterMinGames] = useState(0);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('/api/characters/overview');
-        const result = await response.json();
-        if (result.success) {
-          setData(result);
-        } else {
-          setError(result.message || 'Failed to load character data');
-        }
-      } catch {
-        setError('Failed to fetch character analytics');
-      } finally {
-        setLoading(false);
+  const fetchData = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/characters/overview');
+      const result = await response.json();
+      if (result.success) {
+        setData(result);
+      } else {
+        setError(result.message || 'Failed to load character data');
       }
-    };
-
-    fetchData();
+    } catch {
+      setError('Failed to fetch character analytics');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Top 15 characters by usage rate
   const usageChartData: UsageChartRow[] = data
@@ -100,414 +111,222 @@ const CharacterAnalytics: React.FC = () => {
       }))
     : [];
 
-  if (loading) {
-    return (
-      <div className="stats-container" style={{ 
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{ 
-          textAlign: 'center', 
-          padding: '3rem', 
-          fontSize: '1.2rem',
-          color: '#a89984'
-        }}>
-          Loading character analytics...
-        </div>
-      </div>
-    );
-  }
-  
-  if (error) {
-    return (
-      <div className="stats-container" style={{ 
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{ 
-          textAlign: 'center', 
-          padding: '2rem',
-          fontSize: '1.2rem',
-          color: '#fb4934'
-        }}>
-          {error}
-        </div>
-      </div>
-    );
-  }
-  
+  if (loading) return <LoadingState label="Loading character analytics…" />;
+  if (error) return <ErrorState message={error} onRetry={fetchData} />;
   if (!data) return null;
 
-  // Sort characters based on selected criteria
-  const sortedCharacters = Object.entries(data.characters).sort((a, b) => {
-    const aVal = a[1][sortBy];
-    const bVal = b[1][sortBy];
-    return bVal - aVal;
-  });
+  const charactersWithData = Object.entries(data.characters).filter(
+    ([, stats]) => stats.total_games > 0
+  );
 
-  // Filter characters with at least some usage and minimum games
-  const activeCharacters = sortedCharacters.filter(([_, stats]) => stats.total_games >= filterMinGames);
+  // Highest win rate among characters with a meaningful sample (>= 20 games).
+  const winRateLeader = charactersWithData
+    .filter(([, stats]) => stats.total_games >= 20)
+    .sort((a, b) => b[1].win_rate - a[1].win_rate)[0];
+
+  // Sort characters based on selected criteria, then filter by minimum games.
+  const sortedCharacters = Object.entries(data.characters).sort(
+    (a, b) => b[1][sortBy] - a[1][sortBy]
+  );
+  const activeCharacters = sortedCharacters.filter(
+    ([, stats]) => stats.total_games >= filterMinGames
+  );
+
+  const sortOptions: Array<{ key: typeof sortBy; label: string }> = [
+    { key: 'usage_rate', label: 'Usage' },
+    { key: 'win_rate', label: 'Win rate' },
+    { key: 'total_games', label: 'Games' },
+  ];
 
   return (
-    <div className="stats-container" style={{ 
-      maxWidth: '1400px', 
-      padding: '1.5rem',
-      margin: '0 auto'
-    }}>
-      {/* Header Section */}
-      <section className="stats-section" style={{ marginBottom: '1.5rem' }}>
-        <div style={{
-          background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
-          borderRadius: '16px',
-          padding: '1.5rem',
-          border: '1px solid #504945',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          textAlign: 'center'
-        }}>
-          <h1 style={{ 
-            fontSize: '1.8rem', 
-            fontWeight: 'bold',
-            marginBottom: '0.5rem',
-            color: '#fbf1c7'
-          }}>
-            🎮 Character Analytics
-          </h1>
-          <p style={{ 
-            color: '#a89984', 
-            marginBottom: '1rem', 
-            fontSize: '0.9rem' 
-          }}>
-            {data.total_matches} total matches • {activeCharacters.length} characters with data
-          </p>
-          
-          {/* Quick Stats */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-            gap: '1rem',
-            marginTop: '1rem'
-          }}>
-            <div>
-              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase' }}>
-                Most Used
-              </div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#83a598' }}>
-                {activeCharacters[0] ? activeCharacters[0][0] : 'N/A'}
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#a89984' }}>
-                {activeCharacters[0] ? `${activeCharacters[0][1].usage_rate}%` : ''}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase' }}>
-                Highest Win Rate
-              </div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#b8bb26' }}>
-                {sortedCharacters.filter(([_, s]) => s.total_games >= 20)[0] ? 
-                  sortedCharacters.filter(([_, s]) => s.total_games >= 20).sort((a, b) => b[1].win_rate - a[1].win_rate)[0][0] : 'N/A'}
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#a89984' }}>
-                {sortedCharacters.filter(([_, s]) => s.total_games >= 20)[0] ? 
-                  `${sortedCharacters.filter(([_, s]) => s.total_games >= 20).sort((a, b) => b[1].win_rate - a[1].win_rate)[0][1].win_rate}%` : ''}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase' }}>
-                Active Roster
-              </div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fabd2f' }}>
-                {activeCharacters.length}
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#a89984' }}>
-                characters
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+    <PageColumn>
+      <PageHeader
+        title="Character Analytics"
+        subtitle={`${data.total_matches.toLocaleString()} total matches · ${charactersWithData.length} characters with data`}
+      />
 
-      <section className="stats-section">
-
-        {/* Visualizations */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
-          <div className="card" style={{ padding: '1rem' }}>
-            <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>📊 Top 15 by Usage</h3>
-            <div style={{ height: '220px', width: '100%' }}>
-              <BarChart data={usageChartData} config={usageChartConfig}>
-                <XAxis dataKey="name" tickFormatter={(value) => String(value).split(' ')[0]} />
-                <YAxis tickFormatter={(value) => `${value}%`} />
-                <Tooltip labelKey="name" />
-                <Bar dataKey="usage" variant="gradient" />
-              </BarChart>
-            </div>
+      {/* Highest win rate callout + win-rate distribution */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 20 }}>
+        <div
+          style={{
+            background: 'linear-gradient(135deg,#2a1c0e,#1f1712)',
+            border: '1px solid #5a3410',
+            borderRadius: 18,
+            padding: 22,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--shayne)', letterSpacing: 1, marginBottom: 10 }}>
+            🏆 HIGHEST WIN RATE
           </div>
-          <div className="card" style={{ padding: '1rem' }}>
-            <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>📈 Win Rate Distribution</h3>
-            <div style={{ height: '220px', width: '100%' }}>
-              <BarChart data={winRateDistData} config={winRateDistConfig}>
-                <XAxis dataKey="range" />
-                <YAxis />
-                <Tooltip labelKey="range" />
-                <Bar dataKey="count" variant="gradient" />
-              </BarChart>
+          {winRateLeader ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <CharToken
+                character={winRateLeader[0]}
+                player={dominantPlayer(winRateLeader[1])}
+                size={54}
+                radius={15}
+              />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg-light)' }}>{winRateLeader[0]}</div>
+                <div style={{ fontSize: 12, color: 'var(--gray)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                  {dominantPlayer(winRateLeader[1])} · {winRateLeader[1].total_games} games
+                </div>
+              </div>
+              <div style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 34, fontWeight: 700, color: 'var(--shayne)' }}>
+                {winRateLeader[1].win_rate}%
+              </div>
             </div>
-          </div>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--gray)' }}>Not enough games yet (min 20).</div>
+          )}
         </div>
 
-        {/* Controls */}
-        <div style={{ 
-          display: 'flex', 
+        <Card>
+          <SectionTitle>Win rate distribution</SectionTitle>
+          <div style={{ width: '100%', height: 200 }}>
+            <BarChart data={winRateDistData} config={winRateDistConfig}>
+              <XAxis dataKey="range" />
+              <YAxis />
+              <Tooltip labelKey="range" />
+              <Bar dataKey="count" variant="gradient" />
+            </BarChart>
+          </div>
+        </Card>
+      </div>
+
+      {/* Top 15 by usage */}
+      <Card>
+        <SectionTitle>Top 15 by usage</SectionTitle>
+        <div style={{ width: '100%', height: 240 }}>
+          <BarChart data={usageChartData} config={usageChartConfig}>
+            <XAxis dataKey="name" tickFormatter={(value) => String(value).split(' ')[0]} />
+            <YAxis tickFormatter={(value) => `${value}%`} />
+            <Tooltip labelKey="name" />
+            <Bar dataKey="usage" variant="gradient" />
+          </BarChart>
+        </div>
+      </Card>
+
+      {/* Controls */}
+      <div
+        style={{
+          display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '1rem', 
-          marginBottom: '1.5rem',
+          gap: 12,
           flexWrap: 'wrap',
-          background: '#3c3836',
-          padding: '1rem',
-          borderRadius: '12px',
-          border: '1px solid #504945',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-        }}>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', color: '#a89984', marginRight: '0.5rem', fontWeight: '600' }}>
-              Sort by:
-            </span>
-            <button
-              onClick={() => setSortBy('usage_rate')}
-              style={{
-                padding: '0.5rem 1rem',
-                fontSize: '0.85rem',
-                borderRadius: '8px',
-                border: sortBy === 'usage_rate' ? '2px solid #83a598' : '1px solid #504945',
-                background: sortBy === 'usage_rate' ? '#83a598' : '#282828',
-                color: sortBy === 'usage_rate' ? '#282828' : '#ebdbb2',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontWeight: sortBy === 'usage_rate' ? 'bold' : 'normal'
-              }}
-              onMouseEnter={(e) => {
-                if (sortBy !== 'usage_rate') e.currentTarget.style.background = '#3c3836';
-              }}
-              onMouseLeave={(e) => {
-                if (sortBy !== 'usage_rate') e.currentTarget.style.background = '#282828';
-              }}
-            >
-              📊 Usage
-            </button>
-            <button
-              onClick={() => setSortBy('win_rate')}
-              style={{
-                padding: '0.5rem 1rem',
-                fontSize: '0.85rem',
-                borderRadius: '8px',
-                border: sortBy === 'win_rate' ? '2px solid #83a598' : '1px solid #504945',
-                background: sortBy === 'win_rate' ? '#83a598' : '#282828',
-                color: sortBy === 'win_rate' ? '#282828' : '#ebdbb2',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontWeight: sortBy === 'win_rate' ? 'bold' : 'normal'
-              }}
-              onMouseEnter={(e) => {
-                if (sortBy !== 'win_rate') e.currentTarget.style.background = '#3c3836';
-              }}
-              onMouseLeave={(e) => {
-                if (sortBy !== 'win_rate') e.currentTarget.style.background = '#282828';
-              }}
-            >
-              🏆 Win Rate
-            </button>
-            <button
-              onClick={() => setSortBy('total_games')}
-              style={{
-                padding: '0.5rem 1rem',
-                fontSize: '0.85rem',
-                borderRadius: '8px',
-                border: sortBy === 'total_games' ? '2px solid #83a598' : '1px solid #504945',
-                background: sortBy === 'total_games' ? '#83a598' : '#282828',
-                color: sortBy === 'total_games' ? '#282828' : '#ebdbb2',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontWeight: sortBy === 'total_games' ? 'bold' : 'normal'
-              }}
-              onMouseEnter={(e) => {
-                if (sortBy !== 'total_games') e.currentTarget.style.background = '#3c3836';
-              }}
-              onMouseLeave={(e) => {
-                if (sortBy !== 'total_games') e.currentTarget.style.background = '#282828';
-              }}
-            >
-              🎮 Games
-            </button>
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <label style={{ fontSize: '0.8rem', color: '#a89984', fontWeight: '600' }}>
-              Min Games:
-            </label>
-            <select 
-              value={filterMinGames} 
-              onChange={(e) => setFilterMinGames(Number(e.target.value))}
-              style={{
-                padding: '0.5rem 0.75rem',
-                fontSize: '0.85rem',
-                borderRadius: '8px',
-                border: '1px solid #504945',
-                background: '#282828',
-                color: '#ebdbb2',
-                cursor: 'pointer',
-                fontWeight: '500',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#3c3836';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#282828';
-              }}
-            >
-              <option value={0}>All Characters</option>
-              <option value={5}>5+ games</option>
-              <option value={10}>10+ games</option>
-              <option value={20}>20+ games</option>
-              <option value={50}>50+ games</option>
-            </select>
-          </div>
+          background: 'var(--panel)',
+          border: '1px solid var(--line-2)',
+          borderRadius: 14,
+          padding: '12px 16px',
+        }}
+      >
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', letterSpacing: '0.5px' }}>
+            SORT
+          </span>
+          {sortOptions.map((opt) => {
+            const active = sortBy === opt.key;
+            return (
+              <button
+                key={opt.key}
+                onClick={() => setSortBy(opt.key)}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  borderRadius: 999,
+                  border: `1px solid ${active ? 'var(--shayne)' : 'var(--line-2)'}`,
+                  background: active ? 'var(--shayne)' : 'var(--card)',
+                  color: active ? 'var(--deep1)' : 'var(--fg)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  fontFamily: 'var(--font-display)',
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Character Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-          gap: '1rem'
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', letterSpacing: '0.5px' }}>
+            MIN GAMES
+          </span>
+          <select
+            value={filterMinGames}
+            onChange={(e) => setFilterMinGames(Number(e.target.value))}
+            style={{
+              padding: '6px 10px',
+              fontSize: 12,
+              borderRadius: 8,
+              border: '1px solid var(--line-2)',
+              background: 'var(--card)',
+              color: 'var(--fg)',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            <option value={0}>All</option>
+            <option value={5}>5+</option>
+            <option value={10}>10+</option>
+            <option value={20}>20+</option>
+            <option value={50}>50+</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Roster */}
+      <div>
+        <SectionTitle>Roster — ranked by win rate</SectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 14 }}>
           {activeCharacters.map(([character, stats]) => (
             <Link
               key={character}
               to={`/characters/${encodeURIComponent(character)}`}
               style={{
+                background: 'var(--panel)',
+                border: '1px solid var(--line-2)',
+                borderRadius: 16,
+                padding: 16,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                cursor: 'pointer',
                 textDecoration: 'none',
-                background: '#3c3836',
-                borderRadius: '12px',
-                padding: '1rem',
-                border: '1px solid #504945',
-                transition: 'all 0.2s',
-                display: 'block',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4)';
-                e.currentTarget.style.borderColor = '#83a598';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
-                e.currentTarget.style.borderColor = '#504945';
               }}
             >
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.75rem', 
-                marginBottom: '0.75rem',
-                paddingBottom: '0.75rem',
-                borderBottom: '1px solid #504945'
-              }}>
-                <CharacterDisplay character={character} hideText={false} />
-              </div>
-
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: '1fr 1fr', 
-                gap: '0.75rem', 
-                marginBottom: '0.75rem' 
-              }}>
-                <div style={{
-                  background: '#282828',
-                  padding: '0.5rem',
-                  borderRadius: '6px',
-                  border: '1px solid #3c3836'
-                }}>
-                  <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem' }}>
-                    Usage
-                  </div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#83a598' }}>
-                    {stats.usage_rate}%
-                  </div>
+              <CharToken character={character} player={dominantPlayer(stats)} size={46} radius={13} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-light)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {character}
+                  </span>
+                  <TierBadge tier={winRateTier(stats.win_rate)} />
                 </div>
-                <div style={{
-                  background: '#282828',
-                  padding: '0.5rem',
-                  borderRadius: '6px',
-                  border: '1px solid #3c3836'
-                }}>
-                  <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem' }}>
-                    Win Rate
-                  </div>
-                  <div style={{ 
-                    fontSize: '1.1rem', 
-                    fontWeight: 'bold', 
-                    color: stats.win_rate >= 50 ? '#b8bb26' : '#fb4934' 
-                  }}>
-                    {stats.win_rate}%
-                  </div>
-                </div>
-                <div style={{
-                  background: '#282828',
-                  padding: '0.5rem',
-                  borderRadius: '6px',
-                  border: '1px solid #3c3836'
-                }}>
-                  <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem' }}>
-                    Games
-                  </div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#ebdbb2' }}>
-                    {stats.total_games}
-                  </div>
-                </div>
-                <div style={{
-                  background: '#282828',
-                  padding: '0.5rem',
-                  borderRadius: '6px',
-                  border: '1px solid #3c3836'
-                }}>
-                  <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.25rem' }}>
-                    Wins
-                  </div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#ebdbb2' }}>
-                    {stats.wins}
-                  </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', marginTop: 3 }}>
+                  {stats.total_games} games
                 </div>
               </div>
-
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                fontSize: '0.75rem',
-                background: '#282828',
-                padding: '0.5rem',
-                borderRadius: '6px',
-                border: '1px solid #3c3836'
-              }}>
-                <div>
-                  <span style={{ color: '#a89984', marginRight: '0.25rem' }}>Shayne:</span>
-                  <span style={{ color: '#fe8019', fontWeight: 'bold' }}>{stats.shayne_usage}</span>
-                </div>
-                <div>
-                  <span style={{ color: '#a89984', marginRight: '0.25rem' }}>Matt:</span>
-                  <span style={{ color: '#b8bb26', fontWeight: 'bold' }}>{stats.matt_usage}</span>
-                </div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: stats.win_rate >= 50 ? 'var(--shayne)' : 'var(--gray)',
+                }}
+              >
+                {stats.win_rate}%
               </div>
             </Link>
           ))}
         </div>
-      </section>
-    </div>
+      </div>
+    </PageColumn>
   );
 };
 

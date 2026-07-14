@@ -162,6 +162,22 @@ elevated with a Space Grotesk / IBM Plex Mono type system.
   sticky stage in one tap. **Empty states** for new sessions shipped (desktop +
   mobile).
 
+**Interior-page reskin SHIPPED 2026-07-14** (second design handoff): the five
+interior pages were rebuilt in the redesign's visual language, reusing a set of
+shared page primitives (`components/ui.tsx`: PageColumn, PageHeader, SectionTitle,
+Card, GlowPanel, StatTile, TierBadge). Data wiring preserved throughout.
+- **Statistics** (`/stats`): H2H hero (dither donut), quick tiles, rolling
+  win-rate area chart, character win-rate bars, recent form, advanced metrics
+  (tooltips kept), streak records, top characters/matchups, games-by-month bar,
+  and two new widgets — a day/time `DitherHeatmap` and stage win-rate bars (wired
+  to existing `/api/users/<u>/heatmap` and `/stats` routes; no new backend).
+- **Character Analytics** (`/characters`): highest-win-rate callout, distribution
+  + usage bar charts, roster grid ranked by win rate with real icons and S/A/B/C
+  tier badges linking to detail.
+- **Session History / Detail / Tearsheet**: re-skinned; the tearsheet keeps its
+  `html2canvas` PNG export (literal hex inside the captured card so the artifact
+  is theme-independent — verified end-to-end).
+
 Remaining UX backlog, ordered by leverage-per-effort:
 
 1. **Theme via CSS variables**: replace inline hex with the Gruvbox vars in
@@ -169,10 +185,8 @@ Remaining UX backlog, ordered by leverage-per-effort:
    tokens but kept many inline). Unblocks LAUNCH.md's theme-switcher question and
    arbitrary player colors (P3 needs non-Shayne/Matt colors).
 2. **Extend the typed API layer** to the older stats/tearsheet pages and clear
-   the ~30 remaining `no-explicit-any` warnings, then re-promote that ESLint rule
+   the remaining `no-explicit-any` warnings, then re-promote that ESLint rule
    to `error` (`frontend/eslint.config.js`).
-3. **Interior-page reskin**: Statistics / Characters / Sessions / Tearsheets were
-   re-framed into the new shell but keep their pre-redesign internals.
 
 ## 5. Dither-kit adoption — SHIPPED 2026-07-14
 
