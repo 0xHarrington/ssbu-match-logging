@@ -904,6 +904,10 @@ class GameDataManager:
                 "current_streak": None,
                 "monthly_activity": [],
                 "top_matchups": [],
+                "top_shayne_chars": [],
+                "top_matt_chars": [],
+                "avg_stocks_shayne": 0,
+                "avg_stocks_matt": 0,
             }
 
         # Basic stats
