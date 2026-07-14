@@ -951,7 +951,7 @@ class GameDataManager:
         # Calculate current win streaks
         shayne_streak = 0
         matt_streak = 0
-        for winner in reversed(df["winner"]):
+        for winner in df.sort_values("date")["winner"].tolist()[::-1]:
             if winner == "Shayne":
                 if matt_streak > 0:
                     break
