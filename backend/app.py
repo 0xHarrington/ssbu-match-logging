@@ -1019,21 +1019,6 @@ class GameDataManager:
 
         return stats
 
-    def get_character_rankings(self, player: str) -> list:
-        """Get character rankings for a player, sorted by usage."""
-        df = self._load_data()
-        if player == "shayne":
-            char_counts = df["shayne_character"].value_counts()
-        else:
-            char_counts = df["matt_character"].value_counts()
-        return char_counts.index.tolist()
-
-    def get_stage_rankings(self) -> list:
-        """Get stage rankings sorted by usage."""
-        df = self._load_data()
-        stage_counts = df["stage"].value_counts()
-        return stage_counts.index.tolist()
-
     def get_characters(self) -> dict:
         """Get the list of characters with their usage data per player."""
         try:
