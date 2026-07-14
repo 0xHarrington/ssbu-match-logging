@@ -99,7 +99,7 @@ export const getMatchupStats = (
     matt_character: mattCharacter,
   });
   if (recentN != null) q.set('recent_n', String(recentN));
-  return request<MatchupStats>(`/matchup_stats?${q.toString()}`);
+  return request<MatchupStats>(`/api/matchup_stats?${q.toString()}`);
 };
 
 export const getAllTimeStats = () =>

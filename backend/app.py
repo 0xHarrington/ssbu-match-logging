@@ -1170,6 +1170,7 @@ def get_recent_games():
 
 
 @app.route("/matchup_stats", methods=["GET"])
+@app.route("/api/matchup_stats", methods=["GET"])
 def get_matchup_stats():
     """Get historical stats for a specific character matchup."""
     shayne_char = request.args.get("shayne_character")
