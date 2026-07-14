@@ -15,6 +15,27 @@
   --aqua: #8ec07c;
   --orange: #fe8019;
   --gray: #a89984;
+
+  /* --- Session Command Center redesign tokens --- */
+  /* Depth ramp (darker than --bg0, used by the new shell/scoreboard) */
+  --deep0: #161312;   /* app canvas */
+  --deep1: #0f0d0c;   /* sidebar / log rail */
+  --deep2: #0c0a09;   /* phone bezel / deepest wells */
+  --panel: #1b1817;   /* tiles / screen bg */
+  --card: #221f1e;    /* card surface */
+  --line: #3c3836;    /* border */
+  --line-2: #2a2624;  /* subtle border */
+  --border-light: #504945;
+  --faint: #665c54;   /* faint text */
+  /* Player identity (the redesign's canonical per-player accents) */
+  --shayne: #fe8019;
+  --shayne-deep: #d65d0e;
+  --matt: #b8bb26;
+  --matt-deep: #98971a;
+  /* Type system */
+  --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+
   /* Layout */
   --header-height: 60px;
   --content-padding: 2rem;
