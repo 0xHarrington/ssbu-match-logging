@@ -10,5 +10,4 @@ backend/instance
 backend/spare data
 backend/*.csv
 backend/.env
-backend/prototyping.ipynb
 *.md
