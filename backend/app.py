@@ -1425,23 +1425,24 @@ def _append_edit_log(
         auth = request.authorization
         editor = auth.username if auth and auth.username else ""
         log_path = os.path.join(DATA_DIR, "edit_log.csv")
-        new_file = not os.path.exists(log_path)
-        with open(log_path, "a", newline="") as f:
-            writer = csv.writer(f)
-            if new_file:
+        with data_manager._write_lock:
+            new_file = not os.path.exists(log_path)
+            with open(log_path, "a", newline="") as f:
+                writer = csv.writer(f)
+                if new_file:
+                    writer.writerow(
+                        ["edited_at", "editor", "action", "match_id", "before", "after"]
+                    )
                 writer.writerow(
-                    ["edited_at", "editor", "action", "match_id", "before", "after"]
+                    [
+                        datetime.now(EASTERN).strftime("%Y-%m-%d %H:%M:%S"),
+                        editor,
+                        action,
+                        match_id,
+                        json.dumps(before),
+                        json.dumps(after),
+                    ]
                 )
-            writer.writerow(
-                [
-                    datetime.now(EASTERN).strftime("%Y-%m-%d %H:%M:%S"),
-                    editor,
-                    action,
-                    match_id,
-                    json.dumps(before),
-                    json.dumps(after),
-                ]
-            )
     except Exception as e:
         logger.error(f"Error writing edit log: {str(e)}")
 
