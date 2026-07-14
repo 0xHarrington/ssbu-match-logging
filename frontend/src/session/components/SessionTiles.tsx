@@ -1,6 +1,7 @@
 // SessionTiles — four session-scoped stat tiles. All numbers are about THIS
 // session (global/all-time stats live on the Stats page, per the design).
 import type { LiveSession } from '../../hooks/useLiveSession';
+import { parseStocks } from '../format';
 
 interface Tile {
   value: string;
@@ -18,10 +19,7 @@ function deriveTiles(live: LiveSession): Tile[] {
   const runLabel = run ? `${run.player} W${run.length}` : '—';
   const runColor = run ? (run.player === 'Shayne' ? 'var(--shayne)' : 'var(--matt)') : 'var(--gray)';
 
-  const lastStock = live.matches.filter((m) => {
-    const s = typeof m.stocks_remaining === 'string' ? parseFloat(m.stocks_remaining) : m.stocks_remaining;
-    return s === 1;
-  }).length;
+  const lastStock = live.matches.filter((m) => parseStocks(m.stocks_remaining) === 1).length;
 
   return [
     { value: String(live.totalGames), label: 'Games this session', color: 'var(--fg-light)' },

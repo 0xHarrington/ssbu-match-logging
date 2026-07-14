@@ -5,7 +5,7 @@ import CharacterPicker from './CharacterPicker';
 import { WinnerPicker, StageGrid, StocksPicker } from './formControls';
 import ModalShell from './ModalShell';
 import { ACTIVE_STAGES } from '../useLogForm';
-import { matchTime } from '../format';
+import { matchTime, parseStocks } from '../format';
 import { deleteMatch, updateMatch } from '../../lib/api';
 import { PLAYER_HEX } from '../palette';
 import type { Match, Player } from '../../types';
@@ -19,8 +19,7 @@ interface EditMatchModalProps {
 }
 
 function initialStocks(match: Match): number | null {
-  const s = typeof match.stocks_remaining === 'string' ? parseFloat(match.stocks_remaining) : match.stocks_remaining;
-  return Number.isFinite(s as number) ? (s as number) : null;
+  return parseStocks(match.stocks_remaining);
 }
 
 export default function EditMatchModal({ match, characters, onClose, onSaved, onDeleted }: EditMatchModalProps) {

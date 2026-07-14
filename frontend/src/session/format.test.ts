@@ -1,7 +1,7 @@
 // Characterization + regression tests for the Session screens' formatting
 // helpers. Pure functions, no DOM/network — plain vitest.
 import { describe, it, expect } from 'vitest';
-import { matchTime, formatDuration, sessionDisplayName, stocksLabel } from './format';
+import { matchTime, formatDuration, sessionDisplayName, stocksLabel, parseStocks } from './format';
 
 describe('matchTime', () => {
   it('extracts HH:MM from a "YYYY-MM-DD HH:MM:SS" datetime', () => {
@@ -42,6 +42,29 @@ describe('sessionDisplayName', () => {
     expect(sessionDisplayName('2025-12-11 14:00:00')).toBe('Thursday Afternoon Set');
     expect(sessionDisplayName('2025-12-11 18:00:00')).toBe('Thursday Night Set');
     expect(sessionDisplayName('2025-12-11 22:30:00')).toBe('Thursday Late Night Set');
+  });
+});
+
+describe('parseStocks', () => {
+  it('returns null for null', () => {
+    expect(parseStocks(null)).toBeNull();
+  });
+
+  it('passes through a finite number', () => {
+    expect(parseStocks(2)).toBe(2);
+    expect(parseStocks(2.7)).toBe(2.7);
+  });
+
+  it('parses a numeric string', () => {
+    expect(parseStocks('1')).toBe(1);
+  });
+
+  it('returns null for a non-numeric string', () => {
+    expect(parseStocks('abc')).toBeNull();
+  });
+
+  it('returns null for an empty string', () => {
+    expect(parseStocks('')).toBeNull();
   });
 });
 
