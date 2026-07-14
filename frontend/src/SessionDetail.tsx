@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import * as echarts from 'echarts';
+import { PieChart, Pie } from './components/dither';
 import CharacterDisplay from './components/CharacterDisplay';
 import MatchEditorModal, { type EditableMatch } from './components/MatchEditorModal';
 import { LoadingState, ErrorState } from './components/Feedback';
@@ -26,6 +26,11 @@ interface SessionStats {
   }>;
 }
 
+interface WinSplitRow {
+  player: string;
+  wins: number;
+}
+
 interface SessionMatchesResponse {
   success: boolean;
   matches: EditableMatch[];
@@ -42,7 +47,6 @@ function SessionDetail() {
   const [matchesLoading, setMatchesLoading] = useState(true);
   const [matchesError, setMatchesError] = useState<string | null>(null);
   const [editingMatch, setEditingMatch] = useState<EditableMatch | null>(null);
-  const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (session_id) {
@@ -95,46 +99,13 @@ function SessionDetail() {
     fetchSessionStats();
   };
 
-  // Mini donut chart
-  useEffect(() => {
-    if (!chartRef.current || !stats) return;
-
-    const chartInstance = echarts.init(chartRef.current);
-
-    const option = {
-      backgroundColor: 'transparent',
-      series: [{
-        type: 'pie',
-        radius: ['60%', '85%'],
-        center: ['50%', '50%'],
-        avoidLabelOverlap: false,
-        label: { show: false },
-        labelLine: { show: false },
-        data: [
-          { value: stats.shayne_wins, name: 'Shayne', itemStyle: { color: '#fe8019' } },
-          { value: stats.matt_wins, name: 'Matt', itemStyle: { color: '#b8bb26' } }
-        ],
-        emphasis: {
-          scale: false,
-          itemStyle: {
-            shadowBlur: 10,
-            shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
-          }
-        }
-      }]
-    };
-
-    chartInstance.setOption(option);
-
-    const handleResize = () => chartInstance.resize();
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      chartInstance.dispose();
-    };
-  }, [stats]);
+  // Mini donut chart rows (Shayne vs Matt win split)
+  const winSplitData: WinSplitRow[] = stats
+    ? [
+        { player: 'Shayne', wins: stats.shayne_wins },
+        { player: 'Matt', wins: stats.matt_wins },
+      ]
+    : [];
 
   const formatDateTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -281,7 +252,20 @@ function SessionDetail() {
               {stats.total_games} games played
             </div>
           </div>
-          <div ref={chartRef} style={{ width: 120, height: 120 }} />
+          <div style={{ width: 120, height: 120 }}>
+            <PieChart
+              data={winSplitData}
+              config={{
+                Shayne: { label: 'Shayne', color: 'orange' },
+                Matt: { label: 'Matt', color: 'green' },
+              }}
+              dataKey="wins"
+              nameKey="player"
+              innerRadius={0.7}
+            >
+              <Pie variant="gradient" />
+            </PieChart>
+          </div>
         </div>
       </div>
 

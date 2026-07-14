@@ -1,5 +1,5 @@
-import { useEffect, useState, forwardRef, useImperativeHandle, useRef } from 'react';
-import type { ECharts } from 'echarts';
+import { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import { PieChart, Pie } from './components/dither';
 import CharacterDisplay from './components/CharacterDisplay';
 import { LoadingState, ErrorState } from './components/Feedback';
 import { stageImages } from './lib/stages';
@@ -89,8 +89,6 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
   const [advancedMetrics, setAdvancedMetrics] = useState<AdvancedMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartInstanceRef = useRef<ECharts | null>(null);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -153,66 +151,6 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
   useEffect(() => {
     fetchMatchupStats();
   }, [shayneCharacter, mattCharacter]);
-
-  // Mini donut chart for win distribution
-  // echarts is dynamically imported so it stays out of the eager index chunk
-  // (SessionStats renders on the homepage; all other chart pages are lazy routes).
-  useEffect(() => {
-    if (!chartRef.current || !stats) return;
-
-    let disposed = false;
-    let chartInstance: ECharts | null = null;
-    let handleResize: (() => void) | null = null;
-
-    const option = {
-      backgroundColor: 'transparent',
-      series: [{
-        type: 'pie',
-        radius: ['60%', '85%'],
-        center: ['50%', '50%'],
-        avoidLabelOverlap: false,
-        label: { show: false },
-        labelLine: { show: false },
-        data: [
-          { value: stats.shayne_wins, name: 'Shayne', itemStyle: { color: '#fe8019' } },
-          { value: stats.matt_wins, name: 'Matt', itemStyle: { color: '#b8bb26' } }
-        ],
-        emphasis: {
-          scale: false,
-          itemStyle: {
-            shadowBlur: 10,
-            shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
-          }
-        }
-      }]
-    };
-
-    import('echarts')
-      .then((echarts) => {
-        if (disposed || !chartRef.current) return;
-
-        chartInstance = echarts.init(chartRef.current);
-        chartInstanceRef.current = chartInstance;
-        chartInstance.setOption(option);
-
-        handleResize = () => chartInstance?.resize();
-        window.addEventListener('resize', handleResize);
-      })
-      .catch((err) => {
-        console.error('Failed to load echarts:', err);
-      });
-
-    return () => {
-      disposed = true;
-      if (handleResize) window.removeEventListener('resize', handleResize);
-      if (chartInstance) {
-        chartInstance.dispose();
-        chartInstance = null;
-      }
-      if (chartInstanceRef.current) chartInstanceRef.current = null;
-    };
-  }, [stats]);
 
   const handleShareSession = () => {
     window.open('/session-tearsheet', '_blank', 'width=900,height=1200');
@@ -309,7 +247,23 @@ const SessionStats = forwardRef<SessionStatsRef, SessionStatsProps>(({ shayneCha
                   {stats.total_games} games played
                 </div>
               </div>
-              <div ref={chartRef} style={{ width: 80, height: 80 }} />
+              <div style={{ width: 80, height: 80 }}>
+                <PieChart
+                  data={[
+                    { player: 'Shayne', wins: stats.shayne_wins },
+                    { player: 'Matt', wins: stats.matt_wins },
+                  ]}
+                  config={{
+                    Shayne: { label: 'Shayne', color: 'orange' },
+                    Matt: { label: 'Matt', color: 'green' },
+                  }}
+                  dataKey="wins"
+                  nameKey="player"
+                  innerRadius={0.62}
+                >
+                  <Pie variant="gradient" />
+                </PieChart>
+              </div>
             </div>
           </div>
 
