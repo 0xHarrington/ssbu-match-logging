@@ -1,8 +1,8 @@
 // useLiveSession — the data brain of the Session dashboard.
 //
-// The prototype hardcoded run pips, a momentum sparkline, stage splits, and the
-// on-deck matchup's history. None of that is a single endpoint. This hook chains
-// the live-session routes and derives all of it client-side:
+// Run pips, a momentum sparkline, stage splits, and the on-deck matchup's
+// history aren't backed by a single endpoint. This hook chains the
+// live-session routes and derives all of it client-side:
 //
 //   /api/sessions/current            -> session_id + is_active
 //   /api/sessions/<id>               -> authoritative score + this-session matchups

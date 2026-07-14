@@ -1,8 +1,8 @@
 // SessionPage — top-level orchestrator for the Session experience.
 //
 // Owns the live-session fetch, the shared log form, modal + undo state, and the
-// character roster. Renders the desktop dashboard (mobile layout arrives in a
-// follow-up). Modals and the undo toast are rendered here so they overlay the
+// character roster. Renders SessionDesktop or SessionMobile depending on
+// useIsMobile. Modals and the undo toast are rendered here so they overlay the
 // whole page.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ErrorState, LoadingState } from '../components/Feedback';

@@ -1,8 +1,7 @@
 // CharacterPicker — a compact searchable roster popover.
 //
-// The prototype's log form assumed characters carried over from the last game.
-// Real logging needs a way to change fighters, so each player token opens this:
-// a filterable icon list backed by /api/characters' all_characters.
+// Opens from a player token to let the log/edit forms change fighters: a
+// filterable icon list backed by /api/characters' all_characters.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCharacterIconUrl } from '../../components/CharacterDisplay';
 
