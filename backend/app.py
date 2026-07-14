@@ -1,11 +1,13 @@
 # app.py
 from flask import Flask, Response, request, jsonify, send_from_directory
 from datetime import datetime
+import csv
 import hmac
 import pandas as pd
 import os
 import logging
 import threading
+import uuid
 from typing import Dict, Any, Optional
 import json
 import pytz
@@ -42,6 +44,7 @@ class GameDataManager:
             "stage",
             "timestamp",  # Unix timestamp for easier time-based operations
             "session_id",  # Session identifier
+            "match_id",  # Stable per-match identifier (uuid4 hex prefix)
         ]
         self.session_gap_hours = 4  # Hours of inactivity before starting new session
         # Serializes CSV read-modify-write cycles; pandas to_csv is not atomic
@@ -49,6 +52,7 @@ class GameDataManager:
         self._ensure_csv_exists()
         self._ensure_characters_file_exists()
         self._create_session_backup()
+        self._backfill_match_ids_and_timestamps()
 
     def _ensure_csv_exists(self) -> None:
         """Create CSV file with headers if it doesn't exist."""
@@ -670,6 +674,7 @@ class GameDataManager:
                 "stage": stage_value,
                 "timestamp": timestamp,
                 "session_id": session_id,
+                "match_id": uuid.uuid4().hex[:12],
             }
 
             # Log the processed game data
@@ -719,6 +724,130 @@ class GameDataManager:
             else:
                 removed[str(key)] = value
         return removed
+
+    @staticmethod
+    def _row_to_dict(row: pd.Series) -> Dict[str, Any]:
+        """Convert a DataFrame row to a plain JSON-serializable dict."""
+        out: Dict[str, Any] = {}
+        for key, value in row.items():
+            if pd.isna(value):
+                out[str(key)] = None
+            elif hasattr(value, "item"):
+                out[str(key)] = value.item()
+            else:
+                out[str(key)] = value
+        return out
+
+    def _backfill_match_ids_and_timestamps(self) -> None:
+        """Idempotent startup repair pass (mirrors the lazy session-id backfill):
+        derive missing unix timestamps from datetime strings, and assign a
+        match_id to every row that lacks one. Reads the raw CSV so no rows are
+        silently dropped by _load_data's cleaning."""
+        try:
+            with self._write_lock:
+                df = pd.read_csv(self.csv_path)
+                if len(df) == 0:
+                    return
+                changed = False
+                if "match_id" not in df.columns:
+                    df["match_id"] = pd.NA
+                    changed = True
+
+                df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
+                eastern = pytz.timezone("US/Eastern")
+                missing_ts = df["timestamp"].isna() & df["datetime"].notna()
+                for idx in df.index[missing_ts]:
+                    try:
+                        dt = datetime.strptime(
+                            str(df.at[idx, "datetime"]), "%Y-%m-%d %H:%M:%S"
+                        )
+                        df.at[idx, "timestamp"] = eastern.localize(dt).timestamp()
+                        changed = True
+                    except ValueError:
+                        logger.warning(f"Backfill: unparseable datetime at row {idx}")
+
+                ids = df["match_id"].astype("string")
+                missing_id = ids.isna() | (ids.str.strip() == "")
+                n_missing_ids = int(missing_id.sum())
+                if n_missing_ids:
+                    df.loc[missing_id, "match_id"] = [
+                        uuid.uuid4().hex[:12] for _ in range(n_missing_ids)
+                    ]
+                    changed = True
+
+                if changed:
+                    columns_to_save = [c for c in self.columns if c in df.columns]
+                    df[columns_to_save].to_csv(self.csv_path, index=False)
+                    logger.info(
+                        f"Backfill: filled {int(missing_ts.sum())} timestamps, "
+                        f"{n_missing_ids} match_ids"
+                    )
+        except Exception as e:
+            # Never block startup on the repair pass
+            logger.error(f"Error during match-id/timestamp backfill: {str(e)}")
+
+    @staticmethod
+    def _find_row_index(df: pd.DataFrame, match_id: str) -> Optional[Any]:
+        """Locate the DataFrame index of a match by its match_id."""
+        if "match_id" not in df.columns:
+            return None
+        hits = df.index[df["match_id"].astype(str) == str(match_id)]
+        return hits[0] if len(hits) else None
+
+    def get_matches(
+        self,
+        session_id: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Dict[str, Any]:
+        """Paginated match list, newest first, optionally scoped to a session."""
+        df = self._load_data()
+        df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
+        if session_id:
+            df = df[df["session_id"] == session_id]
+        df = df.sort_values("timestamp", ascending=False)
+        total = len(df)
+        page = df.iloc[offset : offset + limit].fillna("")
+        return {"matches": page.to_dict("records"), "total": total}
+
+    def update_match(
+        self, match_id: str, updates: Dict[str, Any]
+    ) -> Optional[Dict[str, Dict[str, Any]]]:
+        """Apply pre-validated column updates to one match.
+
+        Returns {"before": ..., "after": ...} or None if the id is unknown.
+        Reads the raw CSV so unrelated malformed rows are never dropped.
+        """
+        with self._write_lock:
+            df = pd.read_csv(self.csv_path)
+            idx = self._find_row_index(df, match_id)
+            if idx is None:
+                return None
+            before = self._row_to_dict(df.loc[idx])
+            for col, value in updates.items():
+                df.at[idx, col] = value
+            columns_to_save = [c for c in self.columns if c in df.columns]
+            df[columns_to_save].to_csv(self.csv_path, index=False)
+            after = self._row_to_dict(df.loc[idx])
+        return {"before": before, "after": after}
+
+    def delete_match(self, match_id: str) -> Optional[Dict[str, Any]]:
+        """Remove one match by id. Returns the removed row or None if unknown."""
+        with self._write_lock:
+            df = pd.read_csv(self.csv_path)
+            idx = self._find_row_index(df, match_id)
+            if idx is None:
+                return None
+            removed = self._row_to_dict(df.loc[idx])
+            df = df.drop(index=idx)
+            columns_to_save = [c for c in self.columns if c in df.columns]
+            df[columns_to_save].to_csv(self.csv_path, index=False)
+        return removed
+
+    def get_character_roster(self) -> list:
+        """The raw character list used for validation and pickers."""
+        with open(self.characters_path) as f:
+            return json.load(f)
 
     def get_recent_games(self, n: int = 5) -> pd.DataFrame:
         """Get the n most recent games."""
@@ -1175,6 +1304,150 @@ def undo_last_game() -> Any:
         return jsonify({"success": True, "removed": removed})
     except Exception as e:
         logger.error(f"Error in undo_last_game endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# All stages that can appear on a match: the 8 currently-selectable stages,
+# Yoshi's Story (historical matches), and the no-stage placeholder.
+VALID_STAGES = {
+    "Battlefield",
+    "Small Battlefield",
+    "Final Destination",
+    "Pokemon Stadium 2",
+    "Smashville",
+    "Town & City",
+    "Kalos Pokemon League",
+    "Yoshi's Story",
+    "Hollow Bastion",
+    "No Stage",
+}
+
+# Request-body field -> CSV column for match edits
+MATCH_EDIT_FIELDS = {
+    "shayneCharacter": "shayne_character",
+    "mattCharacter": "matt_character",
+    "winner": "winner",
+    "stage": "stage",
+    "stocksRemaining": "stocks_remaining",
+}
+
+
+def _validate_match_updates(
+    data: Dict[str, Any],
+) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """Validate an edit payload. Returns (column_updates, None) or (None, error)."""
+    if not data:
+        return None, "No fields provided"
+    unknown = [k for k in data if k not in MATCH_EDIT_FIELDS]
+    if unknown:
+        return None, f"Unknown fields: {', '.join(unknown)}"
+    roster = set(data_manager.get_character_roster())
+    updates: Dict[str, Any] = {}
+    for key, value in data.items():
+        if key in ("shayneCharacter", "mattCharacter"):
+            if value not in roster:
+                return None, f"Unknown character: {value}"
+        elif key == "winner":
+            if value not in ("Shayne", "Matt"):
+                return None, "winner must be 'Shayne' or 'Matt'"
+        elif key == "stage":
+            # Canonicalize the editor's empty-string "no stage" to the CSV convention
+            value = value or "No Stage"
+            if value not in VALID_STAGES:
+                return None, f"Unknown stage: {value}"
+        elif key == "stocksRemaining":
+            if value is not None and (
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or not 1 <= value <= 3
+            ):
+                return None, "stocksRemaining must be 1-3 or null"
+        updates[MATCH_EDIT_FIELDS[key]] = value
+    return updates, None
+
+
+def _append_edit_log(
+    action: str,
+    match_id: str,
+    before: Optional[Dict[str, Any]],
+    after: Optional[Dict[str, Any]],
+) -> None:
+    """Audit trail for match edits/deletes: one CSV row per action.
+
+    Editor is the Basic-auth username (empty in dev). Failures are logged,
+    never raised — the edit itself has already succeeded.
+    """
+    try:
+        auth = request.authorization
+        editor = auth.username if auth and auth.username else ""
+        log_path = os.path.join(DATA_DIR, "edit_log.csv")
+        new_file = not os.path.exists(log_path)
+        with open(log_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            if new_file:
+                writer.writerow(
+                    ["edited_at", "editor", "action", "match_id", "before", "after"]
+                )
+            writer.writerow(
+                [
+                    datetime.now(pytz.timezone("US/Eastern")).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+                    editor,
+                    action,
+                    match_id,
+                    json.dumps(before),
+                    json.dumps(after),
+                ]
+            )
+    except Exception as e:
+        logger.error(f"Error writing edit log: {str(e)}")
+
+
+@app.route("/api/matches", methods=["GET"])
+def api_list_matches() -> Any:
+    """Paginated match list, newest first; filterable by session_id."""
+    try:
+        session_id = request.args.get("session_id")
+        limit = min(int(request.args.get("limit", 50)), 200)
+        offset = max(int(request.args.get("offset", 0)), 0)
+        result = data_manager.get_matches(
+            session_id=session_id, limit=limit, offset=offset
+        )
+        return jsonify({"success": True, **result})
+    except Exception as e:
+        logger.error(f"Error listing matches: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/matches/<match_id>", methods=["PUT"])
+def api_update_match(match_id: str) -> Any:
+    """Edit a match's characters, winner, stage, or stocks."""
+    try:
+        updates, err = _validate_match_updates(request.json or {})
+        if err:
+            return jsonify({"success": False, "message": err}), 400
+        result = data_manager.update_match(match_id, updates or {})
+        if result is None:
+            return jsonify({"success": False, "message": "Match not found"}), 404
+        _append_edit_log("update", match_id, result["before"], result["after"])
+        return jsonify({"success": True, "match": result["after"]})
+    except Exception as e:
+        logger.error(f"Error updating match {match_id}: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/matches/<match_id>", methods=["DELETE"])
+def api_delete_match(match_id: str) -> Any:
+    """Delete a mislogged match entirely (recorded in the edit log)."""
+    try:
+        removed = data_manager.delete_match(match_id)
+        if removed is None:
+            return jsonify({"success": False, "message": "Match not found"}), 404
+        _append_edit_log("delete", match_id, removed, None)
+        return jsonify({"success": True, "removed": removed})
+    except Exception as e:
+        logger.error(f"Error deleting match {match_id}: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 

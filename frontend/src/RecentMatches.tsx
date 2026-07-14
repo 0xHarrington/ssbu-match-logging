@@ -1,13 +1,16 @@
 import { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import CharacterDisplay from './components/CharacterDisplay';
+import MatchEditorModal from './components/MatchEditorModal';
 
 interface Game {
+  match_id: string;
   datetime: string;
   shayne_character: string;
   matt_character: string;
   winner: string;
   stage: string;
   stocks_remaining: number;
+  session_id?: string;
 }
 
 export interface RecentMatchesRef {
@@ -18,6 +21,7 @@ const RecentMatches = forwardRef<RecentMatchesRef>((_props, ref) => {
   const [matches, setMatches] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingMatch, setEditingMatch] = useState<Game | null>(null);
 
   const fetchMatches = async () => {
     setLoading(true);
@@ -68,8 +72,8 @@ const RecentMatches = forwardRef<RecentMatchesRef>((_props, ref) => {
         {!loading && !error && matches.map((game, idx) => {
           const isShayneWin = game.winner === 'Shayne';
           return (
-            <div 
-              key={idx}
+            <div
+              key={game.match_id || idx}
               style={{
                 background: '#3c3836',
                 borderRadius: '8px',
@@ -125,20 +129,50 @@ const RecentMatches = forwardRef<RecentMatchesRef>((_props, ref) => {
                     gap: '0.2rem'
                   }}>
                     {[...Array(game.stocks_remaining)].map((_, i) => (
-                      <div key={i} style={{ 
-                        width: '6px', 
-                        height: '6px', 
-                        borderRadius: '50%', 
-                        background: isShayneWin ? '#fe8019' : '#b8bb26' 
+                      <div key={i} style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        background: isShayneWin ? '#fe8019' : '#b8bb26'
                       }} />
                     ))}
                   </div>
                 </div>
+                <button
+                  type="button"
+                  aria-label="Edit match"
+                  title="Edit match"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingMatch(game);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#a89984',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    padding: '0 0 0 0.4rem',
+                    lineHeight: 1,
+                    alignSelf: 'flex-start'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#fbf1c7'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#a89984'; }}
+                >
+                  ✎
+                </button>
               </div>
             </div>
           );
         })}
       </div>
+      {editingMatch && (
+        <MatchEditorModal
+          match={editingMatch}
+          onClose={() => setEditingMatch(null)}
+          onSaved={fetchMatches}
+        />
+      )}
     </div>
   );
 });
