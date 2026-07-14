@@ -1101,6 +1101,7 @@ def require_site_password() -> Optional[Response]:
 
 
 @app.route("/log_game", methods=["POST"])
+@app.route("/api/log_game", methods=["POST"])
 def log_game():
     """Handle game logging POST requests."""
     try:
@@ -1333,11 +1334,6 @@ def session_stats():
     except Exception as e:
         logger.error(f"Error in session_stats endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/api/log_game", methods=["POST"])
-def api_log_game():
-    return log_game()
 
 
 @app.route("/api/undo_last_game", methods=["POST"])
