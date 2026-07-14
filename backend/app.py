@@ -1451,8 +1451,11 @@ def api_list_matches() -> Any:
     """Paginated match list, newest first; filterable by session_id."""
     try:
         session_id = request.args.get("session_id")
-        limit = min(int(request.args.get("limit", 50)), 200)
-        offset = max(int(request.args.get("offset", 0)), 0)
+        try:
+            limit = min(int(request.args.get("limit", 50)), 200)
+            offset = max(int(request.args.get("offset", 0)), 0)
+        except ValueError:
+            return jsonify({"error": "limit and offset must be integers"}), 400
         result = data_manager.get_matches(
             session_id=session_id, limit=limit, offset=offset
         )

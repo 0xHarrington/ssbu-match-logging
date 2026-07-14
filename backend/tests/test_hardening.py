@@ -92,3 +92,29 @@ class TestSessionStatsDstAmbiguous:
         res = client.get("/api/session_stats")
         assert res.status_code == 200
         assert res.get_json()["success"] is True
+
+
+class TestListMatchesQueryParams:
+    """(c) `int(request.args.get(...))` raises ValueError on non-numeric
+    input, caught only by the generic handler -> 500. Mirror the recent_n
+    pattern: explicit try/except -> 400 with a message.
+    """
+
+    def test_non_integer_limit_returns_400(self, client) -> None:
+        res = client.get("/api/matches?limit=abc")
+        assert res.status_code == 400
+        assert "error" in res.get_json()
+
+    def test_non_integer_offset_returns_400(self, client) -> None:
+        res = client.get("/api/matches?offset=abc")
+        assert res.status_code == 400
+        assert "error" in res.get_json()
+
+    def test_negative_offset_clamps_to_zero(self, client) -> None:
+        res = client.get("/api/matches?offset=-5")
+        assert res.status_code == 200
+        body = res.get_json()
+        assert body["success"] is True
+        # Clamped to 0 -> identical page to an explicit offset=0 request.
+        baseline = client.get("/api/matches?offset=0").get_json()
+        assert body["matches"] == baseline["matches"]
