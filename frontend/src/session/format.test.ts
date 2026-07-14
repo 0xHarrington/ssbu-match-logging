@@ -27,9 +27,8 @@ describe('formatDuration', () => {
     expect(formatDuration(64)).toBe('1h 04m');
   });
 
-  it('rounds minutes % 60 up to exactly 60 without carrying into the hour (known bug)', () => {
-    // Characterizes the current output; fixed in the next commit with a carry.
-    expect(formatDuration(119.7)).toBe('1h 60m');
+  it('carries a rounded 60m into the next hour instead of showing "1h 60m"', () => {
+    expect(formatDuration(119.7)).toBe('2h 00m');
   });
 });
 

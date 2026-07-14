@@ -9,8 +9,12 @@ export function matchTime(datetime: string): string {
 /** Minutes -> "1h 04m" / "52m". */
 export function formatDuration(minutes: number): string {
   if (!minutes || minutes < 1) return '0m';
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
+  let h = Math.floor(minutes / 60);
+  let m = Math.round(minutes % 60);
+  if (m === 60) {
+    h += 1;
+    m = 0;
+  }
   if (h === 0) return `${m}m`;
   return `${h}h ${String(m).padStart(2, '0')}m`;
 }
