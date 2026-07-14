@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Legend, Tooltip } from './components/dither';
+import { LoadingState, ErrorState } from './components/Feedback';
+import { PageColumn, PageHeader, SectionTitle, Card, StatTile } from './components/ui';
+import { SplitBar } from './session/components/bars';
+import { formatDuration, sessionDisplayName } from './session/format';
 
 interface Session {
   session_id: string;
@@ -46,14 +50,14 @@ function SessionHistory() {
     try {
       const res = await fetch('/api/sessions');
       const data = await res.json();
-      
+
       if (!data.success) {
         throw new Error(data.message || 'Failed to load sessions');
       }
-      
+
       setSessions(data.sessions);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load sessions');
     } finally {
       setLoading(false);
     }
@@ -63,7 +67,7 @@ function SessionHistory() {
     try {
       const res = await fetch('/api/sessions/timeline');
       const data = await res.json();
-      
+
       if (data.success && data.data) {
         setTimelineData(data.data);
       }
@@ -74,38 +78,30 @@ function SessionHistory() {
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
     });
   };
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
     });
   };
 
-  const formatDuration = (minutes: number) => {
-    if (minutes < 60) {
-      return `${minutes}m`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
-  };
-
-  const filteredSessions = sessions.filter(s => s.total_games >= filterMinGames);
+  const filteredSessions = sessions.filter((s) => s.total_games >= filterMinGames);
 
   // Calculate statistics
   const totalGames = sessions.reduce((sum, s) => sum + s.total_games, 0);
   const avgGamesPerSession = sessions.length > 0 ? (totalGames / sessions.length).toFixed(1) : 0;
-  const avgDuration = sessions.length > 0 
-    ? Math.round(sessions.reduce((sum, s) => sum + s.duration_minutes, 0) / sessions.length)
-    : 0;
+  const avgDuration =
+    sessions.length > 0
+      ? Math.round(sessions.reduce((sum, s) => sum + s.duration_minutes, 0) / sessions.length)
+      : 0;
 
   // Timeline chart rows: one bar pair per session, stacked so total height = games played
   const activityChartData: ActivityChartRow[] = timelineData.map((d) => ({
@@ -114,173 +110,47 @@ function SessionHistory() {
     matt_wins: d.matt_wins,
   }));
 
-  if (loading) {
-    return (
-      <div style={{ 
-        padding: '2rem', 
-        textAlign: 'center',
-        color: '#a89984' 
-      }}>
-        Loading sessions...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ 
-        padding: '2rem', 
-        textAlign: 'center',
-        color: '#fb4934' 
-      }}>
-        Error: {error}
-      </div>
-    );
-  }
+  if (loading) return <LoadingState label="Loading sessions…" />;
+  if (error) return <ErrorState message={error} onRetry={fetchSessions} />;
 
   return (
-    <div style={{ 
-      padding: '2rem',
-      maxWidth: '1400px',
-      margin: '0 auto'
-    }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'flex-start',
-        marginBottom: '1.5rem' 
-      }}>
-        <div>
-          <h1 style={{ 
-            fontSize: '1.5rem', 
-            fontWeight: 'bold',
-            color: '#fbf1c7',
-            marginBottom: '0.25rem'
-          }}>
-            📊 Session History
-          </h1>
-          <p style={{ color: '#a89984', fontSize: '0.8rem' }}>
-            View and analyze all your gaming sessions
-          </p>
-        </div>
-        <Link
-          to="/sessions/compare"
-          style={{
-            padding: '0.5rem 1rem',
-            background: '#83a598',
-            color: '#282828',
-            border: 'none',
-            borderRadius: '6px',
-            fontSize: '0.8rem',
-            fontWeight: 'bold',
-            textDecoration: 'none',
-            display: 'inline-block',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#a3c0b8';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#83a598';
-            e.currentTarget.style.transform = 'none';
-          }}
-        >
-          🔄 Compare Sessions
-        </Link>
+    <PageColumn>
+      <PageHeader
+        title="Session History"
+        subtitle="View and analyze all your gaming sessions"
+        action={
+          <Link
+            to="/sessions/compare"
+            style={{
+              background: 'var(--blue)',
+              color: '#1b1817',
+              borderRadius: 12,
+              padding: '11px 18px',
+              fontWeight: 700,
+              fontSize: 13,
+              fontFamily: 'var(--font-display)',
+              textDecoration: 'none',
+              display: 'inline-block',
+            }}
+          >
+            ⇄ Compare sessions
+          </Link>
+        }
+      />
+
+      {/* summary tiles */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 14 }}>
+        <StatTile caps value={sessions.length} label="Total sessions" color="var(--blue)" />
+        <StatTile caps value={totalGames} label="Total games" color="var(--yellow)" />
+        <StatTile caps value={avgGamesPerSession} label="Avg games/session" color="var(--aqua)" />
+        <StatTile caps value={formatDuration(avgDuration)} label="Avg duration" color="var(--purple)" />
       </div>
 
-      {/* Summary Stats */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-        gap: '0.75rem',
-        marginBottom: '1.5rem'
-      }}>
-        <div style={{
-          background: '#3c3836',
-          borderRadius: '8px',
-          padding: '0.875rem',
-          border: '1px solid #504945'
-        }}>
-          <div style={{ fontSize: '0.625rem', color: '#a89984', marginBottom: '0.375rem', textTransform: 'uppercase' }}>
-            Total Sessions
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#83a598' }}>
-            {sessions.length}
-          </div>
-        </div>
-
-        <div style={{
-          background: '#3c3836',
-          borderRadius: '8px',
-          padding: '0.875rem',
-          border: '1px solid #504945'
-        }}>
-          <div style={{ fontSize: '0.625rem', color: '#a89984', marginBottom: '0.375rem', textTransform: 'uppercase' }}>
-            Total Games
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#b8bb26' }}>
-            {totalGames}
-          </div>
-        </div>
-
-        <div style={{
-          background: '#3c3836',
-          borderRadius: '8px',
-          padding: '0.875rem',
-          border: '1px solid #504945'
-        }}>
-          <div style={{ fontSize: '0.625rem', color: '#a89984', marginBottom: '0.375rem', textTransform: 'uppercase' }}>
-            Avg Games/Session
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fabd2f' }}>
-            {avgGamesPerSession}
-          </div>
-        </div>
-
-        <div style={{
-          background: '#3c3836',
-          borderRadius: '8px',
-          padding: '0.875rem',
-          border: '1px solid #504945'
-        }}>
-          <div style={{ fontSize: '0.625rem', color: '#a89984', marginBottom: '0.375rem', textTransform: 'uppercase' }}>
-            Avg Duration
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fe8019' }}>
-            {formatDuration(avgDuration)}
-          </div>
-        </div>
-      </div>
-
-      {/* Timeline Chart */}
+      {/* activity over time */}
       {timelineData.length > 0 && (
-        <div style={{
-          background: '#3c3836',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          marginBottom: '1.5rem',
-          border: '1px solid #504945',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-        }}>
-          <h2 style={{ 
-            fontSize: '1.2rem', 
-            marginBottom: '1rem', 
-            color: '#fbf1c7',
-            fontWeight: 'bold'
-          }}>
-            📊 Session Activity Over Time
-          </h2>
-          <div style={{ 
-            fontSize: '0.85rem', 
-            color: '#a89984', 
-            marginBottom: '1rem' 
-          }}>
-            Games played across {timelineData.length} session{timelineData.length !== 1 ? 's' : ''}
-          </div>
-          <div style={{ height: '300px', width: '100%' }}>
+        <Card>
+          <SectionTitle hint="Shayne / Matt">Session activity over time</SectionTitle>
+          <div style={{ height: 260, width: '100%' }}>
             <BarChart
               data={activityChartData}
               config={{
@@ -297,192 +167,149 @@ function SessionHistory() {
               <Bar dataKey="matt_wins" variant="gradient" />
             </BarChart>
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Filter */}
-      <div style={{
-        background: '#3c3836',
-        borderRadius: '8px',
-        padding: '0.75rem',
-        marginBottom: '1.25rem',
-        border: '1px solid #504945',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem'
-      }}>
-        <label style={{ color: '#ebdbb2', fontSize: '0.75rem' }}>
-          Minimum Games:
-        </label>
+      {/* filter bar */}
+      <div
+        style={{
+          background: 'var(--panel)',
+          border: '1px solid var(--line-2)',
+          borderRadius: 12,
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          flexWrap: 'wrap',
+        }}
+      >
+        <label style={{ fontSize: 13, color: 'var(--fg)' }}>Minimum games</label>
         <input
           type="number"
           min="0"
           value={filterMinGames}
           onChange={(e) => setFilterMinGames(parseInt(e.target.value) || 0)}
           style={{
-            background: '#282828',
-            border: '1px solid #504945',
-            borderRadius: '4px',
-            padding: '0.375rem',
-            color: '#ebdbb2',
-            width: '60px',
-            fontSize: '0.75rem'
+            background: 'var(--deep1)',
+            border: '1px solid var(--border-light)',
+            borderRadius: 8,
+            padding: '6px 10px',
+            color: 'var(--fg)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 13,
+            width: 64,
           }}
         />
-        <span style={{ color: '#a89984', fontSize: '0.7rem' }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--faint)' }}>
           Showing {filteredSessions.length} of {sessions.length} sessions
         </span>
       </div>
 
-      {/* Sessions List */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-        gap: '1rem'
-      }}>
+      {/* session card grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16 }}>
         {filteredSessions.map((session) => {
-          const shayneWinRate = session.total_games > 0 
-            ? (session.shayne_wins / session.total_games * 100).toFixed(1)
-            : 0;
-          const winner = session.shayne_wins > session.matt_wins ? 'Shayne' : 
-                        session.matt_wins > session.shayne_wins ? 'Matt' : 'Tie';
-          
+          const winner =
+            session.shayne_wins > session.matt_wins
+              ? 'Shayne'
+              : session.matt_wins > session.shayne_wins
+              ? 'Matt'
+              : 'Even';
+          const badge =
+            winner === 'Shayne'
+              ? { color: 'var(--shayne)', bg: 'rgba(254,128,25,0.15)' }
+              : winner === 'Matt'
+              ? { color: 'var(--matt)', bg: 'rgba(184,187,38,0.15)' }
+              : { color: 'var(--gray)', bg: 'rgba(168,153,132,0.15)' };
+
           return (
             <Link
               key={session.session_id}
-              to={`/sessions/${session.session_id}`}
-              style={{ textDecoration: 'none' }}
+              to={`/sessions/${encodeURIComponent(session.session_id)}`}
+              style={{
+                background: 'var(--panel)',
+                border: '1px solid var(--line-2)',
+                borderRadius: 16,
+                padding: 18,
+                cursor: 'pointer',
+                textDecoration: 'none',
+                color: 'inherit',
+                display: 'block',
+              }}
             >
-              <div style={{
-                background: '#3c3836',
-                borderRadius: '8px',
-                padding: '0.875rem',
-                border: '1px solid #504945',
-                transition: 'all 0.2s',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#504945';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#3c3836';
-                e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = 'none';
-              }}>
-                {/* Date Header */}
-                <div style={{ 
-                  marginBottom: '0.625rem',
-                  paddingBottom: '0.5rem',
-                  borderBottom: '1px solid #504945'
-                }}>
-                  <div style={{ 
-                    fontSize: '0.85rem', 
-                    fontWeight: 'bold',
-                    color: '#fbf1c7',
-                    marginBottom: '0.125rem'
-                  }}>
-                    📅 {formatDate(session.start_time)}
-                  </div>
-                  <div style={{ 
-                    fontSize: '0.7rem',
-                    color: '#a89984'
-                  }}>
-                    {formatTime(session.start_time)} → {formatTime(session.end_time)}
-                  </div>
+              {/* header */}
+              <div style={{ paddingBottom: 12, marginBottom: 12, borderBottom: '1px solid var(--line-2)' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-light)' }}>
+                  {sessionDisplayName(session.start_time)}
                 </div>
-
-                {/* Game Count and Duration */}
-                <div style={{
-                  display: 'flex',
-                  gap: '1rem',
-                  marginBottom: '0.625rem'
-                }}>
-                  <div>
-                    <div style={{ fontSize: '0.625rem', color: '#a89984', marginBottom: '0.125rem' }}>
-                      Games
-                    </div>
-                    <div style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#83a598' }}>
-                      {session.total_games}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.625rem', color: '#a89984', marginBottom: '0.125rem' }}>
-                      Duration
-                    </div>
-                    <div style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#fabd2f' }}>
-                      {formatDuration(session.duration_minutes)}
-                    </div>
-                  </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', marginTop: 3 }}>
+                  {formatDate(session.start_time)}
                 </div>
-
-                {/* Score */}
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <div style={{ 
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '0.375rem'
-                  }}>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fe8019' }}>
-                      Shayne {session.shayne_wins}
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: '#a89984' }}>-</span>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#b8bb26' }}>
-                      {session.matt_wins} Matt
-                    </span>
-                  </div>
-                  
-                  {/* Win Rate Bar */}
-                  <div style={{
-                    height: '4px',
-                    background: '#282828',
-                    borderRadius: '2px',
-                    overflow: 'hidden',
-                    display: 'flex'
-                  }}>
-                    <div style={{
-                      width: `${shayneWinRate}%`,
-                      background: '#fe8019'
-                    }} />
-                    <div style={{
-                      width: `${100 - parseFloat(shayneWinRate as string)}%`,
-                      background: '#b8bb26'
-                    }} />
-                  </div>
-                </div>
-
-                {/* Winner Badge */}
-                <div style={{
-                  display: 'inline-block',
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: '12px',
-                  fontSize: '0.65rem',
-                  fontWeight: 'bold',
-                  background: winner === 'Tie' ? '#83a598' : winner === 'Shayne' ? '#fe8019' : '#b8bb26',
-                  color: '#282828'
-                }}>
-                  {winner === 'Tie' ? '🤝 Tied' : `🏆 ${winner} Won`}
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--faint)', marginTop: 2 }}>
+                  {formatTime(session.start_time)} → {formatTime(session.end_time)}
                 </div>
               </div>
+
+              {/* games + duration */}
+              <div style={{ display: 'flex', gap: 24, marginBottom: 14 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--gray)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: 2 }}>
+                    Games
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, color: 'var(--aqua)' }}>
+                    {session.total_games}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--gray)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: 2 }}>
+                    Duration
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, color: 'var(--yellow)' }}>
+                    {formatDuration(session.duration_minutes)}
+                  </div>
+                </div>
+              </div>
+
+              {/* score */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--shayne)' }}>
+                  Shayne {session.shayne_wins}
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--matt)' }}>
+                  {session.matt_wins} Matt
+                </span>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <SplitBar shayne={session.shayne_wins} matt={session.matt_wins} height={6} radius={3} />
+              </div>
+
+              {/* winner badge */}
+              <span
+                style={{
+                  display: 'inline-block',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '3px 9px',
+                  borderRadius: 6,
+                  color: badge.color,
+                  background: badge.bg,
+                }}
+              >
+                {winner}
+              </span>
             </Link>
           );
         })}
       </div>
 
       {filteredSessions.length === 0 && (
-        <div style={{
-          textAlign: 'center',
-          padding: '3rem',
-          color: '#a89984'
-        }}>
-          No sessions found matching your criteria
+        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--faint)' }}>
+          No sessions match your filter
         </div>
       )}
-    </div>
+    </PageColumn>
   );
 }
 
 export default SessionHistory;
-

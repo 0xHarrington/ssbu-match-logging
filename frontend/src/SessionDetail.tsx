@@ -5,6 +5,8 @@ import CharacterDisplay from './components/CharacterDisplay';
 import MatchEditorModal, { type EditableMatch } from './components/MatchEditorModal';
 import { LoadingState, ErrorState } from './components/Feedback';
 import { stageImages } from './lib/stages';
+import { PageColumn, SectionTitle, Card, GlowPanel } from './components/ui';
+import { sessionDisplayName, formatDuration, matchTime, stocksLabel } from './session/format';
 
 interface SessionStats {
   success: boolean;
@@ -67,8 +69,8 @@ function SessionDetail() {
       }
 
       setStats(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load session');
     } finally {
       setLoading(false);
     }
@@ -107,37 +109,21 @@ function SessionDetail() {
       ]
     : [];
 
-  const formatDateTime = (dateStr: string) => {
+  const formatTimeOfDay = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
-  const formatMatchTime = (dateStr: string) => {
+  const formatDatePart = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const formatStocks = (value: EditableMatch['stocks_remaining']): string => {
-    if (value === null || value === undefined || value === '') return '—';
-    return `${value} stk`;
-  };
-
-  const calculateDuration = () => {
-    if (!stats) return '';
+  const durationMinutes = () => {
+    if (!stats) return 0;
     const start = new Date(stats.start_time);
     const end = new Date(stats.end_time);
-    const minutes = Math.floor((end.getTime() - start.getTime()) / 60000);
-    
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
+    return Math.floor((end.getTime() - start.getTime()) / 60000);
   };
 
   const handleGenerateTearsheet = () => {
@@ -153,106 +139,79 @@ function SessionDetail() {
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-      {/* Back Button */}
-      <Link 
+    <PageColumn gap={24}>
+      {/* Back link */}
+      <Link
         to="/sessions"
         style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          color: '#83a598',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 12,
+          color: 'var(--blue)',
           textDecoration: 'none',
-          marginBottom: '1.5rem',
-          fontSize: '0.9rem'
         }}
       >
         ← Back to Sessions
       </Link>
 
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: '2rem'
-      }}>
-        <div>
-          <h1 style={{
-            fontSize: '2rem',
-            fontWeight: 'bold',
-            color: '#fbf1c7',
-            marginBottom: '0.5rem'
-          }}>
-            Session Details
-          </h1>
-          <div style={{ color: '#a89984', fontSize: '0.95rem' }}>
-            {formatDateTime(stats.start_time)} → {formatDateTime(stats.end_time)}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+        <div style={{ minWidth: 0 }}>
+          <h2 style={{ fontSize: 26, fontWeight: 700, color: 'var(--fg-light)', letterSpacing: '-0.5px', margin: 0, fontFamily: 'var(--font-display)' }}>
+            {sessionDisplayName(stats.start_time)}
+          </h2>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gray)', marginTop: 6 }}>
+            {formatDatePart(stats.start_time)} · {formatTimeOfDay(stats.start_time)} → {formatTimeOfDay(stats.end_time)}
           </div>
-          <div style={{ color: '#a89984', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-            Duration: {calculateDuration()}
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--faint)', marginTop: 2 }}>
+            Duration: {formatDuration(durationMinutes())}
           </div>
         </div>
 
         <button
           onClick={handleGenerateTearsheet}
           style={{
-            padding: '0.75rem 1.5rem',
-            background: '#83a598',
-            color: '#282828',
+            background: 'var(--blue)',
             border: 'none',
-            borderRadius: '8px',
-            fontSize: '0.9rem',
-            fontWeight: 'bold',
+            borderRadius: 12,
+            padding: '11px 18px',
+            color: 'var(--deep0)',
+            fontFamily: 'var(--font-display)',
+            fontSize: 13,
+            fontWeight: 700,
             cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#a3c0b8';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#83a598';
-            e.currentTarget.style.transform = 'none';
           }}
         >
-          📊 Generate Tearsheet
+          Generate tearsheet
         </button>
       </div>
 
-      {/* Hero Stats */}
-      <div style={{
-        background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
-        borderRadius: '16px',
-        padding: '2rem',
-        marginBottom: '2rem',
-        border: '2px solid #504945'
-      }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '2rem', alignItems: 'center' }}>
+      {/* Score hero */}
+      <GlowPanel style={{ padding: '28px 32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontSize: '0.8rem', color: '#a89984', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              Session Score
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', letterSpacing: 2, marginBottom: 12 }}>
+              SESSION SCORE
             </div>
-            <div style={{ display: 'flex', gap: '2rem', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 20 }}>
               <div>
-                <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#fe8019', lineHeight: 1 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 56, fontWeight: 700, color: 'var(--shayne)', lineHeight: 1 }}>
                   {stats.shayne_wins}
                 </div>
-                <div style={{ fontSize: '0.9rem', color: '#a89984', marginTop: '0.25rem' }}>Shayne</div>
+                <div style={{ fontSize: 13, color: 'var(--gray)', marginTop: 4 }}>Shayne</div>
               </div>
-              <div style={{ fontSize: '2rem', color: '#504945', alignSelf: 'center' }}>-</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 36, color: 'var(--border-light)' }}>–</div>
               <div>
-                <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#b8bb26', lineHeight: 1 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 56, fontWeight: 700, color: 'var(--matt)', lineHeight: 1 }}>
                   {stats.matt_wins}
                 </div>
-                <div style={{ fontSize: '0.9rem', color: '#a89984', marginTop: '0.25rem' }}>Matt</div>
+                <div style={{ fontSize: 13, color: 'var(--gray)', marginTop: 4 }}>Matt</div>
               </div>
             </div>
-            <div style={{ fontSize: '0.85rem', color: '#a89984' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gray)', marginTop: 14 }}>
               {stats.total_games} games played
             </div>
           </div>
-          <div style={{ width: 120, height: 120 }}>
+          <div style={{ width: 116, height: 116, flex: '0 0 auto' }}>
             <PieChart
               data={winSplitData}
               config={{
@@ -267,65 +226,46 @@ function SessionDetail() {
             </PieChart>
           </div>
         </div>
-      </div>
+      </GlowPanel>
 
-      {/* Matchups */}
+      {/* Character matchups */}
       {stats.matchup_stats && stats.matchup_stats.length > 0 && (
-        <div style={{ marginBottom: '2rem' }}>
-          <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem', color: '#fbf1c7', fontWeight: 'bold' }}>
-            Character Matchups
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div>
+          <SectionTitle>Character matchups</SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {stats.matchup_stats.map((matchup, idx) => (
               <div
                 key={idx}
                 style={{
-                  background: '#3c3836',
-                  borderRadius: '10px',
-                  padding: '1rem',
-                  border: '1px solid #504945',
+                  background: 'var(--panel)',
+                  border: '1px solid var(--line-2)',
+                  borderRadius: 12,
+                  padding: '14px 18px',
                   display: 'flex',
+                  alignItems: 'center',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  gap: 12,
+                  flexWrap: 'wrap',
                 }}
               >
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    fontSize: '1rem',
-                    fontWeight: 'bold',
-                    marginBottom: '0.5rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem'
-                  }}>
-                    <span style={{ color: '#fe8019' }}>
-                      <CharacterDisplay character={matchup.shayne_character} />
-                    </span>
-                    <span style={{ color: '#a89984', fontSize: '0.85rem' }}>vs</span>
-                    <span style={{ color: '#b8bb26' }}>
-                      <CharacterDisplay character={matchup.matt_character} />
-                    </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--shayne)' }}>{matchup.shayne_character}</span>
+                    <span style={{ color: 'var(--faint)', fontSize: 13 }}>vs</span>
+                    <span style={{ color: 'var(--matt)' }}>{matchup.matt_character}</span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#a89984' }}>
-                    {matchup.total_games} {matchup.total_games === 1 ? 'game' : 'games'}
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', marginTop: 3 }}>
+                    {matchup.total_games} games
                   </div>
                 </div>
-                <div style={{
-                  display: 'flex',
-                  gap: '1.5rem',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fe8019' }}>
-                      {matchup.shayne_wins}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '1.2rem', color: '#504945' }}>-</div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#b8bb26' }}>
-                      {matchup.matt_wins}
-                    </div>
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color: 'var(--shayne)' }}>
+                    {matchup.shayne_wins}
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--border-light)' }}>–</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color: 'var(--matt)' }}>
+                    {matchup.matt_wins}
+                  </span>
                 </div>
               </div>
             ))}
@@ -333,232 +273,152 @@ function SessionDetail() {
         </div>
       )}
 
-      {/* Character Usage */}
+      {/* Character usage */}
       {(Object.keys(stats.shayne_characters).length > 0 || Object.keys(stats.matt_characters).length > 0) && (
-        <div style={{ marginBottom: '2rem' }}>
-          <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem', color: '#fbf1c7', fontWeight: 'bold' }}>
-            Character Usage
-          </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div style={{
-              background: '#3c3836',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              border: '1px solid #504945'
-            }}>
-              <div style={{
-                fontSize: '1rem',
-                color: '#fe8019',
-                marginBottom: '1rem',
-                fontWeight: 'bold'
-              }}>
-                Shayne
+        <div>
+          <SectionTitle>Character usage</SectionTitle>
+          <div className="char-usage-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            {([
+              ['Shayne', stats.shayne_characters, 'var(--shayne)'] as const,
+              ['Matt', stats.matt_characters, 'var(--matt)'] as const,
+            ]).map(([name, chars, color]) => (
+              <div
+                key={name}
+                style={{
+                  background: 'var(--panel)',
+                  border: '1px solid var(--line-2)',
+                  borderRadius: 14,
+                  padding: 18,
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 14 }}>{name}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                  {Object.entries(chars)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([char, count]) => (
+                      <div
+                        key={char}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}
+                      >
+                        <CharacterDisplay character={char} />
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 700, color }}>
+                          {count}
+                        </span>
+                      </div>
+                    ))}
+                </div>
               </div>
-              {Object.entries(stats.shayne_characters)
-                .sort(([, a], [, b]) => b - a)
-                .map(([char, count]) => (
-                  <div
-                    key={char}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '0.75rem',
-                      padding: '0.5rem',
-                      background: '#282828',
-                      borderRadius: '6px'
-                    }}
-                  >
-                    <div style={{ fontSize: '0.95rem' }}>
-                      <CharacterDisplay character={char} />
-                    </div>
-                    <span style={{
-                      fontSize: '1.1rem',
-                      fontWeight: 'bold',
-                      color: '#fe8019'
-                    }}>
-                      {count}
-                    </span>
-                  </div>
-                ))}
-            </div>
-            <div style={{
-              background: '#3c3836',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              border: '1px solid #504945'
-            }}>
-              <div style={{
-                fontSize: '1rem',
-                color: '#b8bb26',
-                marginBottom: '1rem',
-                fontWeight: 'bold'
-              }}>
-                Matt
-              </div>
-              {Object.entries(stats.matt_characters)
-                .sort(([, a], [, b]) => b - a)
-                .map(([char, count]) => (
-                  <div
-                    key={char}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '0.75rem',
-                      padding: '0.5rem',
-                      background: '#282828',
-                      borderRadius: '6px'
-                    }}
-                  >
-                    <div style={{ fontSize: '0.95rem' }}>
-                      <CharacterDisplay character={char} />
-                    </div>
-                    <span style={{
-                      fontSize: '1.1rem',
-                      fontWeight: 'bold',
-                      color: '#b8bb26'
-                    }}>
-                      {count}
-                    </span>
-                  </div>
-                ))}
-            </div>
+            ))}
           </div>
+          <style>{`
+            @media (max-width: 640px) {
+              .char-usage-grid { grid-template-columns: 1fr !important; }
+            }
+          `}</style>
         </div>
       )}
 
-      {/* Stage Stats */}
+      {/* Stage breakdown */}
       {stats.stage_stats.length > 0 && (
         <div>
-          <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem', color: '#fbf1c7', fontWeight: 'bold' }}>
-            Stage Breakdown
-          </h3>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-            gap: '0.75rem'
-          }}>
-            {stats.stage_stats.map(stat => (
-              <div
-                key={stat.stage}
-                style={{
-                  backgroundImage: stageImages[stat.stage] ? `url(${stageImages[stat.stage]})` : 'none',
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  borderRadius: '12px',
-                  padding: '1rem',
-                  minHeight: '100px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  border: '2px solid #504945'
-                }}
-              >
-                <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: 'rgba(0, 0, 0, 0.65)',
-                  zIndex: 1,
-                }} />
-                <div style={{
-                  position: 'relative',
-                  zIndex: 2,
-                  fontSize: '0.9rem',
-                  color: '#fbf1c7',
-                  fontWeight: 'bold',
-                  textShadow: '0 2px 4px rgba(0,0,0,0.9)'
-                }}>
-                  {stat.stage}
+          <SectionTitle>Stage breakdown</SectionTitle>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12 }}>
+            {stats.stage_stats.map((stat) => {
+              const img = stageImages[stat.stage];
+              return (
+                <div
+                  key={stat.stage}
+                  style={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    borderRadius: 14,
+                    border: '1px solid var(--line)',
+                    minHeight: 100,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    padding: 14,
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      backgroundImage: img
+                        ? `url(${img})`
+                        : 'repeating-linear-gradient(115deg,#2a2624,#2a2624 8px,#302b28 8px,#302b28 16px)',
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }}
+                  />
+                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(12,10,9,.55)' }} />
+                  <div style={{ position: 'relative', fontSize: 12, color: 'var(--fg-light)', fontWeight: 600 }}>
+                    {stat.stage}
+                  </div>
+                  <div style={{ position: 'relative', fontFamily: 'var(--font-mono)', fontSize: 28, fontWeight: 700, color: 'var(--aqua)' }}>
+                    {stat.count}
+                  </div>
                 </div>
-                <div style={{
-                  position: 'relative',
-                  zIndex: 2,
-                  fontSize: '2rem',
-                  fontWeight: 'bold',
-                  color: '#83a598',
-                  textShadow: '0 2px 4px rgba(0,0,0,0.9)'
-                }}>
-                  {stat.count}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* Matches */}
-      <div style={{ marginTop: '2rem' }}>
-        <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem', color: '#fbf1c7', fontWeight: 'bold' }}>
-          Matches
-        </h3>
-        <div style={{
-          background: '#3c3836',
-          borderRadius: '12px',
-          border: '1px solid #504945',
-          padding: '0.75rem'
-        }}>
+      <div>
+        <SectionTitle>Matches</SectionTitle>
+        <Card style={{ borderRadius: 14 }} padding={12}>
           {matchesLoading && (
-            <div style={{ fontSize: '0.85rem', color: '#a89984', padding: '0.5rem' }}>Loading matches...</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gray)', padding: 8 }}>Loading matches...</div>
           )}
           {matchesError && (
-            <div className="error" style={{ fontSize: '0.85rem', padding: '0.5rem' }}>{matchesError}</div>
+            <div className="error" style={{ fontSize: 12, padding: 8 }}>{matchesError}</div>
           )}
           {!matchesLoading && !matchesError && matches.length === 0 && (
-            <div style={{ fontSize: '0.85rem', color: '#a89984', padding: '0.5rem' }}>No matches found for this session.</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gray)', padding: 8 }}>No matches found for this session.</div>
           )}
           {!matchesLoading && !matchesError && matches.map((match) => {
             const isShayneWin = match.winner === 'Shayne';
+            const winColor = isShayneWin ? 'var(--shayne)' : 'var(--matt)';
             return (
               <div
                 key={match.match_id}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.75rem',
+                  gap: 12,
                   flexWrap: 'wrap',
-                  padding: '0.6rem 0.5rem',
-                  borderBottom: '1px solid #504945',
-                  borderLeft: `3px solid ${isShayneWin ? '#fe8019' : '#b8bb26'}`,
-                  borderRadius: '4px',
-                  marginBottom: '0.25rem',
-                  background: '#32302f'
+                  padding: '10px 8px',
+                  borderBottom: '1px solid var(--line-2)',
                 }}
               >
-                <span style={{ fontSize: '0.75rem', color: '#a89984', fontVariantNumeric: 'tabular-nums', minWidth: '40px' }}>
-                  {formatMatchTime(match.datetime)}
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', minWidth: 40 }}>
+                  {matchTime(match.datetime)}
                 </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', flex: 1, minWidth: '160px', fontSize: '0.85rem' }}>
-                  <span style={{ color: '#fe8019' }}>
-                    <CharacterDisplay character={match.shayne_character} />
-                  </span>
-                  <span style={{ color: '#a89984', fontSize: '0.75rem' }}>vs</span>
-                  <span style={{ color: '#b8bb26' }}>
-                    <CharacterDisplay character={match.matt_character} />
-                  </span>
+                <span style={{ flex: 1, minWidth: 160, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ color: 'var(--shayne)' }}>{match.shayne_character}</span>
+                  <span style={{ color: 'var(--faint)', fontSize: 11 }}>vs</span>
+                  <span style={{ color: 'var(--matt)' }}>{match.matt_character}</span>
                 </span>
-                <span style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  color: '#282828',
-                  background: isShayneWin ? '#fe8019' : '#b8bb26',
-                  borderRadius: '4px',
-                  padding: '0.15rem 0.5rem'
-                }}>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: winColor,
+                    background: `color-mix(in srgb, ${winColor} 18%, transparent)`,
+                    borderRadius: 6,
+                    padding: '2px 8px',
+                  }}
+                >
                   {match.winner}
                 </span>
-                <span style={{ fontSize: '0.75rem', color: '#a89984', minWidth: '90px' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', minWidth: 110 }}>
                   {match.stage || 'No stage'}
                 </span>
-                <span style={{ fontSize: '0.75rem', color: '#a89984', minWidth: '38px', textAlign: 'right' }}>
-                  {formatStocks(match.stocks_remaining)}
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', minWidth: 44, textAlign: 'right' }}>
+                  {stocksLabel(match.stocks_remaining ?? null)}
                 </span>
                 <button
                   type="button"
@@ -568,21 +428,19 @@ function SessionDetail() {
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: '#a89984',
-                    fontSize: '0.9rem',
+                    color: 'var(--gray)',
+                    fontSize: 14,
                     cursor: 'pointer',
-                    padding: '0.2rem',
-                    lineHeight: 1
+                    padding: 2,
+                    lineHeight: 1,
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = '#fbf1c7'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = '#a89984'; }}
                 >
                   ✎
                 </button>
               </div>
             );
           })}
-        </div>
+        </Card>
       </div>
 
       {editingMatch && (
@@ -592,9 +450,8 @@ function SessionDetail() {
           onSaved={handleMatchSaved}
         />
       )}
-    </div>
+    </PageColumn>
   );
 }
 
 export default SessionDetail;
-

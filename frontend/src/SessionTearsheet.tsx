@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import CharacterDisplay from './components/CharacterDisplay';
+import CharToken from './session/components/CharToken';
 import { LoadingState, ErrorState } from './components/Feedback';
 import { stageImages } from './lib/stages';
 
@@ -69,10 +70,43 @@ interface Game {
   stocks_remaining: number;
 }
 
+// The tearsheet card uses LITERAL hex (not CSS vars): it's a fixed shareable PNG
+// artifact captured by html2canvas, and must render identically regardless of
+// theme or var-resolution quirks in the capture engine.
+const HEX = {
+  card: '#161312',
+  panel: '#1b1817',
+  sub: '#221f1e',
+  line: '#2a2624',
+  line2: '#3c3836',
+  fg: '#ebdbb2',
+  fgLight: '#fbf1c7',
+  dim: '#a89984',
+  faint: '#665c54',
+  bl: '#504945',
+  shayne: '#fe8019',
+  matt: '#b8bb26',
+  blue: '#83a598',
+  aqua: '#8ec07c',
+  yellow: '#d79921',
+};
+
+function topCharacter(usage: CharacterUsage): string {
+  let best = '';
+  let bestN = -1;
+  for (const [c, n] of Object.entries(usage)) {
+    if (n > bestN) {
+      bestN = n;
+      best = c;
+    }
+  }
+  return best;
+}
+
 function SessionTearsheet() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id');
-  
+
   const [stats, setStats] = useState<SessionStatsData | null>(null);
   const [lifetimeStats, setLifetimeStats] = useState<LifetimeStats | null>(null);
   const [headToHead, setHeadToHead] = useState<HeadToHeadStats | null>(null);
@@ -87,11 +121,10 @@ function SessionTearsheet() {
     setLoading(true);
     setError(null);
     try {
-      // Build session stats URL with optional session_id parameter
-      const sessionStatsUrl = sessionId 
+      const sessionStatsUrl = sessionId
         ? `/api/session_stats?session_id=${sessionId}`
         : '/api/session_stats';
-      
+
       const [sessionRes, lifetimeRes, h2hRes, advRes, gamesRes] = await Promise.all([
         fetch(sessionStatsUrl),
         fetch('/api/stats'),
@@ -99,26 +132,26 @@ function SessionTearsheet() {
         fetch('/api/advanced_metrics'),
         fetch('/api/recent_games'),
       ]);
-      
+
       const sessionData = await sessionRes.json();
       const lifetimeData = await lifetimeRes.json();
       const h2hData = await h2hRes.json();
       const advData = await advRes.json();
       const gamesData = await gamesRes.json();
-      
+
       if (!sessionData.success) throw new Error(sessionData.message || 'Failed to load session stats');
       if (!lifetimeData.success) throw new Error(lifetimeData.message || 'Failed to load lifetime stats');
       if (!h2hData.success) throw new Error(h2hData.message || 'Failed to load head-to-head stats');
       if (!advData.success) throw new Error(advData.message || 'Failed to load advanced metrics');
       if (!gamesData.success) throw new Error(gamesData.message || 'Failed to load recent games');
-      
+
       setStats(sessionData);
       setLifetimeStats(lifetimeData.stats);
       setHeadToHead(h2hData);
       setAdvancedMetrics(advData);
       setRecentGames(gamesData.games);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load session stats');
     } finally {
       setLoading(false);
     }
@@ -130,17 +163,14 @@ function SessionTearsheet() {
 
   const generatePNG = async () => {
     if (!tearsheetRef.current) return;
-    
     setGenerating(true);
     try {
       const canvas = await html2canvas(tearsheetRef.current, {
-        backgroundColor: '#282828',
+        backgroundColor: HEX.card,
         scale: 2,
         logging: false,
         useCORS: true,
       });
-      
-      // Convert to blob and download
       canvas.toBlob((blob) => {
         if (blob) {
           const url = URL.createObjectURL(blob);
@@ -162,22 +192,18 @@ function SessionTearsheet() {
 
   const copyToClipboard = async () => {
     if (!tearsheetRef.current) return;
-    
     setGenerating(true);
     try {
       const canvas = await html2canvas(tearsheetRef.current, {
-        backgroundColor: '#282828',
+        backgroundColor: HEX.card,
         scale: 2,
         logging: false,
         useCORS: true,
       });
-      
       canvas.toBlob(async (blob) => {
         if (blob) {
           try {
-            await navigator.clipboard.write([
-              new ClipboardItem({ 'image/png': blob })
-            ]);
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
             alert('Session stats copied to clipboard!');
           } catch (err) {
             console.error('Failed to copy to clipboard:', err);
@@ -200,844 +226,256 @@ function SessionTearsheet() {
 
   if (loading) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        background: '#282828', 
-        color: '#ebdbb2',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem'
-      }}>
-        <LoadingState label="Loading session stats..." />
+      <div style={{ minHeight: '100vh', background: 'var(--deep0)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+        <LoadingState label="Loading session stats…" />
       </div>
     );
   }
 
   if (error || !stats || !lifetimeStats || !headToHead || !advancedMetrics) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        background: '#282828', 
-        color: '#ebdbb2',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem'
-      }}>
+      <div style={{ minHeight: '100vh', background: 'var(--deep0)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
         <ErrorState message={error || 'Failed to load session stats'} onRetry={fetchData} />
       </div>
     );
   }
 
-  // Format date based on whether we have session data with start/end times
   const getSessionDateDisplay = () => {
     if (stats && 'start_time' in stats && 'end_time' in stats) {
-      const start = new Date((stats as any).start_time);
-      const end = new Date((stats as any).end_time);
-      
-      // Check if session spans multiple days
+      const start = new Date((stats as unknown as { start_time: string }).start_time);
+      const end = new Date((stats as unknown as { end_time: string }).end_time);
       const sameDay = start.toDateString() === end.toDateString();
-      
       if (sameDay) {
-        return start.toLocaleDateString('en-US', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        });
-      } else {
-        const startStr = start.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit'
-        });
-        const endStr = end.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric',
-          year: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit'
-        });
-        return `${startStr} → ${endStr}`;
+        return start.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
       }
+      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+      return `${startStr} → ${endStr}`;
     }
-    
-    // Fallback to today's date
-    return new Date().toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
+    return new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
-  
+
   const sessionDateDisplay = getSessionDateDisplay();
+  const streak = headToHead.streaks.current_streak;
+  const last10 = headToHead.recent_form.last_10;
+  const last10Total = last10.total_games || 1;
+  const topShayne = topCharacter(stats.shayne_characters);
+  const topMatt = topCharacter(stats.matt_characters);
+
+  const mono = "'IBM Plex Mono', monospace";
+  const display = "'Space Grotesk', sans-serif";
+  const toolBtn = (bg: string, color: string): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: 8, background: bg, border: 'none', borderRadius: 11,
+    padding: '11px 18px', color, fontFamily: display, fontSize: 13, fontWeight: 700,
+    cursor: generating ? 'not-allowed' : 'pointer', opacity: generating ? 0.6 : 1,
+  });
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: '#1d2021', 
-      color: '#ebdbb2',
-      padding: '2rem',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: '2rem'
-    }}>
-      {/* Action Buttons */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '1rem',
-        position: 'sticky',
-        top: '1rem',
-        zIndex: 100,
-        background: '#282828',
-        padding: '1rem',
-        borderRadius: '12px',
-        border: '1px solid #504945',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-      }}>
-        <button
-          onClick={copyToClipboard}
-          disabled={generating}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: '#83a598',
-            color: '#282828',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '1rem',
-            fontWeight: 'bold',
-            cursor: generating ? 'not-allowed' : 'pointer',
-            opacity: generating ? 0.6 : 1,
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => !generating && (e.currentTarget.style.background = '#a3c0b8')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#83a598')}
-        >
-          {generating ? 'Generating...' : '📋 Copy to Clipboard'}
+    <div style={{ minHeight: '100vh', background: 'var(--deep0)', color: HEX.fg, padding: '32px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
+      {/* export toolbar (excluded from capture) */}
+      <div style={{ width: 800, maxWidth: '100%', display: 'flex', gap: 10 }}>
+        <button onClick={copyToClipboard} disabled={generating} style={toolBtn(HEX.blue, '#1b1817')}>
+          <span style={{ fontSize: 14 }}>⎘</span>{generating ? 'Generating…' : 'Copy to clipboard'}
         </button>
-        <button
-          onClick={generatePNG}
-          disabled={generating}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: '#b8bb26',
-            color: '#282828',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '1rem',
-            fontWeight: 'bold',
-            cursor: generating ? 'not-allowed' : 'pointer',
-            opacity: generating ? 0.6 : 1,
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => !generating && (e.currentTarget.style.background = '#d8db46')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#b8bb26')}
-        >
-          {generating ? 'Generating...' : '💾 Download PNG'}
+        <button onClick={generatePNG} disabled={generating} style={toolBtn(HEX.shayne, '#1b1817')}>
+          <span style={{ fontSize: 14 }}>↓</span>{generating ? 'Generating…' : 'Download PNG'}
         </button>
-        <button
-          onClick={() => window.close()}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: '#504945',
-            color: '#ebdbb2',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '1rem',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#665c54')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#504945')}
-        >
-          ✕ Close
+        <div style={{ flex: 1 }} />
+        <button onClick={() => window.close()} style={{ background: HEX.sub, border: `1px solid ${HEX.bl}`, borderRadius: 11, padding: '11px 16px', color: HEX.dim, fontFamily: display, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          Close
         </button>
       </div>
 
-      {/* Tearsheet */}
-      <div 
-        ref={tearsheetRef}
-        style={{
-          width: '800px',
-          background: '#282828',
-          borderRadius: '16px',
-          padding: '2.5rem',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-          border: '2px solid #504945'
-        }}
-      >
-        {/* Header */}
-        <div style={{ 
-          textAlign: 'center', 
-          marginBottom: '2rem',
-          borderBottom: '2px solid #504945',
-          paddingBottom: '1.5rem'
-        }}>
-          <h1 style={{ 
-            fontSize: '2.5rem', 
-            fontWeight: 'bold', 
-            margin: 0,
-            marginBottom: '0.5rem',
-            color: '#fbf1c7',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
-          }}>
-            🎮 Smash Session Stats
-          </h1>
-          <div style={{ fontSize: '1rem', color: '#a89984', fontWeight: '500' }}>
-            {sessionDateDisplay}
-          </div>
+      {/* the tearsheet card (800px export frame) */}
+      <div ref={tearsheetRef} style={{ width: 800, maxWidth: '100%', position: 'relative', overflow: 'hidden', background: HEX.card, border: `1px solid ${HEX.line2}`, borderRadius: 22, boxShadow: '0 30px 70px -25px rgba(0,0,0,0.7)' }}>
+        <div style={{ height: 5, display: 'flex' }}>
+          <div style={{ flex: 1, background: HEX.shayne }} />
+          <div style={{ flex: 1, background: HEX.matt }} />
         </div>
-
-        {/* ========== LIFETIME STATS SECTION ========== */}
-        <div style={{
-          background: '#1d2021',
-          borderRadius: '16px',
-          padding: '1.5rem',
-          marginBottom: '2.5rem',
-          border: '2px solid #3c3836',
-          boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.3)'
-        }}>
-          {/* Section Title */}
-          <div style={{
-            textAlign: 'center',
-            marginBottom: '1.25rem',
-            paddingBottom: '0.75rem',
-            borderBottom: '2px solid #3c3836'
-          }}>
-            <div style={{
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              color: '#d79921',
-              textTransform: 'uppercase',
-              letterSpacing: '2px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem'
-            }}>
-              <span>📊</span>
-              <span>Lifetime Statistics</span>
-              <span>📊</span>
+        <div style={{ padding: '38px 40px' }}>
+          {/* header lockup */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, paddingBottom: 24, borderBottom: `1px solid ${HEX.line}` }}>
+            <div>
+              <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: 3, color: HEX.shayne, textTransform: 'uppercase' }}>Session Tearsheet</div>
+              <div style={{ fontSize: 30, fontWeight: 700, color: HEX.fgLight, letterSpacing: '-0.5px', marginTop: 8, fontFamily: display }}>Session Recap</div>
+              <div style={{ fontFamily: mono, fontSize: 12, color: HEX.dim, marginTop: 4 }}>{sessionDateDisplay} · {stats.total_games} games</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <CharToken character={topShayne} player="Shayne" size={44} radius={12} />
+              <span style={{ fontFamily: mono, fontSize: 13, color: HEX.faint }}>vs</span>
+              <CharToken character={topMatt} player="Matt" size={44} radius={12} />
             </div>
           </div>
 
-          {/* Lifetime Stats Content */}
-          <div style={{ 
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '2rem',
-            marginBottom: '1.5rem'
-          }}>
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                All-Time Record
-              </div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-                <span style={{ color: '#fe8019' }}>{lifetimeStats.shayne_wins}</span>
-                <span style={{ color: '#504945', margin: '0 0.5rem' }}>-</span>
-                <span style={{ color: '#b8bb26' }}>{lifetimeStats.matt_wins}</span>
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#a89984', marginTop: '0.3rem' }}>
-                {lifetimeStats.total_games} total games
-              </div>
-            </div>
-            <div style={{ width: '2px', height: '60px', background: '#3c3836' }} />
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Win Rates
-              </div>
-              <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#fe8019' }}>
-                    {lifetimeStats.shayne_win_rate.toFixed(1)}%
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Shayne</div>
+          {/* lifetime strip */}
+          <div style={{ marginTop: 24, background: HEX.panel, border: `1px solid ${HEX.line}`, borderRadius: 16, padding: '18px 20px' }}>
+            <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: 2, color: HEX.yellow, textTransform: 'uppercase', textAlign: 'center', marginBottom: 16 }}>Lifetime statistics</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr 1px 1fr', gap: 20, alignItems: 'center' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 10, color: HEX.dim, fontFamily: mono, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>All-time record</div>
+                <div style={{ fontFamily: mono, fontSize: 24, fontWeight: 700 }}>
+                  <span style={{ color: HEX.shayne }}>{lifetimeStats.shayne_wins}</span><span style={{ color: HEX.bl }}>–</span><span style={{ color: HEX.matt }}>{lifetimeStats.matt_wins}</span>
                 </div>
-                <div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#b8bb26' }}>
-                    {lifetimeStats.matt_win_rate.toFixed(1)}%
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
+                <div style={{ fontSize: 10, color: HEX.faint, fontFamily: mono, marginTop: 3 }}>{lifetimeStats.total_games.toLocaleString()} games</div>
+              </div>
+              <div style={{ width: 1, height: 44, background: HEX.line }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 10, color: HEX.dim, fontFamily: mono, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Win rates</div>
+                <div style={{ display: 'flex', gap: 18, justifyContent: 'center' }}>
+                  <div><div style={{ fontFamily: mono, fontSize: 18, fontWeight: 700, color: HEX.shayne }}>{lifetimeStats.shayne_win_rate.toFixed(1)}%</div><div style={{ fontSize: 10, color: HEX.dim }}>Shayne</div></div>
+                  <div><div style={{ fontFamily: mono, fontSize: 18, fontWeight: 700, color: HEX.matt }}>{lifetimeStats.matt_win_rate.toFixed(1)}%</div><div style={{ fontSize: 10, color: HEX.dim }}>Matt</div></div>
+                </div>
+              </div>
+              <div style={{ width: 1, height: 44, background: HEX.line }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 10, color: HEX.dim, fontFamily: mono, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Dominance wins</div>
+                <div style={{ display: 'flex', gap: 18, justifyContent: 'center' }}>
+                  <div><div style={{ fontFamily: mono, fontSize: 18, fontWeight: 700, color: HEX.fgLight }}>{advancedMetrics.dominance_factor.shayne.three_stock_wins}<span style={{ color: HEX.faint, fontSize: 12 }}>|</span>{advancedMetrics.dominance_factor.matt.three_stock_wins}</div><div style={{ fontSize: 10, color: HEX.dim }}>3-stock</div></div>
+                  <div><div style={{ fontFamily: mono, fontSize: 18, fontWeight: 700, color: HEX.fgLight }}>{advancedMetrics.two_stock_wins.shayne.two_stock_wins}<span style={{ color: HEX.faint, fontSize: 12 }}>|</span>{advancedMetrics.two_stock_wins.matt.two_stock_wins}</div><div style={{ fontSize: 10, color: HEX.dim }}>2-stock</div></div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Dominance Stats Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-            <div style={{ 
-              background: '#282828',
-              borderRadius: '10px',
-              padding: '1rem',
-              border: '1px solid #3c3836'
-            }}>
-              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                ⚡ 3-Stock Wins
-              </div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
-                <span style={{ color: '#fe8019' }}>{advancedMetrics.dominance_factor.shayne.three_stock_wins}</span>
-                <span style={{ color: '#a89984', margin: '0 0.5rem' }}>|</span>
-                <span style={{ color: '#b8bb26' }}>{advancedMetrics.dominance_factor.matt.three_stock_wins}</span>
-              </div>
-            </div>
+          {/* tonight divider */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '26px 0' }}>
+            <div style={{ flex: 1, height: 1, background: `linear-gradient(to right,transparent,${HEX.line2})` }} />
+            <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: 2, color: '#1b1817', background: `linear-gradient(135deg,${HEX.blue},${HEX.aqua})`, padding: '6px 18px', borderRadius: 20, fontWeight: 700, textTransform: 'uppercase' }}>This session</div>
+            <div style={{ flex: 1, height: 1, background: `linear-gradient(to left,transparent,${HEX.line2})` }} />
+          </div>
 
-            <div style={{ 
-              background: '#282828',
-              borderRadius: '10px',
-              padding: '1rem',
-              border: '1px solid #3c3836'
-            }}>
-              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                💪 2-Stock Wins
+          {/* session score + quick stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 16, marginBottom: 22 }}>
+            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 18, border: `1px solid ${HEX.line2}`, background: 'linear-gradient(135deg,#221f1e,#1a1716)', padding: 24, textAlign: 'center' }}>
+              <div style={{ position: 'absolute', top: '-40%', left: '-10%', width: '50%', height: '180%', background: 'radial-gradient(circle,rgba(254,128,25,0.14),transparent 62%)' }} />
+              <div style={{ position: 'absolute', top: '-40%', right: '-10%', width: '50%', height: '180%', background: 'radial-gradient(circle,rgba(184,187,38,0.14),transparent 62%)' }} />
+              <div style={{ position: 'relative' }}>
+                <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: 2, color: HEX.dim, textTransform: 'uppercase', marginBottom: 12 }}>Session score</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
+                  <div><div style={{ fontFamily: mono, fontSize: 56, fontWeight: 700, color: HEX.shayne, lineHeight: 1 }}>{stats.shayne_wins}</div><div style={{ fontSize: 12, color: HEX.shayne, fontWeight: 600, marginTop: 6 }}>Shayne</div></div>
+                  <div style={{ fontFamily: mono, fontSize: 30, color: HEX.bl }}>–</div>
+                  <div><div style={{ fontFamily: mono, fontSize: 56, fontWeight: 700, color: HEX.matt, lineHeight: 1 }}>{stats.matt_wins}</div><div style={{ fontSize: 12, color: HEX.matt, fontWeight: 600, marginTop: 6 }}>Matt</div></div>
+                </div>
               </div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
-                <span style={{ color: '#fe8019' }}>{advancedMetrics.two_stock_wins.shayne.two_stock_wins}</span>
-                <span style={{ color: '#a89984', margin: '0 0.5rem' }}>|</span>
-                <span style={{ color: '#b8bb26' }}>{advancedMetrics.two_stock_wins.matt.two_stock_wins}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ flex: 1, background: HEX.panel, border: `1px solid ${HEX.line}`, borderRadius: 14, padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 22 }}>🔥</span>
+                <div><div style={{ fontFamily: mono, fontSize: 22, fontWeight: 700, color: streak.player === 'Shayne' ? HEX.shayne : HEX.matt, lineHeight: 1 }}>{streak.length}</div><div style={{ fontSize: 11, color: HEX.dim, marginTop: 3 }}>Current streak · {streak.player}</div></div>
+              </div>
+              <div style={{ flex: 1, background: HEX.panel, border: `1px solid ${HEX.line}`, borderRadius: 14, padding: 16 }}>
+                <div style={{ fontFamily: mono, fontSize: 10, color: HEX.dim, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Last 10 games</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontFamily: mono, fontSize: 18, fontWeight: 700, color: HEX.shayne }}>{last10.shayne_wins}</span>
+                  <span style={{ fontFamily: mono, fontSize: 18, fontWeight: 700, color: HEX.matt }}>{last10.matt_wins}</span>
+                </div>
+                <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ width: `${(last10.shayne_wins / last10Total) * 100}%`, background: HEX.shayne }} />
+                  <div style={{ width: `${(last10.matt_wins / last10Total) * 100}%`, background: HEX.matt }} />
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* ========== DIVIDER ========== */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1rem',
-          marginBottom: '2.5rem'
-        }}>
-          <div style={{ flex: 1, height: '2px', background: 'linear-gradient(to right, transparent, #504945, transparent)' }} />
-          <div style={{ 
-            background: 'linear-gradient(135deg, #83a598, #8ec07c)',
-            color: '#282828',
-            padding: '0.6rem 2rem',
-            borderRadius: '25px',
-            fontSize: '0.9rem',
-            fontWeight: 'bold',
-            textTransform: 'uppercase',
-            letterSpacing: '2px',
-            boxShadow: '0 4px 12px rgba(131, 165, 152, 0.3)',
-            border: '2px solid #a3c0b8'
-          }}>
-            📅 Today's Session
-          </div>
-          <div style={{ flex: 1, height: '2px', background: 'linear-gradient(to left, transparent, #504945, transparent)' }} />
-        </div>
-
-        {/* Hero Stats */}
-        <div style={{ 
-          background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
-          borderRadius: '16px',
-          padding: '2rem',
-          marginBottom: '2rem',
-          border: '2px solid #504945',
-          textAlign: 'center'
-        }}>
-          <div style={{ 
-            fontSize: '0.9rem', 
-            color: '#a89984', 
-            marginBottom: '1rem',
-            textTransform: 'uppercase',
-            letterSpacing: '2px',
-            fontWeight: 'bold'
-          }}>
-            Session Score
-          </div>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center',
-            gap: '3rem'
-          }}>
-            <div>
-              <div style={{ 
-                fontSize: '4rem', 
-                fontWeight: 'bold', 
-                color: '#fe8019',
-                lineHeight: 1,
-                textShadow: '3px 3px 6px rgba(0,0,0,0.4)'
-              }}>
-                {stats.shayne_wins}
-              </div>
-              <div style={{ 
-                fontSize: '1.2rem', 
-                color: '#fe8019',
-                marginTop: '0.5rem',
-                fontWeight: 'bold'
-              }}>
-                Shayne
-              </div>
-            </div>
-            <div style={{ 
-              fontSize: '3rem', 
-              color: '#504945',
-              fontWeight: 'bold'
-            }}>
-              -
-            </div>
-            <div>
-              <div style={{ 
-                fontSize: '4rem', 
-                fontWeight: 'bold', 
-                color: '#b8bb26',
-                lineHeight: 1,
-                textShadow: '3px 3px 6px rgba(0,0,0,0.4)'
-              }}>
-                {stats.matt_wins}
-              </div>
-              <div style={{ 
-                fontSize: '1.2rem', 
-                color: '#b8bb26',
-                marginTop: '0.5rem',
-                fontWeight: 'bold'
-              }}>
-                Matt
-              </div>
-            </div>
-          </div>
-          <div style={{ 
-            fontSize: '1rem', 
-            color: '#a89984',
-            marginTop: '1.5rem',
-            fontWeight: '500'
-          }}>
-            {stats.total_games} games played
-          </div>
-        </div>
-
-        {/* Quick Stats Grid */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(2, 1fr)', 
-          gap: '1rem', 
-          marginBottom: '2rem' 
-        }}>
-          <div style={{ 
-            background: '#3c3836',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            border: '1px solid #504945'
-          }}>
-            <div style={{ 
-              fontSize: '0.85rem', 
-              color: '#a89984', 
-              marginBottom: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '1px'
-            }}>
-              🔥 Current Streak
-            </div>
-            <div style={{ 
-              fontSize: '2.5rem', 
-              fontWeight: 'bold',
-              color: headToHead.streaks.current_streak.player === 'Shayne' ? '#fe8019' : '#b8bb26',
-              lineHeight: 1
-            }}>
-              {headToHead.streaks.current_streak.length}
-            </div>
-            <div style={{ 
-              fontSize: '1rem', 
-              color: headToHead.streaks.current_streak.player === 'Shayne' ? '#fe8019' : '#b8bb26',
-              marginTop: '0.5rem',
-              fontWeight: 'bold'
-            }}>
-              {headToHead.streaks.current_streak.player}
-            </div>
-          </div>
-          
-          <div style={{ 
-            background: '#3c3836',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            border: '1px solid #504945'
-          }}>
-            <div style={{ 
-              fontSize: '0.85rem', 
-              color: '#a89984', 
-              marginBottom: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '1px'
-            }}>
-              📊 Last 10 Games
-            </div>
-            <div style={{ 
-              fontSize: '1.5rem', 
-              fontWeight: 'bold',
-              marginBottom: '0.75rem'
-            }}>
-              <span style={{ color: '#fe8019' }}>{headToHead.recent_form.last_10.shayne_wins}</span>
-              <span style={{ color: '#a89984', margin: '0 0.5rem' }}>-</span>
-              <span style={{ color: '#b8bb26' }}>{headToHead.recent_form.last_10.matt_wins}</span>
-            </div>
-            <div style={{ 
-              height: '6px', 
-              background: '#282828', 
-              borderRadius: '3px', 
-              overflow: 'hidden',
-              display: 'flex'
-            }}>
-              <div style={{ 
-                width: `${(headToHead.recent_form.last_10.shayne_wins / headToHead.recent_form.last_10.total_games) * 100}%`,
-                background: '#fe8019'
-              }}></div>
-              <div style={{ 
-                width: `${(headToHead.recent_form.last_10.matt_wins / headToHead.recent_form.last_10.total_games) * 100}%`,
-                background: '#b8bb26'
-              }}></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Today's Matchups */}
-        {stats.matchup_stats && stats.matchup_stats.length > 0 && (
-          <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ 
-              fontSize: '1.2rem', 
-              marginBottom: '1rem', 
-              color: '#fbf1c7',
-              fontWeight: 'bold'
-            }}>
-              Today's Matchups
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {stats.matchup_stats.map((matchup, idx) => (
-                <div 
-                  key={idx}
-                  style={{
-                    background: '#3c3836',
-                    borderRadius: '10px',
-                    padding: '1rem',
-                    border: '1px solid #504945',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ 
-                      fontSize: '1rem',
-                      fontWeight: 'bold',
-                      marginBottom: '0.5rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem'
-                    }}>
-                      <span style={{ color: '#fe8019' }}>
-                        <CharacterDisplay character={matchup.shayne_character} />
-                      </span>
-                      <span style={{ color: '#a89984', fontSize: '0.85rem' }}>vs</span>
-                      <span style={{ color: '#b8bb26' }}>
-                        <CharacterDisplay character={matchup.matt_character} />
-                      </span>
+          {/* tonight's matchups */}
+          {stats.matchup_stats.length > 0 && (
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: HEX.fgLight, marginBottom: 12, fontFamily: display }}>This session's matchups</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {stats.matchup_stats.map((m, idx) => (
+                  <div key={idx} style={{ background: HEX.panel, border: `1px solid ${HEX.line}`, borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ color: HEX.shayne }}><CharacterDisplay character={m.shayne_character} /></span>
+                        <span style={{ color: HEX.faint, fontSize: 12 }}>vs</span>
+                        <span style={{ color: HEX.matt }}><CharacterDisplay character={m.matt_character} /></span>
+                      </div>
+                      <div style={{ fontFamily: mono, fontSize: 10, color: HEX.dim, marginTop: 2 }}>{m.total_games} {m.total_games === 1 ? 'game' : 'games'}</div>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#a89984' }}>
-                      {matchup.total_games} {matchup.total_games === 1 ? 'game' : 'games'} played
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                      <span style={{ fontFamily: mono, fontSize: 20, fontWeight: 700, color: HEX.shayne }}>{m.shayne_wins}</span>
+                      <span style={{ fontFamily: mono, fontSize: 14, color: HEX.bl }}>–</span>
+                      <span style={{ fontFamily: mono, fontSize: 20, fontWeight: 700, color: HEX.matt }}>{m.matt_wins}</span>
                     </div>
                   </div>
-                  <div style={{ 
-                    display: 'flex',
-                    gap: '1.5rem',
-                    alignItems: 'center'
-                  }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fe8019' }}>
-                        {matchup.shayne_wins}
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* character usage */}
+          {(Object.keys(stats.shayne_characters).length > 0 || Object.keys(stats.matt_characters).length > 0) && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 22 }}>
+              {([['Shayne', stats.shayne_characters, HEX.shayne], ['Matt', stats.matt_characters, HEX.matt]] as const).map(([name, usage, color]) => (
+                <div key={name} style={{ background: HEX.panel, border: `1px solid ${HEX.line}`, borderRadius: 14, padding: 18 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 12 }}>{name} played</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {Object.entries(usage).sort(([, a], [, b]) => b - a).slice(0, 4).map(([char, count]) => (
+                      <div key={char} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 11px', background: HEX.card, borderRadius: 8 }}>
+                        <span style={{ fontSize: 13, color: HEX.fg }}><CharacterDisplay character={char} /></span>
+                        <span style={{ fontFamily: mono, fontSize: 15, fontWeight: 700, color }}>{count}</span>
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Shayne</div>
-                    </div>
-                    <div style={{ fontSize: '1.2rem', color: '#504945' }}>-</div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#b8bb26' }}>
-                        {matchup.matt_wins}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Character Usage */}
-        {(Object.keys(stats.shayne_characters).length > 0 || Object.keys(stats.matt_characters).length > 0) && (
-          <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ 
-              fontSize: '1.2rem', 
-              marginBottom: '1rem', 
-              color: '#fbf1c7',
-              fontWeight: 'bold'
-            }}>
-              Character Usage
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div style={{ 
-                background: '#3c3836',
-                borderRadius: '12px',
-                padding: '1.25rem',
-                border: '1px solid #504945'
-              }}>
-                <div style={{ 
-                  fontSize: '1rem', 
-                  color: '#fe8019',
-                  marginBottom: '1rem',
-                  fontWeight: 'bold'
-                }}>
-                  Shayne
-                </div>
-                {Object.entries(stats.shayne_characters)
-                  .sort(([,a],[,b])=>b-a)
-                  .slice(0, 5)
-                  .map(([char, count]) => (
-                    <div 
-                      key={char}
-                      style={{ 
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '0.75rem',
-                        padding: '0.5rem',
-                        background: '#282828',
-                        borderRadius: '6px'
-                      }}
-                    >
-                      <div style={{ fontSize: '0.95rem' }}>
-                        <CharacterDisplay character={char} />
-                      </div>
-                      <span style={{ 
-                        fontSize: '1.1rem',
-                        fontWeight: 'bold',
-                        color: '#fe8019'
-                      }}>
-                        {count}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-              <div style={{ 
-                background: '#3c3836',
-                borderRadius: '12px',
-                padding: '1.25rem',
-                border: '1px solid #504945'
-              }}>
-                <div style={{ 
-                  fontSize: '1rem', 
-                  color: '#b8bb26',
-                  marginBottom: '1rem',
-                  fontWeight: 'bold'
-                }}>
-                  Matt
-                </div>
-                {Object.entries(stats.matt_characters)
-                  .sort(([,a],[,b])=>b-a)
-                  .slice(0, 5)
-                  .map(([char, count]) => (
-                    <div 
-                      key={char}
-                      style={{ 
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '0.75rem',
-                        padding: '0.5rem',
-                        background: '#282828',
-                        borderRadius: '6px'
-                      }}
-                    >
-                      <div style={{ fontSize: '0.95rem' }}>
-                        <CharacterDisplay character={char} />
-                      </div>
-                      <span style={{ 
-                        fontSize: '1.1rem',
-                        fontWeight: 'bold',
-                        color: '#b8bb26'
-                      }}>
-                        {count}
-                      </span>
-                    </div>
-                  ))}
+          {/* stage breakdown */}
+          {stats.stage_stats.length > 0 && (
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: HEX.fgLight, marginBottom: 12, fontFamily: display }}>Stage breakdown</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+                {stats.stage_stats.slice(0, 4).map((st) => (
+                  <div key={st.stage} style={{ position: 'relative', overflow: 'hidden', borderRadius: 12, border: `1px solid ${HEX.line2}`, minHeight: 88, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 12, backgroundImage: stageImages[st.stage] ? `url(${stageImages[st.stage]})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(12,10,9,0.58)' }} />
+                    <div style={{ position: 'relative', fontSize: 11, color: HEX.fgLight, fontWeight: 600, textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>{st.stage}</div>
+                    <div style={{ position: 'relative', fontFamily: mono, fontSize: 24, fontWeight: 700, color: HEX.blue, textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>{st.count}</div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Stage Stats */}
-        {stats.stage_stats.length > 0 && (
-          <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ 
-              fontSize: '1.2rem', 
-              marginBottom: '1rem', 
-              color: '#fbf1c7',
-              fontWeight: 'bold'
-            }}>
-              Stage Breakdown
-            </h3>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(3, 1fr)', 
-              gap: '0.75rem' 
-            }}>
-              {stats.stage_stats.slice(0, 6).map(stat => (
-                <div 
-                  key={stat.stage}
-                  style={{
-                    backgroundImage: stageImages[stat.stage] ? `url(${stageImages[stat.stage]})` : 'none',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    borderRadius: '12px',
-                    padding: '1rem',
-                    minHeight: '80px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    border: '2px solid #504945'
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-                    zIndex: 1,
-                  }} />
-                  <div style={{ 
-                    position: 'relative',
-                    zIndex: 2,
-                    fontSize: '0.85rem',
-                    color: '#fbf1c7',
-                    fontWeight: 'bold',
-                    textShadow: '0 2px 4px rgba(0,0,0,0.9)'
-                  }}>
-                    {stat.stage}
-                  </div>
-                  <div style={{ 
-                    position: 'relative',
-                    zIndex: 2,
-                    fontSize: '1.8rem',
-                    fontWeight: 'bold',
-                    color: '#83a598',
-                    textShadow: '0 2px 4px rgba(0,0,0,0.9)'
-                  }}>
-                    {stat.count}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Recent Games */}
-        {recentGames.length > 0 && (
-          <div>
-            <h3 style={{ 
-              fontSize: '1.2rem', 
-              marginBottom: '1rem', 
-              color: '#fbf1c7',
-              fontWeight: 'bold'
-            }}>
-              Recent Games
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {recentGames.slice(0, 8).map((game, idx) => {
-                const isShayneWin = game.winner === 'Shayne';
-                return (
-                  <div 
-                    key={idx}
-                    style={{
-                      background: '#3c3836',
-                      borderRadius: '10px',
-                      padding: '0.9rem',
-                      border: '1px solid #504945',
-                      borderLeft: `4px solid ${isShayneWin ? '#fe8019' : '#b8bb26'}`,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ 
-                        fontSize: '0.95rem',
-                        fontWeight: '600',
-                        color: '#fbf1c7',
-                        marginBottom: '0.3rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem'
-                      }}>
-                        <CharacterDisplay character={game.shayne_character} />
-                        <span style={{ color: '#a89984', fontSize: '0.8rem' }}>vs</span>
-                        <CharacterDisplay character={game.matt_character} />
+          {/* recent games */}
+          {recentGames.length > 0 && (
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: HEX.fgLight, marginBottom: 12, fontFamily: display }}>Recent games</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {recentGames.slice(0, 7).map((game, idx) => {
+                  const isShayneWin = game.winner === 'Shayne';
+                  const accent = isShayneWin ? HEX.shayne : HEX.matt;
+                  return (
+                    <div key={idx} style={{ background: HEX.panel, border: `1px solid ${HEX.line}`, borderLeft: `4px solid ${accent}`, borderRadius: 10, padding: '11px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ color: HEX.shayne }}><CharacterDisplay character={game.shayne_character} /></span>
+                          <span style={{ color: HEX.faint, fontSize: 11 }}>vs</span>
+                          <span style={{ color: HEX.matt }}><CharacterDisplay character={game.matt_character} /></span>
+                        </div>
+                        <div style={{ fontFamily: mono, fontSize: 10, color: HEX.dim, marginTop: 2 }}>{formatTime(game.datetime)} · {game.stage}</div>
                       </div>
-                      <div style={{ 
-                        fontSize: '0.75rem',
-                        color: '#a89984',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem'
-                      }}>
-                        <span>{formatTime(game.datetime)}</span>
-                        <span>•</span>
-                        <span>{game.stage}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
+                        <span style={{ fontFamily: mono, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: accent }}>{game.winner}</span>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {[...Array(Math.max(0, game.stocks_remaining || 0))].map((_, i) => (
+                            <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: accent }} />
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <div style={{ 
-                      textAlign: 'right',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-end',
-                      gap: '0.3rem'
-                    }}>
-                      <div style={{ 
-                        fontSize: '0.85rem',
-                        fontWeight: 'bold',
-                        color: isShayneWin ? '#fe8019' : '#b8bb26',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                      }}>
-                        {game.winner}
-                      </div>
-                      <div style={{ 
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem'
-                      }}>
-                        {[...Array(game.stocks_remaining)].map((_, i) => (
-                          <div key={i} style={{ 
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            background: isShayneWin ? '#fe8019' : '#b8bb26'
-                          }} />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Footer */}
-        <div style={{ 
-          marginTop: '2rem',
-          paddingTop: '1.5rem',
-          borderTop: '2px solid #504945',
-          textAlign: 'center',
-          fontSize: '0.85rem',
-          color: '#a89984'
-        }}>
-          Generated by Smash Match Logger
+          {/* footer */}
+          <div style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${HEX.line}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: HEX.fgLight, fontFamily: display }}>Smash<span style={{ color: HEX.shayne }}>Log</span></span>
+            <span style={{ fontFamily: mono, fontSize: 11, color: HEX.faint }}>Smash Match Logger</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1045,4 +483,3 @@ function SessionTearsheet() {
 }
 
 export default SessionTearsheet;
-

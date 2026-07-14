@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import CharacterDisplay from './components/CharacterDisplay';
-import { BarChart, Bar, XAxis, YAxis, Tooltip } from './components/dither';
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, DitherHeatmap, Grid, type DitherHeatmapCell } from './components/dither';
+import { LoadingState, ErrorState } from './components/Feedback';
+import { PageColumn, PageHeader, SectionTitle, Card, GlowPanel, StatTile } from './components/ui';
+import { SplitBar } from './session/components/bars';
 
 // ===== TYPE DEFINITIONS =====
 interface MonthlyActivityItem {
@@ -119,14 +122,67 @@ interface MatchupMatrix {
     matt_win_rate: number;
   }>;
   best_matchups: {
-    shayne: Array<any>;
-    matt: Array<any>;
+    shayne: Array<unknown>;
+    matt: Array<unknown>;
   };
   worst_matchups: {
-    shayne: Array<any>;
-    matt: Array<any>;
+    shayne: Array<unknown>;
+    matt: Array<unknown>;
   };
 }
+
+interface UserStageStat {
+  stage: string;
+  winRate: number;
+  totalGames: number;
+  wins: number;
+  losses: number;
+}
+
+interface HeatmapCell {
+  hour: number;
+  day: number;
+  win_rate: number;
+  game_count: number;
+}
+
+const TOOLTIPS: Record<string, { title: string; body: React.ReactNode }> = {
+  close: {
+    title: '1-Stock Victory Percentages',
+    body: (
+      <>
+        <div style={{ marginBottom: '0.3rem' }}><span style={{ color: 'var(--blue)', fontWeight: 700 }}>First %:</span> of this player's wins, what % were 1-stock victories</div>
+        <div><span style={{ color: 'var(--blue)', fontWeight: 700 }}>Second %:</span> of all games, what % were 1-stock victories for this player</div>
+      </>
+    ),
+  },
+  two: {
+    title: '2-Stock Victory Percentages',
+    body: (
+      <>
+        <div style={{ marginBottom: '0.3rem' }}><span style={{ color: 'var(--blue)', fontWeight: 700 }}>First %:</span> of this player's wins, what % were 2-stock victories</div>
+        <div><span style={{ color: 'var(--blue)', fontWeight: 700 }}>Second %:</span> of all games, what % were 2-stock victories for this player</div>
+      </>
+    ),
+  },
+  three: {
+    title: '3-Stock Victory Percentages',
+    body: (
+      <>
+        <div style={{ marginBottom: '0.3rem' }}><span style={{ color: 'var(--blue)', fontWeight: 700 }}>First %:</span> of this player's wins, what % were 3-stock victories</div>
+        <div><span style={{ color: 'var(--blue)', fontWeight: 700 }}>Second %:</span> of all games, what % were 3-stock victories for this player</div>
+      </>
+    ),
+  },
+  momentum: {
+    title: 'Momentum',
+    body: 'The share of games won immediately after winning the previous game. Higher values mean a stronger ability to maintain winning streaks.',
+  },
+  consistency: {
+    title: 'Consistency',
+    body: 'Win-rate volatility — the standard deviation of performance across rolling 20-game windows. Lower is steadier.',
+  },
+};
 
 // ===== MAIN COMPONENT =====
 const StatsPage: React.FC = () => {
@@ -135,50 +191,66 @@ const StatsPage: React.FC = () => {
   const [headToHead, setHeadToHead] = useState<HeadToHeadStats | null>(null);
   const [advancedMetrics, setAdvancedMetrics] = useState<AdvancedMetrics | null>(null);
   const [matchupMatrix, setMatchupMatrix] = useState<MatchupMatrix | null>(null);
+  const [stageStats, setStageStats] = useState<UserStageStat[]>([]);
+  const [heatmap, setHeatmap] = useState<HeatmapCell[]>([]);
+  const [winTimeline, setWinTimeline] = useState<number[]>([]);
+  const [sessionCount, setSessionCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
-  
-  useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [statsRes, charRes, h2hRes, advRes, matchupRes] = await Promise.all([
-          fetch('/api/stats'),
-          fetch('/api/character_win_rates'),
-          fetch('/api/head_to_head_stats'),
-          fetch('/api/advanced_metrics'),
-          fetch('/api/matchup_matrix'),
-        ]);
-        
-        const statsData = await statsRes.json();
-        const charData = await charRes.json();
-        const h2hData = await h2hRes.json();
-        const advData = await advRes.json();
-        const matchupData = await matchupRes.json();
-        
-        if (!statsData.success) throw new Error(statsData.message || 'Failed to load stats');
-        if (!charData.success) throw new Error(charData.message || 'Failed to load character win rates');
-        if (!h2hData.success) throw new Error(h2hData.message || 'Failed to load head-to-head stats');
-        if (!advData.success) throw new Error(advData.message || 'Failed to load advanced metrics');
-        if (!matchupData.success) throw new Error(matchupData.message || 'Failed to load matchup matrix');
-        
-        setStats(statsData.stats);
-        setCharWinRates(charData);
-        setHeadToHead(h2hData);
-        setAdvancedMetrics(advData);
-        setMatchupMatrix(matchupData);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStats();
+
+  const fetchStats = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [statsRes, charRes, h2hRes, advRes, matchupRes, userRes, heatRes, tlRes, sessRes] = await Promise.all([
+        fetch('/api/stats'),
+        fetch('/api/character_win_rates'),
+        fetch('/api/head_to_head_stats'),
+        fetch('/api/advanced_metrics'),
+        fetch('/api/matchup_matrix'),
+        fetch('/api/users/Shayne/stats'),
+        fetch('/api/users/Shayne/heatmap'),
+        fetch('/api/users/Shayne/win-rate-timeline'),
+        fetch('/api/sessions'),
+      ]);
+
+      const statsData = await statsRes.json();
+      const charData = await charRes.json();
+      const h2hData = await h2hRes.json();
+      const advData = await advRes.json();
+      const matchupData = await matchupRes.json();
+      const userData = await userRes.json().catch(() => null);
+      const heatData = await heatRes.json().catch(() => null);
+      const tlData = await tlRes.json().catch(() => null);
+      const sessData = await sessRes.json().catch(() => null);
+
+      if (!statsData.success) throw new Error(statsData.message || 'Failed to load stats');
+      if (!charData.success) throw new Error(charData.message || 'Failed to load character win rates');
+      if (!h2hData.success) throw new Error(h2hData.message || 'Failed to load head-to-head stats');
+      if (!advData.success) throw new Error(advData.message || 'Failed to load advanced metrics');
+      if (!matchupData.success) throw new Error(matchupData.message || 'Failed to load matchup matrix');
+
+      setStats(statsData.stats);
+      setCharWinRates(charData);
+      setHeadToHead(h2hData);
+      setAdvancedMetrics(advData);
+      setMatchupMatrix(matchupData);
+      setStageStats(userData?.stageStats ?? []);
+      setHeatmap(heatData?.data ?? []);
+      setWinTimeline(tlData?.data?.win_rates ?? []);
+      setSessionCount(sessData?.sessions?.length ?? 0);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load statistics');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Initialize eCharts chart for monthly activity
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
   const monthlyChartData = stats
     ? stats.monthly_activity.map(item => {
         const [year, month] = item.month.split('-');
@@ -187,8 +259,8 @@ const StatsPage: React.FC = () => {
       })
     : [];
 
-  if (loading) return <div className="stats-container"><div style={{ textAlign: 'center', padding: '3rem', fontSize: '1.2rem' }}>Loading statistics...</div></div>;
-  if (error) return <div className="stats-container"><div className="error" style={{ textAlign: 'center', padding: '2rem' }}>{error}</div></div>;
+  if (loading) return <LoadingState label="Loading statistics…" />;
+  if (error) return <ErrorState message={error} onRetry={fetchStats} />;
   if (!stats || !charWinRates || !headToHead || !advancedMetrics || !matchupMatrix) return null;
 
   const getTop5 = (data: CharacterWinRates) =>
@@ -196,591 +268,302 @@ const StatsPage: React.FC = () => {
       .sort((a, b) => b[1].total - a[1].total)
       .slice(0, 5);
 
+  const longestStreak = Math.max(
+    headToHead.streaks.longest_win_streaks.Shayne.length,
+    headToHead.streaks.longest_win_streaks.Matt.length,
+  );
+  const margin = Math.abs(stats.shayne_wins - stats.matt_wins);
+
+  // Merged character win-rate bars (top by games, both players).
+  const mergedChars = [
+    ...Object.entries(charWinRates.shayne).map(([c, s]) => ({ character: c, player: 'Shayne' as const, ...s })),
+    ...Object.entries(charWinRates.matt).map(([c, s]) => ({ character: c, player: 'Matt' as const, ...s })),
+  ]
+    .filter((c) => c.total >= 10)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8);
+
+  const heatCells: DitherHeatmapCell[] = heatmap.map((c) => ({
+    day: c.day,
+    hour: c.hour,
+    winRate: c.game_count > 0 ? c.win_rate : null,
+    games: c.game_count,
+  }));
+
+  const timelineData = winTimeline.map((wr, i) => ({ i, wr }));
+
+  const metricCards = [
+    { key: 'close', emoji: '⚔️', label: 'Close games', sub: '1-stock victories', s: advancedMetrics.close_game_record.shayne.wins, m: advancedMetrics.close_game_record.matt.wins, sSub: `${advancedMetrics.close_game_record.shayne.win_rate}% · ${advancedMetrics.close_game_record.shayne.of_all_games}%`, mSub: `${advancedMetrics.close_game_record.matt.win_rate}% · ${advancedMetrics.close_game_record.matt.of_all_games}%` },
+    { key: 'two', emoji: '💪', label: 'Solid wins', sub: '2-stock victories', s: advancedMetrics.two_stock_wins.shayne.two_stock_wins, m: advancedMetrics.two_stock_wins.matt.two_stock_wins, sSub: `${advancedMetrics.two_stock_wins.shayne.two_stock_rate}% · ${advancedMetrics.two_stock_wins.shayne.of_all_games}%`, mSub: `${advancedMetrics.two_stock_wins.matt.two_stock_rate}% · ${advancedMetrics.two_stock_wins.matt.of_all_games}%` },
+    { key: 'three', emoji: '⚡', label: 'Dominance', sub: '3-stock wins', s: advancedMetrics.dominance_factor.shayne.three_stock_wins, m: advancedMetrics.dominance_factor.matt.three_stock_wins, sSub: `${advancedMetrics.dominance_factor.shayne.dominance_rate}% · ${advancedMetrics.dominance_factor.shayne.of_all_games}%`, mSub: `${advancedMetrics.dominance_factor.matt.dominance_rate}% · ${advancedMetrics.dominance_factor.matt.of_all_games}%` },
+    { key: 'avg', emoji: '🎯', label: 'Avg stocks left', sub: 'when winning', s: headToHead.avg_stock_differential.shayne, m: headToHead.avg_stock_differential.matt },
+    { key: 'momentum', emoji: '📈', label: 'Momentum', sub: 'win after win', s: `${advancedMetrics.momentum_analysis.shayne.win_after_win}%`, m: `${advancedMetrics.momentum_analysis.matt.win_after_win}%` },
+    { key: 'consistency', emoji: '📊', label: 'Consistency', sub: 'lower is steadier', s: advancedMetrics.consistency_score.shayne, m: advancedMetrics.consistency_score.matt },
+  ];
+
   return (
-    <div className="stats-container" style={{ maxWidth: '1400px', padding: '1.5rem', gap: '1.5rem' }}>
-      
-      {/* HERO SECTION - Compact Overview */}
-      <section className="stats-section" style={{ marginBottom: '1rem' }}>
-        <div style={{ 
-          background: 'linear-gradient(135deg, #3c3836 0%, #282828 100%)',
-          borderRadius: '16px',
-          padding: '1.5rem',
-          border: '1px solid #504945',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-        }}>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
-            gap: '1rem',
-            marginBottom: '1rem'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Games</div>
-              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#83a598' }}>{stats.total_games}</div>
+    <PageColumn>
+      <PageHeader title="Statistics" subtitle="Shayne vs Matt · all-time" />
+
+      {/* H2H hero */}
+      <GlowPanel style={{ padding: '28px 32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 36, flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', width: 128, height: 128, flex: '0 0 auto' }}>
+            <PieChart
+              data={[{ player: 'Shayne', wins: stats.shayne_wins }, { player: 'Matt', wins: stats.matt_wins }]}
+              config={{ Shayne: { label: 'Shayne', color: 'orange' }, Matt: { label: 'Matt', color: 'green' } }}
+              dataKey="wins"
+              nameKey="player"
+              innerRadius={0.68}
+            >
+              <Pie variant="gradient" />
+            </PieChart>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, color: 'var(--fg-light)' }}>{stats.shayne_win_rate}%</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--gray)', letterSpacing: 1 }}>SHAYNE</span>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Shayne</div>
-              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#fe8019' }}>{stats.shayne_wins}</div>
-              <div style={{ fontSize: '0.8rem', color: '#fe8019', opacity: 0.8 }}>{stats.shayne_win_rate}%</div>
+          </div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', letterSpacing: 2, marginBottom: 8 }}>ALL-TIME RECORD</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 52, fontWeight: 700, lineHeight: 1 }}>
+              <span style={{ color: 'var(--shayne)' }}>{stats.shayne_wins}</span>
+              <span style={{ color: 'var(--border-light)' }}>–</span>
+              <span style={{ color: 'var(--matt)' }}>{stats.matt_wins}</span>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Matt</div>
-              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#b8bb26' }}>{stats.matt_wins}</div>
-              <div style={{ fontSize: '0.8rem', color: '#b8bb26', opacity: 0.8 }}>{stats.matt_win_rate}%</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Current Streak</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: stats.current_streak?.player === 'Shayne' ? '#fe8019' : '#b8bb26' }}>
-                {stats.current_streak?.length || 0}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#a89984' }}>{stats.current_streak?.player || 'None'}</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>This Week</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#d3869b' }}>{stats.games_this_week}</div>
-              <div style={{ fontSize: '0.75rem', color: '#a89984' }}>games</div>
+            <div style={{ display: 'flex', gap: 24, marginTop: 14, flexWrap: 'wrap' }}>
+              <div><div style={{ fontSize: 13, color: 'var(--shayne)', fontWeight: 600 }}>Shayne {stats.shayne_win_rate}%</div><div style={{ fontSize: 11, color: 'var(--gray)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>{stats.shayne_wins} wins</div></div>
+              <div><div style={{ fontSize: 13, color: 'var(--matt)', fontWeight: 600 }}>Matt {stats.matt_win_rate}%</div><div style={{ fontSize: 11, color: 'var(--gray)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>{stats.matt_wins} wins</div></div>
+              <div><div style={{ fontSize: 13, color: 'var(--fg)', fontWeight: 600 }}>+{margin}</div><div style={{ fontSize: 11, color: 'var(--gray)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>margin</div></div>
             </div>
           </div>
         </div>
-      </section>
+      </GlowPanel>
 
-      {/* RECENT FORM - Compact Cards */}
-      <section className="stats-section">
-        <h2 style={{ fontSize: '1.3rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>Recent Form</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+      {/* quick tiles */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 14 }}>
+        <StatTile value={stats.total_games.toLocaleString()} label="Total matches" color="var(--blue)" />
+        <StatTile value={stats.current_streak?.length ?? 0} label={`Current streak · ${stats.current_streak?.player ?? 'None'}`} color={stats.current_streak?.player === 'Shayne' ? 'var(--shayne)' : 'var(--matt)'} />
+        <StatTile value={longestStreak} label="Longest streak" color="var(--yellow)" />
+        <StatTile value={sessionCount} label="Sessions played" color="var(--purple)" />
+      </div>
+
+      {/* head-to-head over time */}
+      {timelineData.length >= 2 && (
+        <Card>
+          <SectionTitle hint="rolling win rate · Shayne">Head-to-head over time</SectionTitle>
+          <div style={{ width: '100%', height: 180 }}>
+            <AreaChart data={timelineData} config={{ wr: { label: 'Shayne win rate', color: 'orange' } }}>
+              <Grid />
+              <YAxis tickFormatter={(v) => `${Math.round(v)}%`} />
+              <Area dataKey="wr" variant="gradient" />
+            </AreaChart>
+          </div>
+        </Card>
+      )}
+
+      {/* character win rates */}
+      <Card>
+        <SectionTitle>Character win rates</SectionTitle>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {mergedChars.map((c) => {
+            const wr = Math.round((c.wins / c.total) * 100);
+            const color = c.player === 'Shayne' ? 'var(--shayne)' : 'var(--matt)';
+            return (
+              <div key={`${c.player}-${c.character}`} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ width: 90, flex: '0 0 auto', fontSize: 13, color: 'var(--fg)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.character}</span>
+                <div style={{ flex: 1, height: 8, background: 'var(--deep1)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${wr}%`, background: color, borderRadius: 4 }} />
+                </div>
+                <span style={{ width: 40, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color }}>{wr}%</span>
+                <span style={{ width: 56, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--faint)' }}>{c.total}g</span>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* recent form */}
+      <div>
+        <SectionTitle>Recent form</SectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14 }}>
           {[
             { label: 'Last 10', data: headToHead.recent_form.last_10 },
             { label: 'Last 20', data: headToHead.recent_form.last_20 },
             { label: 'Last 50', data: headToHead.recent_form.last_50 },
           ].map((item) => {
-            const shayneWR = ((item.data.shayne_wins / item.data.total_games) * 100).toFixed(1);
-            const mattWR = ((item.data.matt_wins / item.data.total_games) * 100).toFixed(1);
+            const tot = item.data.total_games || 1;
+            const sWR = ((item.data.shayne_wins / tot) * 100).toFixed(0);
+            const mWR = ((item.data.matt_wins / tot) * 100).toFixed(0);
             return (
-              <div key={item.label} className="stat-card" style={{ padding: '0.75rem', minHeight: 'auto' }}>
-                <div style={{ fontSize: '0.8rem', color: '#a89984', marginBottom: '0.5rem', fontWeight: '600' }}>{item.label} Games</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fe8019' }}>{item.data.shayne_wins}</div>
-                    <div style={{ fontSize: '0.7rem', color: '#fe8019', opacity: 0.8 }}>{shayneWR}%</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#b8bb26' }}>{item.data.matt_wins}</div>
-                    <div style={{ fontSize: '0.7rem', color: '#b8bb26', opacity: 0.8 }}>{mattWR}%</div>
-                  </div>
+              <Card key={item.label} padding={18} style={{ borderRadius: 16 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', letterSpacing: '0.5px', marginBottom: 12 }}>{item.label.toUpperCase()} GAMES</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                  <div><div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color: 'var(--shayne)' }}>{item.data.shayne_wins}</div><div style={{ fontSize: 11, color: 'var(--shayne)', fontFamily: 'var(--font-mono)' }}>{sWR}%</div></div>
+                  <div style={{ textAlign: 'right' }}><div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color: 'var(--matt)' }}>{item.data.matt_wins}</div><div style={{ fontSize: 11, color: 'var(--matt)', fontFamily: 'var(--font-mono)' }}>{mWR}%</div></div>
                 </div>
-                <div style={{ 
-                  height: '4px', 
-                  background: '#3c3836', 
-                  borderRadius: '2px', 
-                  overflow: 'hidden',
-                  display: 'flex'
-                }}>
-                  <div style={{ width: `${shayneWR}%`, background: '#fe8019' }}></div>
-                  <div style={{ width: `${mattWR}%`, background: '#b8bb26' }}></div>
-                </div>
-              </div>
+                <SplitBar shayne={item.data.shayne_wins} matt={item.data.matt_wins} height={6} radius={3} />
+              </Card>
             );
           })}
         </div>
-      </section>
+      </div>
 
-      {/* ADVANCED METRICS - Compact Grid */}
-      <section className="stats-section">
-        <h2 style={{ fontSize: '1.3rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>Advanced Metrics</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
-          {/* Close Games */}
-          <div className="stat-card" style={{ padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', fontWeight: '600' }}>⚔️ Close Games</div>
-            <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem' }}>1-stock victories</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{advancedMetrics.close_game_record.shayne.wins}</div>
-                <div 
-                  style={{ 
-                    fontSize: '0.7rem', 
-                    color: '#fe8019', 
-                    opacity: 0.8,
-                    cursor: 'help',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={() => setActiveTooltip('close-shayne')}
-                  onMouseLeave={() => setActiveTooltip(null)}
-                >
-                  {advancedMetrics.close_game_record.shayne.win_rate}% | {advancedMetrics.close_game_record.shayne.of_all_games}%
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>{advancedMetrics.close_game_record.matt.wins}</div>
-                <div 
-                  style={{ 
-                    fontSize: '0.7rem', 
-                    color: '#b8bb26', 
-                    opacity: 0.8,
-                    cursor: 'help',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={() => setActiveTooltip('close-matt')}
-                  onMouseLeave={() => setActiveTooltip(null)}
-                >
-                  {advancedMetrics.close_game_record.matt.win_rate}% | {advancedMetrics.close_game_record.matt.of_all_games}%
-                </div>
-              </div>
-            </div>
-          </div>
-          {(activeTooltip === 'close-shayne' || activeTooltip === 'close-matt') && createPortal(
-            <div style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: '#1d2021',
-              border: '2px solid #504945',
-              borderRadius: '8px',
-              padding: '0.75rem',
-              width: '280px',
-              fontSize: '0.75rem',
-              color: '#ebdbb2',
-              lineHeight: 1.5,
-              zIndex: 9999,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
-              pointerEvents: 'none'
-            }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '0.3rem', color: '#fabd2f' }}>1-Stock Victory Percentages</div>
-              <div style={{ marginBottom: '0.3rem' }}>
-                <span style={{ color: '#83a598', fontWeight: 'bold' }}>First %:</span> Of this player's wins, what % were 1-stock victories
-              </div>
-              <div>
-                <span style={{ color: '#83a598', fontWeight: 'bold' }}>Second %:</span> Of all games played, what % were 1-stock victories for this player
-              </div>
-            </div>,
-            document.body
-          )}
-
-          {/* Two-Stock Wins */}
-          <div className="stat-card" style={{ padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', fontWeight: '600' }}>💪 Solid Wins</div>
-            <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem' }}>2-stock victories</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{advancedMetrics.two_stock_wins.shayne.two_stock_wins}</div>
-                <div 
-                  style={{ 
-                    fontSize: '0.7rem', 
-                    color: '#fe8019', 
-                    opacity: 0.8,
-                    cursor: 'help',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={() => setActiveTooltip('two-shayne')}
-                  onMouseLeave={() => setActiveTooltip(null)}
-                >
-                  {advancedMetrics.two_stock_wins.shayne.two_stock_rate}% | {advancedMetrics.two_stock_wins.shayne.of_all_games}%
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>{advancedMetrics.two_stock_wins.matt.two_stock_wins}</div>
-                <div 
-                  style={{ 
-                    fontSize: '0.7rem', 
-                    color: '#b8bb26', 
-                    opacity: 0.8,
-                    cursor: 'help',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={() => setActiveTooltip('two-matt')}
-                  onMouseLeave={() => setActiveTooltip(null)}
-                >
-                  {advancedMetrics.two_stock_wins.matt.two_stock_rate}% | {advancedMetrics.two_stock_wins.matt.of_all_games}%
-                </div>
-              </div>
-            </div>
-          </div>
-          {(activeTooltip === 'two-shayne' || activeTooltip === 'two-matt') && createPortal(
-            <div style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: '#1d2021',
-              border: '2px solid #504945',
-              borderRadius: '8px',
-              padding: '0.75rem',
-              width: '280px',
-              fontSize: '0.75rem',
-              color: '#ebdbb2',
-              lineHeight: 1.5,
-              zIndex: 9999,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
-              pointerEvents: 'none'
-            }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '0.3rem', color: '#fabd2f' }}>2-Stock Victory Percentages</div>
-              <div style={{ marginBottom: '0.3rem' }}>
-                <span style={{ color: '#83a598', fontWeight: 'bold' }}>First %:</span> Of this player's wins, what % were 2-stock victories
-              </div>
-              <div>
-                <span style={{ color: '#83a598', fontWeight: 'bold' }}>Second %:</span> Of all games played, what % were 2-stock victories for this player
-              </div>
-            </div>,
-            document.body
-          )}
-
-          {/* Dominance Factor */}
-          <div className="stat-card" style={{ padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', fontWeight: '600' }}>⚡ Dominance</div>
-            <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem' }}>3-stock wins</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{advancedMetrics.dominance_factor.shayne.three_stock_wins}</div>
-                <div 
-                  style={{ 
-                    fontSize: '0.7rem', 
-                    color: '#fe8019', 
-                    opacity: 0.8,
-                    cursor: 'help',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={() => setActiveTooltip('three-shayne')}
-                  onMouseLeave={() => setActiveTooltip(null)}
-                >
-                  {advancedMetrics.dominance_factor.shayne.dominance_rate}% | {advancedMetrics.dominance_factor.shayne.of_all_games}%
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>{advancedMetrics.dominance_factor.matt.three_stock_wins}</div>
-                <div 
-                  style={{ 
-                    fontSize: '0.7rem', 
-                    color: '#b8bb26', 
-                    opacity: 0.8,
-                    cursor: 'help',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={() => setActiveTooltip('three-matt')}
-                  onMouseLeave={() => setActiveTooltip(null)}
-                >
-                  {advancedMetrics.dominance_factor.matt.dominance_rate}% | {advancedMetrics.dominance_factor.matt.of_all_games}%
-                </div>
-              </div>
-            </div>
-          </div>
-          {(activeTooltip === 'three-shayne' || activeTooltip === 'three-matt') && createPortal(
-            <div style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: '#1d2021',
-              border: '2px solid #504945',
-              borderRadius: '8px',
-              padding: '0.75rem',
-              width: '280px',
-              fontSize: '0.75rem',
-              color: '#ebdbb2',
-              lineHeight: 1.5,
-              zIndex: 9999,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
-              pointerEvents: 'none'
-            }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '0.3rem', color: '#fabd2f' }}>3-Stock Victory Percentages</div>
-              <div style={{ marginBottom: '0.3rem' }}>
-                <span style={{ color: '#83a598', fontWeight: 'bold' }}>First %:</span> Of this player's wins, what % were 3-stock victories
-              </div>
-              <div>
-                <span style={{ color: '#83a598', fontWeight: 'bold' }}>Second %:</span> Of all games played, what % were 3-stock victories for this player
-              </div>
-            </div>,
-            document.body
-          )}
-
-          {/* Avg Stock Differential */}
-          <div className="stat-card" style={{ padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', fontWeight: '600' }}>💪 Avg Stocks Left</div>
-            <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem' }}>When winning</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{headToHead.avg_stock_differential.shayne}</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Shayne</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>{headToHead.avg_stock_differential.matt}</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Momentum */}
-          <div className="stat-card" style={{ padding: '0.75rem', position: 'relative' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
-              <div style={{ fontSize: '0.75rem', color: '#a89984', fontWeight: '600' }}>📈 Momentum</div>
-              <div 
-                style={{ 
-                  cursor: 'help',
-                  fontSize: '0.65rem',
-                  color: '#665c54',
-                  fontWeight: 'normal',
-                  width: '13px',
-                  height: '13px',
-                  borderRadius: '50%',
-                  border: '1px solid #504945',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  lineHeight: 1,
-                  position: 'relative',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={() => setActiveTooltip('momentum')}
-                onMouseLeave={() => setActiveTooltip(null)}
-              >
-                i
-              </div>
-              {activeTooltip === 'momentum' && createPortal(
-                <div style={{
-                  position: 'fixed',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  backgroundColor: '#1d2021',
-                  border: '2px solid #504945',
-                  borderRadius: '8px',
-                  padding: '0.75rem',
-                  width: '260px',
-                  fontSize: '0.75rem',
-                  color: '#ebdbb2',
-                  lineHeight: 1.5,
-                  zIndex: 9999,
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
-                  pointerEvents: 'none'
-                }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '0.3rem', color: '#fabd2f' }}>Momentum</div>
-                  Momentum measures a player's ability to chain wins together. Shows the percentage of games won immediately after winning the previous game. Higher values indicate better ability to maintain winning streaks.
-                </div>,
-                document.body
-              )}
-            </div>
-            <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem', textAlign: 'center' }}>Win after win</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{advancedMetrics.momentum_analysis.shayne.win_after_win}%</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Shayne</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>{advancedMetrics.momentum_analysis.matt.win_after_win}%</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Consistency */}
-          <div className="stat-card" style={{ padding: '0.75rem', position: 'relative' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
-              <div style={{ fontSize: '0.75rem', color: '#a89984', fontWeight: '600' }}>📊 Consistency</div>
-              <div 
-                style={{ 
-                  cursor: 'help',
-                  fontSize: '0.65rem',
-                  color: '#665c54',
-                  fontWeight: 'normal',
-                  width: '13px',
-                  height: '13px',
-                  borderRadius: '50%',
-                  border: '1px solid #504945',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  lineHeight: 1,
-                  position: 'relative',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={() => setActiveTooltip('consistency')}
-                onMouseLeave={() => setActiveTooltip(null)}
-              >
-                i
-              </div>
-              {activeTooltip === 'consistency' && createPortal(
-                <div style={{
-                  position: 'fixed',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  backgroundColor: '#1d2021',
-                  border: '2px solid #504945',
-                  borderRadius: '8px',
-                  padding: '0.75rem',
-                  width: '260px',
-                  fontSize: '0.75rem',
-                  color: '#ebdbb2',
-                  lineHeight: 1.5,
-                  zIndex: 9999,
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
-                  pointerEvents: 'none'
-                }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '0.3rem', color: '#fabd2f' }}>Consistency</div>
-                  Consistency measures win rate volatility using the standard deviation of performance across rolling 20-game windows. Lower scores indicate more stable, predictable performance. Higher scores suggest more variable results with hot and cold streaks.
-                </div>,
-                document.body
-              )}
-            </div>
-            <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem', textAlign: 'center' }}>Lower is better</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fe8019' }}>{advancedMetrics.consistency_score.shayne}</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Shayne</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#b8bb26' }}>{advancedMetrics.consistency_score.matt}</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* STREAK RECORDS */}
-      <section className="stats-section">
-        <h2 style={{ fontSize: '1.3rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>Streak Records</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-          <div className="stat-card" style={{ padding: '0.75rem', background: 'linear-gradient(135deg, #3c3836 0%, #504945 100%)' }}>
-            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', fontWeight: '600' }}>🔥 Longest Win Streak</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem' }}>
-              <div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fe8019' }}>{headToHead.streaks.longest_win_streaks.Shayne.length}</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Shayne</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#b8bb26' }}>{headToHead.streaks.longest_win_streaks.Matt.length}</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
-              </div>
-            </div>
-          </div>
-          <div className="stat-card" style={{ padding: '0.75rem', background: 'linear-gradient(135deg, #3c3836 0%, #504945 100%)' }}>
-            <div style={{ fontSize: '0.75rem', color: '#a89984', marginBottom: '0.5rem', fontWeight: '600' }}>❄️ Longest Loss Streak</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem' }}>
-              <div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fb4934' }}>{headToHead.streaks.longest_loss_streaks.Shayne.length}</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Shayne</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fb4934' }}>{headToHead.streaks.longest_loss_streaks.Matt.length}</div>
-                <div style={{ fontSize: '0.7rem', color: '#a89984' }}>Matt</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CHARACTER WIN RATES - Compact */}
-      <section className="stats-section">
-        <h2 style={{ fontSize: '1.3rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>Top Characters</h2>
-        <div className="stats-grid" style={{ gap: '1rem' }}>
-          <div className="stats-card" style={{ padding: '1rem' }}>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', textAlign: 'center', color: '#fe8019' }}>Shayne</h3>
-            <div className="character-list" style={{ gap: '0.5rem' }}>
-              {getTop5(charWinRates.shayne).map(([character, stats]) => {
-                const winRate = Math.round((stats.wins / stats.total) * 100);
-                return (
-                  <div className="character-stats" key={character} style={{ padding: '0.75rem', marginBottom: '0.5rem' }}>
-                    <div className="character-name" style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
-                      <CharacterDisplay character={character} />
-                    </div>
-                    <div className="stats-bar" style={{ height: '24px', marginBottom: '0.4rem' }}>
-                      <div className="win-bar shayne" style={{ width: `${(stats.wins / stats.total) * 100}%`, fontSize: '0.85rem', padding: '0 0.5rem' }}>{stats.wins}W</div>
-                      <div className="loss-bar" style={{ width: `${(stats.losses / stats.total) * 100}%`, fontSize: '0.85rem', padding: '0 0.5rem' }}>{stats.losses}L</div>
-                    </div>
-                    <div className="stats-total" style={{ fontSize: '0.8rem' }}>
-                      <span className="win-rate shayne">{winRate}%</span>
-                      <span className="games-played">{stats.total} games</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className="stats-card" style={{ padding: '1rem' }}>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', textAlign: 'center', color: '#b8bb26' }}>Matt</h3>
-            <div className="character-list" style={{ gap: '0.5rem' }}>
-              {getTop5(charWinRates.matt).map(([character, stats]) => {
-                const winRate = Math.round((stats.wins / stats.total) * 100);
-                return (
-                  <div className="character-stats" key={character} style={{ padding: '0.75rem', marginBottom: '0.5rem' }}>
-                    <div className="character-name" style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
-                      <CharacterDisplay character={character} />
-                    </div>
-                    <div className="stats-bar" style={{ height: '24px', marginBottom: '0.4rem' }}>
-                      <div className="win-bar matt" style={{ width: `${(stats.wins / stats.total) * 100}%`, fontSize: '0.85rem', padding: '0 0.5rem' }}>{stats.wins}W</div>
-                      <div className="loss-bar" style={{ width: `${(stats.losses / stats.total) * 100}%`, fontSize: '0.85rem', padding: '0 0.5rem' }}>{stats.losses}L</div>
-                    </div>
-                    <div className="stats-total" style={{ fontSize: '0.8rem' }}>
-                      <span className="win-rate matt">{winRate}%</span>
-                      <span className="games-played">{stats.total} games</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* TOP MATCHUPS - Compact */}
-      <section className="stats-section">
-        <h2 style={{ fontSize: '1.3rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>Top Matchups</h2>
-        <div className="matchups-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
-          {matchupMatrix.top_matchups.slice(0, 6).map((matchup, i) => {
-            const shayneWinRate = matchup.shayne_win_rate;
-            const mattWinRate = matchup.matt_win_rate;
+      {/* advanced metrics */}
+      <div>
+        <SectionTitle>Advanced metrics</SectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
+          {metricCards.map((c) => {
+            const tip = TOOLTIPS[c.key];
             return (
-              <div className="matchup-item" key={i} style={{ padding: '0.75rem' }}>
-                <div className="matchup-header" style={{ marginBottom: '0.5rem', paddingBottom: '0.4rem' }}>
-                  <span style={{ fontSize: '0.9rem' }}>
-                    <CharacterDisplay character={matchup.shayne_character} /> vs <CharacterDisplay character={matchup.matt_character} />
-                  </span>
-                  <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.4rem' }}>{matchup.total_games} games</span>
+              <Card key={c.key} padding={18} style={{ borderRadius: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{c.emoji} {c.label}</span>
+                  {tip && (
+                    <span
+                      onMouseEnter={() => setActiveTooltip(c.key)}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                      style={{ cursor: 'help', width: 14, height: 14, borderRadius: '50%', border: '1px solid var(--border-light)', color: 'var(--faint)', fontSize: 9, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      i
+                    </span>
+                  )}
                 </div>
-                <div className="matchup-stats">
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <div style={{ fontSize: '0.75rem', marginBottom: '0.2rem' }}>Shayne</div>
-                    <div className="win-count" style={{ fontSize: '1rem', marginBottom: '0.3rem' }}>
-                      {matchup.shayne_wins}
-                      <span className="win-percentage" style={{ fontSize: '0.8rem' }}> ({shayneWinRate}%)</span>
-                    </div>
-                    <div className="win-rate-bar" style={{ height: '4px' }}>
-                      <div className="win-rate-fill" style={{ width: `${shayneWinRate}%`, background: '#fe8019' }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', marginBottom: '0.2rem' }}>Matt</div>
-                    <div className="win-count" style={{ fontSize: '1rem', marginBottom: '0.3rem' }}>
-                      {matchup.matt_wins}
-                      <span className="win-percentage" style={{ fontSize: '0.8rem' }}> ({mattWinRate}%)</span>
-                    </div>
-                    <div className="win-rate-bar" style={{ height: '4px' }}>
-                      <div className="win-rate-fill" style={{ width: `${mattWinRate}%`, background: '#b8bb26' }}></div>
-                    </div>
-                  </div>
+                <div style={{ fontSize: 11, color: 'var(--faint)', fontFamily: 'var(--font-mono)', margin: '2px 0 12px' }}>{c.sub}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                  <div><div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: 'var(--shayne)' }}>{c.s}</div>{'sSub' in c && c.sSub ? <div style={{ fontSize: 10, color: 'var(--gray)', fontFamily: 'var(--font-mono)' }}>{c.sSub}</div> : <div style={{ fontSize: 10, color: 'var(--gray)' }}>Shayne</div>}</div>
+                  <div style={{ textAlign: 'right' }}><div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: 'var(--matt)' }}>{c.m}</div>{'mSub' in c && c.mSub ? <div style={{ fontSize: 10, color: 'var(--gray)', fontFamily: 'var(--font-mono)' }}>{c.mSub}</div> : <div style={{ fontSize: 10, color: 'var(--gray)' }}>Matt</div>}</div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
-      </section>
+      </div>
 
-      {/* MONTHLY ACTIVITY CHART - Compact */}
-      <section className="stats-section">
-        <h2 style={{ fontSize: '1.3rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>Games by Month</h2>
-        <div className="card" style={{ padding: '1rem' }}>
-          <div style={{ width: '100%', height: 300 }}>
-            <BarChart data={monthlyChartData} config={{ games: { label: 'Games', color: 'blue' } }}>
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip labelKey="month" />
-              <Bar dataKey="games" variant="gradient" />
-            </BarChart>
-          </div>
+      {/* streak records */}
+      <div>
+        <SectionTitle>Streak records</SectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14 }}>
+          {[
+            { label: '🔥 LONGEST WIN STREAK', s: headToHead.streaks.longest_win_streaks.Shayne.length, m: headToHead.streaks.longest_win_streaks.Matt.length, sc: 'var(--shayne)', mc: 'var(--matt)' },
+            { label: '❄️ LONGEST LOSS STREAK', s: headToHead.streaks.longest_loss_streaks.Shayne.length, m: headToHead.streaks.longest_loss_streaks.Matt.length, sc: 'var(--red)', mc: 'var(--red)' },
+          ].map((s) => (
+            <GlowPanel key={s.label} style={{ borderRadius: 16, padding: '18px 20px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', letterSpacing: '0.5px', marginBottom: 14 }}>{s.label}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                <div><div style={{ fontFamily: 'var(--font-mono)', fontSize: 30, fontWeight: 700, color: s.sc, lineHeight: 1 }}>{s.s}</div><div style={{ fontSize: 11, color: 'var(--gray)', marginTop: 4 }}>Shayne</div></div>
+                <div style={{ textAlign: 'right' }}><div style={{ fontFamily: 'var(--font-mono)', fontSize: 30, fontWeight: 700, color: s.mc, lineHeight: 1 }}>{s.m}</div><div style={{ fontSize: 11, color: 'var(--gray)', marginTop: 4 }}>Matt</div></div>
+              </div>
+            </GlowPanel>
+          ))}
         </div>
-      </section>
+      </div>
 
-    </div>
+      {/* top characters */}
+      <div>
+        <SectionTitle>Top characters</SectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20 }}>
+          {([['Shayne', charWinRates.shayne, 'var(--shayne)'], ['Matt', charWinRates.matt, 'var(--matt)']] as const).map(([name, data, color]) => (
+            <Card key={name} padding={20}>
+              <div style={{ fontSize: 13, fontWeight: 700, color, textAlign: 'center', marginBottom: 16 }}>{name}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+                {getTop5(data).map(([character, s]) => {
+                  const wr = Math.round((s.wins / s.total) * 100);
+                  const wPct = (s.wins / s.total) * 100;
+                  return (
+                    <div key={character}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, alignItems: 'center' }}>
+                        <CharacterDisplay character={character} textClassName="stat-char-name" />
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)' }}>{wr}% · {s.total}</span>
+                      </div>
+                      <div style={{ display: 'flex', height: 18, borderRadius: 5, overflow: 'hidden', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: '#1b1817' }}>
+                        <div style={{ width: `${wPct}%`, background: color, display: 'flex', alignItems: 'center', paddingLeft: 6, minWidth: 24 }}>{s.wins}</div>
+                        <div style={{ width: `${100 - wPct}%`, background: 'var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 6, color: 'var(--fg)', minWidth: 24 }}>{s.losses}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* top matchups */}
+      <div>
+        <SectionTitle>Top matchups</SectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 14 }}>
+          {matchupMatrix.top_matchups.slice(0, 6).map((mu, i) => (
+            <Card key={i} padding={18} style={{ borderRadius: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid var(--line-2)' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: 'var(--shayne)' }}>{mu.shayne_character}</span>
+                  <span style={{ color: 'var(--faint)' }}>vs</span>
+                  <span style={{ color: 'var(--matt)' }}>{mu.matt_character}</span>
+                </span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--faint)' }}>{mu.total_games}g</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--shayne)', fontWeight: 700 }}>{mu.shayne_wins} <span style={{ color: 'var(--gray)', fontWeight: 400 }}>{mu.shayne_win_rate}%</span></span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--matt)', fontWeight: 700 }}><span style={{ color: 'var(--gray)', fontWeight: 400 }}>{mu.matt_win_rate}%</span> {mu.matt_wins}</span>
+              </div>
+              <SplitBar shayne={mu.shayne_wins} matt={mu.matt_wins} height={6} radius={3} />
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* games by month */}
+      <Card>
+        <SectionTitle>Games by month</SectionTitle>
+        <div style={{ width: '100%', height: 260 }}>
+          <BarChart data={monthlyChartData} config={{ games: { label: 'Games', color: 'blue' } }}>
+            <XAxis dataKey="month" />
+            <YAxis />
+            <Tooltip labelKey="month" />
+            <Bar dataKey="games" variant="gradient" />
+          </BarChart>
+        </div>
+      </Card>
+
+      {/* NEW: heatmap + stage win rates */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 20 }}>
+        <Card>
+          <SectionTitle hint="new · Shayne">Performance by day &amp; time</SectionTitle>
+          {heatCells.length > 0 ? (
+            <DitherHeatmap cells={heatCells} height={220} metricLabel="win rate" />
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--faint)', fontFamily: 'var(--font-mono)' }}>Not enough data</div>
+          )}
+        </Card>
+        <Card>
+          <SectionTitle hint="new · Shayne">Stage win rates</SectionTitle>
+          {stageStats.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {stageStats.slice(0, 8).map((st) => (
+                <div key={st.stage} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 12, color: 'var(--fg)', width: 110, flex: '0 0 auto', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{st.stage}</span>
+                  <div style={{ flex: 1, height: 7, background: 'var(--deep1)', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${st.winRate}%`, background: 'var(--shayne)', borderRadius: 4 }} />
+                  </div>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', width: 34, textAlign: 'right' }}>{Math.round(st.winRate)}%</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--faint)', fontFamily: 'var(--font-mono)' }}>Not enough data</div>
+          )}
+        </Card>
+      </div>
+
+      {/* metric tooltips */}
+      {activeTooltip && TOOLTIPS[activeTooltip] && createPortal(
+        <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', background: 'var(--deep2)', border: '1px solid var(--border-light)', borderRadius: 10, padding: 14, width: 280, fontSize: 12, color: 'var(--fg)', lineHeight: 1.5, zIndex: 9999, boxShadow: '0 8px 24px rgba(0,0,0,0.8)', pointerEvents: 'none' }}>
+          <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--yellow)' }}>{TOOLTIPS[activeTooltip].title}</div>
+          {TOOLTIPS[activeTooltip].body}
+        </div>,
+        document.body,
+      )}
+    </PageColumn>
   );
 };
 
