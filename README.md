@@ -71,13 +71,17 @@ flowchart LR
   recorded in an audit log (`edit_log.csv`)
 - **Session tracking**: games auto-group into sessions (a 4+ hour gap starts a
   new one)
-- **Statistics dashboard**: win rates, streaks, monthly activity, top matchups,
-  head-to-head breakdown, advanced metrics, matchup matrix
+- **Statistics dashboard**: H2H hero, win rates, streaks, recent form, advanced
+  metrics, top characters/matchups, games-by-month, plus a day/time performance
+  heatmap and stage win-rate breakdown
 - **Per-player stats**: win-rate timelines, day/hour performance heatmaps,
   character and stage stats, tearsheets
-- **Character analytics**: per-character win rates, matchup performance, stage
-  performance, and a usage overview / tier list
-- **Session history**: browse sessions, session detail views, session comparison
+- **Character analytics**: roster ranked by win rate with S/A/B/C tier badges,
+  win-rate distribution, per-character matchup/stage detail
+- **Session history**: browse sessions, session detail views, session comparison,
+  and a shareable PNG session tearsheet (html2canvas export)
+- **Consistent design language**: every interior page shares the redesign's shell,
+  type system, and dither-kit charts (shared primitives in `components/ui.tsx`)
 - **Local CSV storage**: timestamped entries with an automatic backup on each boot
 - **Dark UI**: Gruvbox palette, elevated with a Space Grotesk / IBM Plex Mono type
   system; responsive shell (desktop sidebar / mobile bottom-tabs + drawer)
@@ -156,6 +160,7 @@ frontend/src/
   StatsPage / Session*  # dashboards, session views, tearsheets
   CharacterAnalytics/Detail.tsx
   components/shell/     # AppShell (sidebar / bottom-tabs + drawer), nav icons
+  components/ui.tsx     # shared page primitives (PageColumn, Card, StatTile, TierBadge…)
   components/           # CharacterDisplay, PerformanceHeatmap, Feedback, dither/, stats/
 docs/DEPLOY.md          # Fly.io runbook
 docs/ROADMAP.md         # public-launch roadmap
