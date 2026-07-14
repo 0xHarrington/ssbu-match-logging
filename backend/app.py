@@ -2752,4 +2752,7 @@ def serve_frontend(path: str = "index.html") -> Any:
 
 
 if __name__ == "__main__":
-    app.run(debug=os.environ.get("FLASK_DEBUG", "1") == "1", host="0.0.0.0")
+    app.run(
+        debug=os.environ.get("FLASK_DEBUG", "1") == "1",
+        host=os.environ.get("HOST", "127.0.0.1"),
+    )
