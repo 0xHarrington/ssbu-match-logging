@@ -8,9 +8,11 @@ import hollowImage from '../assets/stages/hollow.avif';
 import yoshisImage from '../assets/stages/yoshis.avif';
 import smashvilleImage from '../assets/stages/smashville.avif';
 
-// Shared stage-name -> image map. Yoshi's Story is no longer in the active
-// stage list but is kept so historical matches still render their stage art.
-export const stageImages: { [key: string]: string } = {
+// Stage-name -> image map with literal key inference (`satisfies` instead of
+// an index-signature annotation, so `keyof` stays the union of actual stage
+// names). Yoshi's Story is no longer in the active stage list but is kept so
+// historical matches still render their stage art.
+const STAGE_IMAGES = {
   'Battlefield': bfImage,
   'Small Battlefield': sbfImage,
   'Final Destination': fdImage,
@@ -20,13 +22,17 @@ export const stageImages: { [key: string]: string } = {
   'Kalos Pokemon League': kalosImage,
   'Yoshi\'s Story': yoshisImage,
   'Hollow Bastion': hollowImage,
-};
+} satisfies Record<string, string>;
+
+/** Shared stage-name -> image lookup. Exported as Record<string, string> so
+ *  callers can index it with dynamic stage names off match rows. */
+export const stageImages: Record<string, string> = STAGE_IMAGES;
 
 /** The 8 active stages, in the picker order the design specifies. Typed
- *  against stageImages's keys so a typo/renamed stage fails to compile
- *  instead of silently falling back to a placeholder texture. Yoshi's Story
- *  is deliberately excluded (see stageImages above). */
-export const ACTIVE_STAGES: Extract<keyof typeof stageImages, string>[] = [
+ *  against the literal keys of STAGE_IMAGES so a typo/renamed stage fails to
+ *  compile instead of silently falling back to a placeholder texture. Yoshi's
+ *  Story is deliberately excluded (see STAGE_IMAGES above). */
+export const ACTIVE_STAGES: (keyof typeof STAGE_IMAGES)[] = [
   'Battlefield',
   'Small Battlefield',
   'Final Destination',
