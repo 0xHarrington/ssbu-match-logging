@@ -20,6 +20,7 @@ import {
   getSession,
   getSessions,
 } from '../lib/api';
+import { sessionDisplayName } from '../session/format';
 import type { Match, Player, SessionSummary } from '../types';
 
 export interface StageSplit {
@@ -78,17 +79,6 @@ export interface UseLiveSessionResult {
 
 function toPlayer(winner: string): Player | null {
   return winner === 'Shayne' || winner === 'Matt' ? winner : null;
-}
-
-function friendlySessionName(startTime: string | null): string {
-  if (!startTime) return 'Current session';
-  const d = new Date(startTime.replace(' ', 'T'));
-  if (Number.isNaN(d.getTime())) return 'Current session';
-  const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
-  const hour = d.getHours();
-  const partOfDay =
-    hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : hour < 21 ? 'Night' : 'Late Night';
-  return `${weekday} ${partOfDay} Set`;
 }
 
 function computeCurrentRun(matchesNewestFirst: Match[]): { player: Player; length: number } | null {
@@ -211,7 +201,7 @@ export function useLiveSession(): UseLiveSessionResult {
           isActive: current.is_active,
           startTime: current.start_time ?? session.start_time ?? null,
           ordinal: ordinalIdx >= 0 ? ordinalIdx + 1 : null,
-          displayName: friendlySessionName(current.start_time ?? session.start_time ?? null),
+          displayName: sessionDisplayName(current.start_time ?? session.start_time ?? null),
           durationMinutes: summary?.duration_minutes ?? 0,
           totalGames: session.total_games,
           shayneWins: session.shayne_wins,

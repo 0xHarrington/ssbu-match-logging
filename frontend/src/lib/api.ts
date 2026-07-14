@@ -109,6 +109,14 @@ export const getAllTimeStats = () =>
 
 export const getHeadToHead = () => request<HeadToHeadStats>('/api/head_to_head_stats');
 
+export const getWinRateTimeline = (username: string) =>
+  request<{
+    success: boolean;
+    data: { game_numbers: number[]; win_rates: number[]; date_ranges: string[] };
+    total_games: number;
+    windows: number;
+  }>(`/api/users/${encodeURIComponent(username)}/win-rate-timeline`);
+
 // --- Mutations ------------------------------------------------------------
 
 export const logGame = (payload: LogGamePayload) =>

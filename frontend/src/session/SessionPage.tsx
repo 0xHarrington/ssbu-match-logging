@@ -7,9 +7,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ErrorState, LoadingState } from '../components/Feedback';
 import { useLiveSession } from '../hooks/useLiveSession';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { getCharacters, undoLastGame } from '../lib/api';
 import { useLogForm, type OnDeckSeed } from './useLogForm';
 import SessionDesktop from './SessionDesktop';
+import SessionMobile from './mobile/SessionMobile';
 import LogRail from './components/LogRail';
 import SeeAllModal from './components/SeeAllModal';
 import EditMatchModal from './components/EditMatchModal';
@@ -21,6 +23,7 @@ const UNDO_MS = 4500;
 
 export default function SessionPage() {
   const { data: live, loading, error, empty, refresh } = useLiveSession();
+  const isMobile = useIsMobile();
   const [characters, setCharacters] = useState<string[]>([]);
   const [modal, setModal] = useState<'all' | null>(null);
   const [editMatch, setEditMatch] = useState<Match | null>(null);
@@ -83,7 +86,26 @@ export default function SessionPage() {
   if (loading) return <LoadingState label="Loading session…" />;
   if (error) return <ErrorState message={error} onRetry={refresh} />;
 
-  // No games yet: still offer the log form so the first match can start a session.
+  // Mobile: the self-contained tab app handles its own empty state.
+  if (isMobile) {
+    return (
+      <>
+        <SessionMobile
+          live={empty ? null : live}
+          form={form}
+          characters={characters}
+          rematchSeed={rematchSeed}
+          onAutoDetect={() => setShowAuto(true)}
+        />
+        {showAuto && (
+          <AutoDetectSheet mobile onClose={() => setShowAuto(false)} onLogManually={() => setShowAuto(false)} />
+        )}
+        {undo && <UndoToast winner={undo.winner} onUndo={handleUndo} bottomOffset={92} />}
+      </>
+    );
+  }
+
+  // Desktop, no games yet: still offer the log form so the first match can start a session.
   if (empty || !live) {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 340px', minHeight: '100vh' }}>
