@@ -1,9 +1,7 @@
-import { useRef, useState, useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import AppShell from './components/shell/AppShell';
-import MatchLogger from './MatchLogger';
-import RecentMatches, { type RecentMatchesRef } from './RecentMatches';
-import SessionStats, { type SessionStatsRef } from './SessionStats';
+import SessionPage from './session/SessionPage';
 
 // Route-level code splitting: everything outside the logging homepage loads on demand.
 const StatsPage = lazy(() => import('./StatsPage'));
@@ -69,56 +67,6 @@ function NotFound() {
   );
 }
 
-function LoggingHome() {
-  const recentMatchesRef = useRef<RecentMatchesRef>(null);
-  const sessionStatsRef = useRef<SessionStatsRef>(null);
-  const [selectedCharacters, setSelectedCharacters] = useState<{
-    shayneCharacter: string;
-    mattCharacter: string;
-  }>({ shayneCharacter: '', mattCharacter: '' });
-
-  // Callback to refresh both session stats and recent matches after a match is logged
-  const handleMatchLogged = () => {
-    recentMatchesRef.current?.refresh();
-    sessionStatsRef.current?.refresh();
-  };
-
-  // Handle character selection changes - only update if values actually changed
-  const handleCharacterSelect = (shayneChar: string, mattChar: string) => {
-    setSelectedCharacters(prev => {
-      if (prev.shayneCharacter === shayneChar && prev.mattCharacter === mattChar) {
-        return prev;
-      }
-      return {
-        shayneCharacter: shayneChar,
-        mattCharacter: mattChar
-      };
-    });
-  };
-
-  return (
-    <div className="match-logger-pane">
-      <div className="match-form-col">
-        <MatchLogger 
-          onMatchLogged={handleMatchLogged}
-          onCharacterSelect={handleCharacterSelect}
-          selectedCharacters={selectedCharacters}
-        />
-      </div>
-      <div className="session-stats-col">
-        <SessionStats 
-          ref={sessionStatsRef}
-          shayneCharacter={selectedCharacters.shayneCharacter}
-          mattCharacter={selectedCharacters.mattCharacter}
-        />
-      </div>
-      <div className="recent-matches-col">
-        <RecentMatches ref={recentMatchesRef} />
-      </div>
-    </div>
-  );
-}
-
 // Component to update page title based on route
 function PageTitle() {
   const location = useLocation();
@@ -158,7 +106,7 @@ function App() {
       <AppShell>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
-            <Route path="/" element={<LoggingHome />} />
+            <Route path="/" element={<SessionPage />} />
             <Route path="/stats" element={<StatsPage />} />
             <Route path="/users/:username" element={<UserStats />} />
             <Route path="/characters" element={<CharacterAnalytics />} />
