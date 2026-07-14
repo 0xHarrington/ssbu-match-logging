@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import * as echarts from 'echarts';
+import { BarChart, Bar, XAxis, YAxis, Legend, Tooltip } from './components/dither';
 
 interface Session {
   session_id: string;
@@ -22,13 +22,18 @@ interface TimelineData {
   duration_minutes: number;
 }
 
+interface ActivityChartRow {
+  date: string;
+  shayne_wins: number;
+  matt_wins: number;
+}
+
 function SessionHistory() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterMinGames, setFilterMinGames] = useState(0);
   const [timelineData, setTimelineData] = useState<TimelineData[]>([]);
-  const timelineChartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchSessions();
@@ -102,155 +107,12 @@ function SessionHistory() {
     ? Math.round(sessions.reduce((sum, s) => sum + s.duration_minutes, 0) / sessions.length)
     : 0;
 
-  // Timeline Chart
-  useEffect(() => {
-    if (!timelineData || timelineData.length === 0) return;
-    if (!timelineChartRef.current) return;
-
-    const chart = echarts.init(timelineChartRef.current);
-
-    // Format dates for display
-    const dates = timelineData.map(d => {
-      const date = new Date(d.datetime);
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    });
-    const games = timelineData.map(d => d.games);
-
-    // Calculate rolling average (window of 5 sessions)
-    const rollingAvg: number[] = [];
-    const window = Math.min(5, Math.ceil(timelineData.length / 10)); // Adaptive window
-    for (let i = 0; i < games.length; i++) {
-      const start = Math.max(0, i - Math.floor(window / 2));
-      const end = Math.min(games.length, i + Math.ceil(window / 2));
-      const slice = games.slice(start, end);
-      const avg = slice.reduce((sum, val) => sum + val, 0) / slice.length;
-      rollingAvg.push(parseFloat(avg.toFixed(1)));
-    }
-
-    chart.setOption({
-      backgroundColor: 'transparent',
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'cross' },
-        backgroundColor: '#3c3836',
-        borderColor: '#504945',
-        borderWidth: 2,
-        textStyle: { color: '#ebdbb2', fontSize: 11 },
-        formatter: (params: any) => {
-          const dataIndex = params[0].dataIndex;
-          const session = timelineData[dataIndex];
-          const date = new Date(session.datetime);
-          const formattedDate = date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric',
-            year: 'numeric'
-          });
-          const shayneWR = session.games > 0 ? ((session.shayne_wins / session.games) * 100).toFixed(1) : '0';
-          const mattWR = session.games > 0 ? ((session.matt_wins / session.games) * 100).toFixed(1) : '0';
-          
-          let tooltip = `<div style="font-weight: bold; margin-bottom: 4px;">${formattedDate}</div>`;
-          
-          params.forEach((param: any) => {
-            if (param.seriesName === 'Games') {
-              tooltip += `<div style="color: #83a598;">Games: ${param.value}</div>`;
-            } else if (param.seriesName === 'Trend') {
-              tooltip += `<div style="color: #fabd2f;">Avg: ${param.value}</div>`;
-            }
-          });
-          
-          tooltip += `<div style="color: #fe8019;">Shayne: ${session.shayne_wins}W (${shayneWR}%)</div>` +
-                     `<div style="color: #b8bb26;">Matt: ${session.matt_wins}W (${mattWR}%)</div>` +
-                     `<div style="color: #a89984; font-size: 10px;">Duration: ${session.duration_minutes}min</div>`;
-          
-          return tooltip;
-        }
-      },
-      legend: {
-        data: ['Games', 'Trend'],
-        textStyle: { color: '#a89984', fontSize: 11 },
-        top: 0,
-        right: '8%'
-      },
-      grid: { 
-        left: '8%', 
-        right: '8%', 
-        top: '15%', 
-        bottom: timelineData.length > 20 ? '20%' : '15%',
-        containLabel: true 
-      },
-      xAxis: {
-        type: 'category',
-        data: dates,
-        axisLine: { lineStyle: { color: '#504945', width: 2 } },
-        axisLabel: { 
-          color: '#a89984', 
-          fontSize: 9,
-          rotate: timelineData.length > 20 ? 45 : 0,
-          interval: timelineData.length > 30 ? Math.floor(timelineData.length / 20) : 0
-        },
-        axisTick: { lineStyle: { color: '#504945' } }
-      },
-      yAxis: {
-        type: 'value',
-        axisLine: { show: true, lineStyle: { color: '#504945', width: 2 } },
-        axisLabel: { color: '#a89984', fontSize: 10 },
-        splitLine: { lineStyle: { color: '#3c3836', type: 'dashed' } }
-      },
-      series: [
-        {
-          name: 'Games',
-          data: games,
-          type: 'bar',
-          itemStyle: {
-            color: '#83a598',
-            borderRadius: [4, 4, 0, 0]
-          },
-          emphasis: {
-            itemStyle: {
-              color: '#a3c0b8'
-            }
-          },
-          barWidth: '60%',
-          animationDelay: (idx: number) => idx * 20
-        },
-        {
-          name: 'Trend',
-          data: rollingAvg,
-          type: 'line',
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 6,
-          lineStyle: {
-            color: '#fabd2f',
-            width: 3
-          },
-          itemStyle: {
-            color: '#fabd2f',
-            borderColor: '#d79921',
-            borderWidth: 2
-          },
-          emphasis: {
-            itemStyle: {
-              color: '#fabd2f',
-              borderColor: '#d79921',
-              borderWidth: 3,
-              shadowBlur: 10,
-              shadowColor: 'rgba(250, 189, 47, 0.5)'
-            }
-          },
-          z: 10
-        }
-      ]
-    });
-
-    const resizeObserver = new ResizeObserver(() => chart.resize());
-    resizeObserver.observe(timelineChartRef.current);
-
-    return () => {
-      resizeObserver.disconnect();
-      chart.dispose();
-    };
-  }, [timelineData]);
+  // Timeline chart rows: one bar pair per session, stacked so total height = games played
+  const activityChartData: ActivityChartRow[] = timelineData.map((d) => ({
+    date: new Date(d.datetime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    shayne_wins: d.shayne_wins,
+    matt_wins: d.matt_wins,
+  }));
 
   if (loading) {
     return (
@@ -418,7 +280,23 @@ function SessionHistory() {
           }}>
             Games played across {timelineData.length} session{timelineData.length !== 1 ? 's' : ''}
           </div>
-          <div ref={timelineChartRef} style={{ height: '300px', width: '100%' }}></div>
+          <div style={{ height: '300px', width: '100%' }}>
+            <BarChart
+              data={activityChartData}
+              config={{
+                shayne_wins: { label: 'Shayne wins', color: 'orange' },
+                matt_wins: { label: 'Matt wins', color: 'green' },
+              }}
+              stackType="stacked"
+            >
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Legend isClickable />
+              <Tooltip labelKey="date" />
+              <Bar dataKey="shayne_wins" variant="hatched" />
+              <Bar dataKey="matt_wins" variant="gradient" />
+            </BarChart>
+          </div>
         </div>
       )}
 

@@ -5,9 +5,9 @@ players (Shayne vs Matt). A Flask API and a React (Vite) single-page app ship as
 one container, backed by CSV storage with session grouping and rich analytics.
 Roughly 3,200 historical matches are already logged.
 
-**Stack:** React 19 · react-router 6 · Vite 6 · TypeScript 5.8 · Recharts +
-[dither-kit](https://www.tripwire.sh/dither-kit) charts · Flask 3.1 · gunicorn ·
-pandas / numpy · deployed on Fly.io.
+**Stack:** React 19 · react-router 6 · Vite 6 · TypeScript 5.8 ·
+[dither-kit](https://www.tripwire.sh/dither-kit) charts (vendored, MIT) ·
+Flask 3.1 · gunicorn · pandas / numpy · deployed on Fly.io.
 
 ## System design
 
@@ -19,7 +19,7 @@ until real multi-user auth ships.
 ```mermaid
 flowchart TB
     subgraph client["Client — browser (Matt / Shayne)"]
-        SPA["React 19 SPA<br/>react-router · Recharts · dither-kit"]
+        SPA["React 19 SPA<br/>react-router · dither-kit charts"]
     end
 
     subgraph fly["Fly.io — single container · ewr · shared-cpu-1x 512MB"]

@@ -1,10 +1,23 @@
-import React, { useCallback, useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import * as echarts from 'echarts';
 import styles from './UserStats.module.css';
 import CharacterDisplay from '../CharacterDisplay';
 import { LoadingState, ErrorState } from '../Feedback';
 import { stageImages } from '../../lib/stages';
+import {
+  ActiveDot,
+  Bar,
+  BarChart,
+  DitherHeatmap,
+  Legend,
+  Line,
+  LineChart,
+  Tooltip,
+  XAxis,
+  YAxis,
+  type DitherColor,
+  type DitherHeatmapCell,
+} from '../dither';
 
 interface CharacterStats {
   character: string;
@@ -47,6 +60,31 @@ interface UserStatsData {
   mostFacedCharacters: MostFacedCharacter[];
 }
 
+interface TimelineInfo {
+  game_numbers: number[];
+  win_rates: number[];
+  date_ranges?: string[];
+}
+
+interface HeatmapPoint {
+  hour: number;
+  day: number;
+  win_rate: number;
+  game_count: number;
+}
+
+interface TimelineRow {
+  game: string;
+  label: string;
+  winRate: number;
+}
+
+interface CharacterRow {
+  character: string;
+  winRate: number;
+  usage: number;
+}
+
 // Seeded random number generator for consistent simulated data
 function seededRandom(seed: number) {
   let value = seed;
@@ -56,21 +94,79 @@ function seededRandom(seed: number) {
   };
 }
 
+// Simulated fallback timeline that trends around the overall win rate
+function buildSimulatedTimeline(
+  seed: number,
+  totalGames: number,
+  overallWinRate: number
+): TimelineRow[] {
+  const random = seededRandom(seed);
+  const numPoints = Math.min(100, Math.floor(totalGames / 20));
+  const rows: TimelineRow[] = [];
+  let currentValue = overallWinRate + (random() - 0.5) * 20;
+
+  for (let i = 0; i < numPoints; i++) {
+    // Add some randomness but keep it smooth
+    const change = (random() - 0.5) * 15;
+    currentValue = Math.max(20, Math.min(80, currentValue + change));
+
+    // Gradually pull towards overall win rate for realism
+    currentValue = currentValue * 0.92 + overallWinRate * 0.08;
+
+    rows.push({
+      game: `${i + 1}`,
+      label: `Window ${i + 1}`,
+      winRate: parseFloat(currentValue.toFixed(1)),
+    });
+  }
+
+  return rows;
+}
+
+// Simulated fallback heatmap with realistic gaming patterns (evening-heavy)
+function buildSimulatedHeatmapCells(seed: number): DitherHeatmapCell[] {
+  const random = seededRandom(seed);
+  const cells: DitherHeatmapCell[] = [];
+
+  for (let d = 0; d < 7; d++) {
+    for (let h = 0; h < 24; h++) {
+      let baseValue = random() * 40;
+      let gameCount = Math.floor(random() * 5);
+
+      if (h >= 18 && h <= 23) {
+        baseValue += 40; // Evening boost
+        gameCount += Math.floor(random() * 20) + 5;
+      } else if (h >= 12 && h < 18) {
+        baseValue += 20; // Afternoon boost
+        gameCount += Math.floor(random() * 10) + 2;
+      } else if (h >= 0 && h < 6) {
+        baseValue -= 20; // Late night penalty
+        gameCount = Math.floor(random() * 3);
+      }
+
+      const winRate = Math.max(0, Math.min(100, baseValue + random() * 30));
+      cells.push({
+        day: d,
+        hour: h,
+        winRate: gameCount === 0 ? null : Math.round(winRate),
+        games: gameCount,
+      });
+    }
+  }
+
+  return cells;
+}
+
 export const UserStats: React.FC = () => {
   const { username = '' } = useParams<{ username: string }>();
   const [stats, setStats] = useState<UserStatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [heatmapData, setHeatmapData] = useState<any>(null);
+  const [heatmapData, setHeatmapData] = useState<HeatmapPoint[] | null>(null);
   const [usingSimulatedData, setUsingSimulatedData] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
-  const [timelineData, setTimelineData] = useState<any>(null);
+  const [timelineData, setTimelineData] = useState<TimelineInfo | null>(null);
   const [usingSimulatedTimeline, setUsingSimulatedTimeline] = useState(false);
-  
-  // Refs for ECharts - must be declared before any early returns
-  const winRateTimelineRef = useRef<HTMLDivElement>(null);
-  const performanceHeatmapRef = useRef<HTMLDivElement>(null);
-  const characterChartRef = useRef<HTMLDivElement>(null);
 
   const fetchStats = useCallback(async () => {
     if (!username) {
@@ -157,387 +253,6 @@ export const UserStats: React.FC = () => {
     fetchHeatmapData();
   }, [username, selectedCharacter]);
 
-  // Initialize ECharts visualizations
-  useEffect(() => {
-    if (!stats) return;
-
-    // Win Rate Timeline Chart
-    if (winRateTimelineRef.current) {
-      const chart = echarts.init(winRateTimelineRef.current);
-      
-      let xData: string[];
-      let yData: number[];
-      let dateRanges: string[] = [];
-      
-      if (timelineData && !usingSimulatedTimeline) {
-        // Use real data from backend
-        xData = timelineData.game_numbers.map((n: number) => `${n}`);
-        yData = timelineData.win_rates;
-        dateRanges = timelineData.date_ranges || [];
-      } else {
-        // Generate seeded random data for consistent display
-        const seed = (username?.charCodeAt(0) || 0) * 1000;
-        const random = seededRandom(seed);
-        
-        // Generate 100 data points (or fewer if not enough games)
-        const numPoints = Math.min(100, Math.floor(stats.totalGames / 20));
-        xData = Array.from({ length: numPoints }, (_, i) => `${i + 1}`);
-        
-        // Create simulated data that trends around overall win rate
-        const baseWinRate = stats.overallWinRate;
-        yData = [];
-        let currentValue = baseWinRate + (random() - 0.5) * 20;
-        
-        for (let i = 0; i < numPoints; i++) {
-          // Add some randomness but keep it smooth
-          const change = (random() - 0.5) * 15;
-          currentValue = Math.max(20, Math.min(80, currentValue + change));
-          
-          // Gradually pull towards overall win rate for realism
-          currentValue = currentValue * 0.92 + baseWinRate * 0.08;
-          
-          yData.push(parseFloat(currentValue.toFixed(1)));
-        }
-      }
-
-      chart.setOption({
-        backgroundColor: 'transparent',
-        tooltip: {
-          trigger: 'axis',
-          backgroundColor: '#3c3836',
-          borderColor: '#504945',
-          textStyle: { color: '#ebdbb2', fontSize: 11 },
-          formatter: (params: any) => {
-            const point = params[0];
-            const windowIndex = point.dataIndex;
-            let tooltip = `20-Game Win Rate: ${point.value.toFixed(1)}%`;
-            
-            // Add date range if available
-            if (dateRanges.length > windowIndex) {
-              tooltip += `<br/>Period: ${dateRanges[windowIndex]}`;
-            }
-            
-            return tooltip;
-          }
-        },
-        grid: { left: '8%', right: '12%', top: '15%', bottom: '12%', containLabel: true },
-        xAxis: {
-          type: 'category',
-          data: xData,
-          axisLine: { lineStyle: { color: '#504945' } },
-          axisLabel: { color: '#a89984', fontSize: 9, interval: Math.floor(xData.length / 10) },
-          name: '20-Game Windows (Last 2000 Games)',
-          nameTextStyle: { color: '#a89984', fontSize: 10 },
-          nameLocation: 'middle',
-          nameGap: 25
-        },
-        yAxis: {
-          type: 'value',
-          axisLine: { lineStyle: { color: '#504945' } },
-          axisLabel: { color: '#a89984', fontSize: 9, formatter: '{value}%' },
-          splitLine: { lineStyle: { color: '#3c3836', type: 'dashed' } },
-          min: 0,
-          max: 100
-        },
-        series: [{
-          data: yData,
-          type: 'line',
-          smooth: true,
-          symbol: 'none',
-          lineStyle: { color: username === 'Shayne' ? '#fe8019' : '#b8bb26', width: 2 },
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: username === 'Shayne' ? 'rgba(254, 128, 25, 0.3)' : 'rgba(184, 187, 38, 0.3)' },
-              { offset: 1, color: 'rgba(60, 56, 54, 0.1)' }
-            ])
-          },
-          markLine: {
-            silent: true,
-            symbol: 'none',
-            data: [
-              {
-                yAxis: 50,
-                lineStyle: { color: 'rgba(168, 153, 132, 0.2)', type: 'dashed', width: 1 },
-                label: { show: false }
-              },
-              {
-                yAxis: stats.overallWinRate,
-                lineStyle: { color: '#83a598', type: 'solid', width: 1 },
-                label: { formatter: 'Overall Avg: {c}%', color: '#83a598', fontSize: 9 }
-              }
-            ]
-          }
-        }]
-      });
-
-      const resizeObserver = new ResizeObserver(() => chart.resize());
-      resizeObserver.observe(winRateTimelineRef.current);
-
-      return () => {
-        resizeObserver.disconnect();
-        chart.dispose();
-      };
-    }
-  }, [stats, username, timelineData, usingSimulatedTimeline]);
-
-  useEffect(() => {
-    if (!stats) return;
-
-    // Performance Heatmap (Day of Week vs Hour) - More granular with 24 hours
-    if (performanceHeatmapRef.current) {
-      const chart = echarts.init(performanceHeatmapRef.current);
-      
-      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const hours = Array.from({ length: 24 }, (_, i) => {
-        if (i === 0) return '12a';
-        if (i < 12) return `${i}a`;
-        if (i === 12) return '12p';
-        return `${i - 12}p`;
-      });
-      
-      // Format: [hour, day, winRate, gameCount]
-      let data: [number, number, number, number][] = [];
-      let maxGames = 30;
-      
-      if (heatmapData && !usingSimulatedData) {
-        // Use real data from backend
-        data = heatmapData.map((item: any) => [
-          item.hour,
-          item.day,
-          item.win_rate,
-          item.game_count
-        ]);
-        
-        // Calculate actual max games for normalization
-        maxGames = Math.max(...heatmapData.map((item: any) => item.game_count), 1);
-      } else {
-        // Use seeded random data for consistent display
-        const random = seededRandom(username.charCodeAt(0) * 1000);
-        
-      for (let d = 0; d < 7; d++) {
-          for (let h = 0; h < 24; h++) {
-            // Simulate realistic gaming patterns (higher activity in evenings)
-            let baseValue = random() * 40;
-            let gameCount = Math.floor(random() * 5); // Base game count
-            
-            if (h >= 18 && h <= 23) {
-              baseValue += 40; // Evening boost
-              gameCount += Math.floor(random() * 20) + 5; // More games in evening
-            } else if (h >= 12 && h < 18) {
-              baseValue += 20; // Afternoon boost
-              gameCount += Math.floor(random() * 10) + 2; // Some games in afternoon
-            } else if (h >= 0 && h < 6) {
-              baseValue -= 20; // Late night penalty
-              gameCount = Math.floor(random() * 3); // Very few games late night
-            }
-            
-            const winRate = Math.max(0, Math.min(100, baseValue + (random() * 30)));
-            data.push([h, d, Math.round(winRate), gameCount]);
-          }
-        }
-      }
-
-      chart.setOption({
-        backgroundColor: 'transparent',
-        tooltip: {
-          position: 'top',
-          backgroundColor: '#3c3836',
-          borderColor: '#504945',
-          textStyle: { color: '#ebdbb2', fontSize: 11 },
-          formatter: (params: any) => {
-            const winRate = params.value[2];
-            const games = params.value[3];
-            if (games === 0) {
-              return `${days[params.value[1]]} ${hours[params.value[0]]}<br/>No games played`;
-            }
-            return `${days[params.value[1]]} ${hours[params.value[0]]}<br/>Win Rate: ${winRate}%<br/>Games: ${games}`;
-          }
-        },
-        grid: { left: '8%', right: '2%', top: '3%', bottom: '15%', containLabel: true },
-        xAxis: {
-          type: 'category',
-          data: hours,
-          splitArea: { show: false },
-          axisLine: { show: false },
-          axisTick: { show: false },
-          axisLabel: { 
-            color: '#a89984', 
-            fontSize: 9,
-            interval: 2, // Show every 3rd hour
-            rotate: 0
-          }
-        },
-        yAxis: {
-          type: 'category',
-          data: days,
-          splitArea: { show: false },
-          axisLine: { show: false },
-          axisTick: { show: false },
-          axisLabel: { color: '#a89984', fontSize: 10 },
-          inverse: true // Display from top to bottom (Sunday at top, Saturday at bottom)
-        },
-        visualMap: {
-          show: false, // Hide the visual map since we're using custom colors
-          min: 0,
-          max: 100
-        },
-        series: [{
-          type: 'heatmap',
-          data: data.map(item => {
-            const [hour, day, winRate, gameCount] = item;
-            
-            // Special handling for cells with no games
-            if (gameCount === 0) {
-              // Use neutral yellow color with very low opacity
-              return {
-                value: [hour, day, 50, 0], // Show as 50% win rate
-                itemStyle: {
-                  color: 'rgba(250, 189, 47, 0.05)' // Yellow with 5% opacity
-                }
-              };
-            }
-            
-            // Calculate brightness based on game count (0.3 to 1.0)
-            // More games = brighter, fewer games = darker
-            const brightness = Math.max(0.3, Math.min(1.0, gameCount / maxGames));
-            
-            // Determine color based on win rate
-            let baseColor;
-            if (winRate < 35) {
-              baseColor = [251, 73, 52]; // Red (#fb4934)
-            } else if (winRate < 45) {
-              baseColor = [254, 128, 25]; // Orange (#fe8019)
-            } else if (winRate < 55) {
-              baseColor = [250, 189, 47]; // Yellow (#fabd2f)
-            } else if (winRate < 65) {
-              baseColor = [184, 187, 38]; // Light green (#b8bb26)
-            } else {
-              baseColor = [152, 151, 26]; // Dark green (#98971a)
-            }
-            
-            // Apply brightness to the color
-            const adjustedColor = baseColor.map(c => Math.round(c * brightness));
-            const colorString = `rgb(${adjustedColor[0]}, ${adjustedColor[1]}, ${adjustedColor[2]})`;
-            
-            return {
-              value: [hour, day, winRate, gameCount],
-              itemStyle: {
-                color: colorString
-              }
-            };
-          }),
-          label: { show: false },
-          itemStyle: {
-            borderColor: '#282828',
-            borderWidth: 1
-          },
-          emphasis: {
-            itemStyle: {
-              shadowBlur: 10,
-              shadowColor: 'rgba(0, 0, 0, 0.5)',
-              borderColor: '#fbf1c7',
-              borderWidth: 2
-            }
-          }
-        }]
-      });
-
-      const resizeObserver = new ResizeObserver(() => chart.resize());
-      resizeObserver.observe(performanceHeatmapRef.current);
-
-      return () => {
-        resizeObserver.disconnect();
-        chart.dispose();
-      };
-    }
-  }, [stats, heatmapData, usingSimulatedData, username]);
-
-  // Character Performance bar chart (win rate + usage per character)
-  useEffect(() => {
-    if (!stats || !characterChartRef.current) return;
-
-    const chart = echarts.init(characterChartRef.current);
-
-    const playerColor = username === 'Shayne' ? '#fe8019' : '#b8bb26';
-    const barLabel = {
-      show: true,
-      position: 'top' as const,
-      color: '#a89984',
-      fontSize: 9,
-      formatter: (params: any) => `${Number(params.value).toFixed(0)}%`
-    };
-
-    chart.setOption({
-      backgroundColor: 'transparent',
-      legend: {
-        top: 0,
-        textStyle: { color: '#ebdbb2', fontSize: 11 },
-        itemWidth: 12,
-        itemHeight: 12,
-        itemGap: 10
-      },
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow' },
-        backgroundColor: '#3c3836',
-        borderColor: '#504945',
-        borderWidth: 1,
-        padding: 10,
-        textStyle: { color: '#ebdbb2', fontSize: 11 },
-        formatter: (params: any) => {
-          const lines = [`<strong>${params[0].name}</strong>`];
-          params.forEach((p: any) => {
-            const label = p.seriesName === 'Games Played'
-              ? `Usage: ${Number(p.value).toFixed(1)}%`
-              : `Win Rate: ${Number(p.value).toFixed(1)}%`;
-            lines.push(`${p.marker} ${label}`);
-          });
-          return lines.join('<br/>');
-        }
-      },
-      grid: { left: '3%', right: '3%', top: 40, bottom: '3%', containLabel: true },
-      xAxis: {
-        type: 'category',
-        data: stats.characterStats.map(stat => stat.character),
-        axisLine: { lineStyle: { color: '#504945' } },
-        axisTick: { show: false },
-        axisLabel: { color: '#a89984', fontSize: 10, rotate: 45 }
-      },
-      yAxis: {
-        type: 'value',
-        min: 0,
-        max: 100,
-        axisLine: { show: false },
-        axisLabel: { color: '#a89984', fontSize: 10, formatter: '{value}%' },
-        splitLine: { lineStyle: { color: '#3c3836', width: 0.5 } }
-      },
-      series: [
-        {
-          name: 'Win Rate (%)',
-          type: 'bar',
-          data: stats.characterStats.map(stat => stat.winRate),
-          itemStyle: { color: playerColor, borderColor: '#282828', borderWidth: 1 },
-          label: barLabel
-        },
-        {
-          name: 'Games Played',
-          type: 'bar',
-          data: stats.characterStats.map(stat => (stat.totalGames / stats.totalGames) * 100),
-          itemStyle: { color: '#83a598', borderColor: '#282828', borderWidth: 1 },
-          label: barLabel
-        }
-      ]
-    });
-
-    const resizeObserver = new ResizeObserver(() => chart.resize());
-    resizeObserver.observe(characterChartRef.current);
-
-    return () => {
-      resizeObserver.disconnect();
-      chart.dispose();
-    };
-  }, [stats, username]);
-
   // Early returns after all hooks
   if (loading) return <LoadingState label="Loading stats..." />;
   if (error) return <ErrorState message={error} onRetry={fetchStats} />;
@@ -556,6 +271,38 @@ export const UserStats: React.FC = () => {
   const openPlayerTearsheet = () => {
     window.open(`/player-tearsheet?username=${username}`, '_blank');
   };
+
+  // Chart data — dither-kit rows
+  const playerColor: DitherColor = username === 'Shayne' ? 'orange' : 'green';
+
+  const timelineRows: TimelineRow[] =
+    timelineData && !usingSimulatedTimeline
+      ? timelineData.game_numbers.map((n, i) => ({
+          game: `${n}`,
+          label: timelineData.date_ranges?.[i] ?? `Window ${n}`,
+          winRate: timelineData.win_rates[i],
+        }))
+      : buildSimulatedTimeline(
+          (username?.charCodeAt(0) || 0) * 1000,
+          stats.totalGames,
+          stats.overallWinRate
+        );
+
+  const heatmapCells: DitherHeatmapCell[] =
+    heatmapData && !usingSimulatedData
+      ? heatmapData.map(point => ({
+          day: point.day,
+          hour: point.hour,
+          winRate: point.game_count === 0 ? null : point.win_rate,
+          games: point.game_count,
+        }))
+      : buildSimulatedHeatmapCells(username.charCodeAt(0) * 1000);
+
+  const characterRows: CharacterRow[] = stats.characterStats.map(stat => ({
+    character: stat.character,
+    winRate: stat.winRate,
+    usage: stats.totalGames > 0 ? (stat.totalGames / stats.totalGames) * 100 : 0,
+  }));
 
   return (
     <div className={styles['stats-container']}>
@@ -665,7 +412,22 @@ export const UserStats: React.FC = () => {
               </span>
             )}
           </h3>
-          <div ref={winRateTimelineRef} style={{ height: '220px', width: '100%' }}></div>
+          <div style={{ height: '220px', width: '100%' }}>
+            <LineChart
+              data={timelineRows}
+              config={{ winRate: { label: '20-Game Win Rate', color: playerColor } }}
+            >
+              <XAxis dataKey="game" />
+              <YAxis tickFormatter={(value) => `${value}%`} />
+              <Tooltip
+                labelKey="label"
+                valueFormatter={(value) => `${value.toFixed(1)}%`}
+              />
+              <Line dataKey="winRate" variant="gradient">
+                <ActiveDot variant="colored-border" />
+              </Line>
+            </LineChart>
+          </div>
         </div>
         <div className="card" style={{ padding: '1rem' }}>
           <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', color: '#fbf1c7' }}>
@@ -677,10 +439,12 @@ export const UserStats: React.FC = () => {
             )}
           </h3>
           <div style={{ fontSize: '0.7rem', color: '#a89984', marginBottom: '0.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <span>Color = Win Rate (🔴 Low → 🟡 Mid → 🟢 High)</span>
-            <span>Brightness = Games Played (Darker = Fewer, Brighter = More)</span>
+            <span>Color = Win Rate (🔴 Low → 🟢 High)</span>
+            <span>Density = Games Played (Sparser = Fewer, Denser = More)</span>
           </div>
-          <div ref={performanceHeatmapRef} style={{ height: '260px', width: '100%' }}></div>
+          <div style={{ width: '100%' }}>
+            <DitherHeatmap cells={heatmapCells} height={260} metricLabel="win rate" />
+          </div>
           
           {/* Character Filter */}
           {stats && stats.characterStats && stats.characterStats.length > 0 && (
@@ -752,7 +516,23 @@ export const UserStats: React.FC = () => {
         <div className="card" style={{ padding: '1rem' }}>
           <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>👊 Character Performance</h2>
           <div style={{ height: '280px', marginBottom: '0.75rem' }}>
-            <div ref={characterChartRef} style={{ width: '100%', height: '100%' }} />
+            <BarChart
+              data={characterRows}
+              config={{
+                winRate: { label: 'Win Rate (%)', color: playerColor },
+                usage: { label: 'Usage (%)', color: 'blue' },
+              }}
+            >
+              <XAxis dataKey="character" />
+              <YAxis tickFormatter={(value) => `${value}%`} />
+              <Legend />
+              <Tooltip
+                labelKey="character"
+                valueFormatter={(value) => `${value.toFixed(1)}%`}
+              />
+              <Bar dataKey="winRate" variant="gradient" />
+              <Bar dataKey="usage" variant="gradient" />
+            </BarChart>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
             {stats.characterStats.slice(0, 4).map((stat) => (

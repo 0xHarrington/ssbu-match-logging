@@ -1,0 +1,60 @@
+/* Gruvbox-scoped replacements for the Tailwind utilities used by the vendored
+ * dither-kit components (upstream expects Tailwind + shadcn tokens; this app
+ * has neither). Every rule is scoped under .dither-root, which the chart root
+ * components add to their containers — nothing leaks into app CSS. */
+
+.dither-root { position: relative; height: 100%; width: 100%; }
+
+/* layout */
+.dither-root .absolute { position: absolute; }
+.dither-root .relative { position: relative; }
+.dither-root .inset-0 { inset: 0; }
+.dither-root .inset-x-0 { left: 0; right: 0; }
+.dither-root .top-0 { top: 0; }
+.dither-root .z-10 { z-index: 10; }
+.dither-root .flex { display: flex; }
+.dither-root .flex-col { flex-direction: column; }
+.dither-root .flex-wrap { flex-wrap: wrap; }
+.dither-root .items-center { align-items: center; }
+.dither-root .justify-center { justify-content: center; }
+.dither-root .justify-end { justify-content: flex-end; }
+.dither-root .justify-start { justify-content: flex-start; }
+.dither-root .gap-0\.5 { gap: 0.125rem; }
+.dither-root .gap-1\.5 { gap: 0.375rem; }
+.dither-root .gap-3 { gap: 0.75rem; }
+.dither-root .px-1 { padding-left: 0.25rem; padding-right: 0.25rem; }
+.dither-root .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+.dither-root .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.dither-root .pl-2 { padding-left: 0.5rem; }
+.dither-root .mb-0\.5 { margin-bottom: 0.125rem; }
+.dither-root .ml-auto { margin-left: auto; }
+.dither-root .h-full { height: 100%; }
+.dither-root .w-full { width: 100%; }
+.dither-root .size-2 { width: 0.5rem; height: 0.5rem; }
+.dither-root .overflow-visible { overflow: visible; }
+.dither-root .rounded-md { border-radius: 6px; }
+.dither-root .rounded-\[1px\] { border-radius: 1px; }
+.dither-root .pointer-events-none { pointer-events: none; }
+.dither-root .pointer-events-auto { pointer-events: auto; }
+.dither-root .cursor-pointer { cursor: pointer; }
+.dither-root .opacity-40 { opacity: 0.4; }
+.dither-root .transition-opacity { transition: opacity 0.15s ease; }
+.dither-root .shadow-sm { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
+.dither-root .backdrop-blur-sm { backdrop-filter: blur(4px); }
+
+/* typography */
+.dither-root .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.dither-root .text-\[10px\] { font-size: 10px; }
+.dither-root .text-\[11px\] { font-size: 11px; }
+.dither-root .tabular-nums { font-variant-numeric: tabular-nums; }
+.dither-root .fill-current { fill: currentColor; }
+
+/* gruvbox stand-ins for the shadcn theme tokens */
+.dither-root .text-muted-foreground { color: #a89984; }
+.dither-root .text-foreground { color: #ebdbb2; }
+.dither-root .text-popover-foreground { color: #ebdbb2; }
+.dither-root .hover\:text-foreground:hover { color: #ebdbb2; }
+.dither-root .bg-popover { background-color: #3c3836; }
+.dither-root .bg-popover\/70 { background-color: rgba(60, 56, 54, 0.7); }
+.dither-root .border { border: 1px solid #504945; }
+.dither-root .stroke-border { stroke: #504945; }

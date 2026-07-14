@@ -154,7 +154,21 @@ leverage-per-effort:
 4. **Quick rematch** button repeating characters+stage in one tap (sticky
    stage + undo shipped; this is the last logger-ergonomics item).
 
-## 5. Dither-kit adoption plan
+## 5. Dither-kit adoption — SHIPPED 2026-07-14
+
+Fully adopted (no pilot): the kit is vendored at `frontend/src/components/dither/`
+(MIT, upstream commit `9fb0b14`) with Tailwind utilities replaced by a scoped
+`dither.css`, the palette retuned to Gruvbox seeds (orange=Shayne, green=Matt,
++ new yellow/aqua), and `cn()`/`process.env` adapted for a no-Tailwind Vite app.
+All 14 chart mounts across 8 pages converted; the three day×hour heatmaps use a
+local `DitherHeatmap` extension built on the kit's Bayer primitives. ECharts is
+removed: total JS ~1.6 MB → ~0.8 MB. Notable conversion calls: SessionHistory's
+rolling-average line became a stacked win-split bar; win-rate-bucket bar colors
+collapsed to single-series blue; markLines dropped (no primitive).
+
+Original plan follows for reference:
+
+### (superseded) adoption plan
 
 [dither-kit](https://www.tripwire.sh/dither-kit) (Boring Software Inc): dithered
 retro-aesthetic charts on a tiny canvas engine — area/sparkline, line, bar

@@ -1,10 +1,20 @@
-import React, { useCallback, useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import * as echarts from 'echarts';
 import CharacterDisplay from './components/CharacterDisplay';
 import { PerformanceHeatmap } from './components/PerformanceHeatmap';
 import { LoadingState, ErrorState } from './components/Feedback';
 import { stageImages } from './lib/stages';
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Legend,
+  Tooltip,
+  type ChartConfig,
+} from './components/dither';
 
 interface MatchupData {
   opponent: string;
@@ -55,6 +65,40 @@ interface TimelineData {
   games: number;
 }
 
+interface MatchupChartRow {
+  opponent: string;
+  winRate: number;
+  games: number;
+  wins: number;
+  losses: number;
+}
+
+interface PlayerComparisonRow {
+  metric: string;
+  shayne: number;
+  matt: number;
+}
+
+interface TimelineChartRow {
+  date: string;
+  games: number;
+  trend: number;
+}
+
+const matchupChartConfig: ChartConfig = {
+  winRate: { label: 'Win Rate %', color: 'blue' },
+};
+
+const playerComparisonConfig: ChartConfig = {
+  shayne: { label: 'Shayne', color: 'orange' },
+  matt: { label: 'Matt', color: 'green' },
+};
+
+const timelineChartConfig: ChartConfig = {
+  games: { label: 'Games', color: 'aqua' },
+  trend: { label: 'Trend', color: 'yellow' },
+};
+
 const CharacterDetail: React.FC = () => {
   const { character } = useParams<{ character: string }>();
   const [data, setData] = useState<CharacterStatsData | null>(null);
@@ -63,9 +107,6 @@ const CharacterDetail: React.FC = () => {
   const [heatmapData, setHeatmapData] = useState<any>(null);
   const [usingSimulatedHeatmap, setUsingSimulatedHeatmap] = useState(false);
   const [timelineData, setTimelineData] = useState<TimelineData[]>([]);
-  const matchupRadarRef = useRef<HTMLDivElement>(null);
-  const playerComparisonRef = useRef<HTMLDivElement>(null);
-  const timelineChartRef = useRef<HTMLDivElement>(null);
 
   const fetchData = useCallback(async () => {
     if (!character) return;
@@ -135,338 +176,47 @@ const CharacterDetail: React.FC = () => {
     fetchTimelineData();
   }, [character]);
 
-  // ECharts visualizations
-  useEffect(() => {
-    if (!data) return;
+  // Top matchups (12+ games), deduped and sorted by games played
+  const matchupChartData: MatchupChartRow[] = data
+    ? Array.from(
+        new Map(
+          [...data.best_matchups, ...data.worst_matchups]
+            .filter(m => m.games >= 12)
+            .map(m => [m.opponent, m])
+        ).values()
+      )
+        .sort((a, b) => b.games - a.games)
+        .slice(0, 10)
+        .map(m => ({
+          opponent: m.opponent,
+          winRate: Math.round(m.win_rate),
+          games: m.games,
+          wins: m.wins,
+          losses: m.losses,
+        }))
+    : [];
 
-    // Top Matchups Bar Chart - Only matchups with 12+ games
-    if (matchupRadarRef.current) {
-      const chart = echarts.init(matchupRadarRef.current);
-      
-      // Combine all matchups and filter for 12+ games
-      const allMatchups = [
-        ...data.best_matchups.filter(m => m.games >= 12),
-        ...data.worst_matchups.filter(m => m.games >= 12)
-      ];
-      
-      // Remove duplicates and sort by total games
-      const uniqueMatchups = Array.from(
-        new Map(allMatchups.map(m => [m.opponent, m])).values()
-      ).sort((a, b) => b.games - a.games).slice(0, 10);
-      
-      if (uniqueMatchups.length === 0) {
-        // Show message if no significant matchups
-        chart.setOption({
-          backgroundColor: 'transparent',
-          title: {
-            text: 'Not enough data\n(12+ games needed per matchup)',
-            left: 'center',
-            top: 'center',
-            textStyle: {
-              color: '#a89984',
-              fontSize: 12,
-              fontStyle: 'italic'
-            }
-          }
-        });
-      } else {
-        chart.setOption({
-          backgroundColor: 'transparent',
-          tooltip: {
-            trigger: 'axis',
-            axisPointer: { type: 'shadow' },
-            backgroundColor: '#3c3836',
-            borderColor: '#504945',
-            borderWidth: 2,
-            textStyle: { color: '#ebdbb2', fontSize: 11 },
-            formatter: (params: any) => {
-              const matchup = uniqueMatchups[params[0].dataIndex];
-              return `<div style="font-weight: bold; margin-bottom: 4px;">${matchup.opponent}</div>` +
-                     `<div style="color: ${matchup.win_rate >= 50 ? '#b8bb26' : '#fb4934'};">Win Rate: ${Math.round(matchup.win_rate)}%</div>` +
-                     `<div style="color: #a89984; font-size: 10px;">Record: ${matchup.wins}W-${matchup.losses}L</div>` +
-                     `<div style="color: #83a598; font-size: 10px;">${matchup.games} games played</div>`;
-            }
-          },
-          grid: { 
-            left: '20%', 
-            right: '8%', 
-            top: '5%', 
-            bottom: '5%', 
-            containLabel: false
-          },
-          xAxis: {
-            type: 'value',
-            max: 100,
-            axisLine: { show: false },
-            axisTick: { show: false },
-            axisLabel: { 
-              color: '#a89984',
-              fontSize: 9,
-              formatter: '{value}%'
-            },
-            splitLine: {
-              lineStyle: { color: '#3c3836', type: 'dashed' } 
-            }
-          },
-          yAxis: {
-            type: 'category',
-            data: uniqueMatchups.map(m => m.opponent),
-            axisLine: { show: false },
-            axisTick: { show: false },
-            axisLabel: { 
-              color: '#ebdbb2', 
-              fontSize: 10,
-              fontWeight: 500
-            },
-            inverse: true
-          },
-          series: [{
-            type: 'bar',
-            data: uniqueMatchups.map(matchup => ({
-              value: matchup.win_rate,
-              itemStyle: {
-                color: matchup.win_rate >= 60 ? '#b8bb26' : 
-                       matchup.win_rate >= 50 ? '#83a598' : 
-                       matchup.win_rate >= 40 ? '#fe8019' : '#fb4934',
-                borderRadius: [0, 4, 4, 0]
-              }
-            })),
-            barMaxWidth: 20,
-            label: {
-              show: true,
-              position: 'right',
-              formatter: (params: any) => {
-                const matchup = uniqueMatchups[params.dataIndex];
-                return `${Math.round(matchup.win_rate)}% (${matchup.games}g)`;
-              },
-              color: '#ebdbb2',
-              fontSize: 10,
-              fontWeight: 'bold'
-            },
-            emphasis: {
-              itemStyle: {
-                shadowBlur: 10,
-                shadowColor: 'rgba(0, 0, 0, 0.5)'
-              }
-              }
-          }]
-        });
-      }
-
-      const resizeObserver = new ResizeObserver(() => chart.resize());
-      resizeObserver.observe(matchupRadarRef.current);
-
-      return () => {
-        resizeObserver.disconnect();
-        chart.dispose();
-      };
-    }
-  }, [data]);
-
-  useEffect(() => {
-    if (!data) return;
-
-    // Player Comparison Chart
-    if (playerComparisonRef.current) {
-      const chart = echarts.init(playerComparisonRef.current);
-
-      chart.setOption({
-        backgroundColor: 'transparent',
-        tooltip: {
-          trigger: 'axis',
-          axisPointer: { type: 'shadow' },
-          backgroundColor: '#3c3836',
-          borderColor: '#504945',
-          textStyle: { color: '#ebdbb2' }
-        },
-        legend: {
-          data: ['Shayne', 'Matt'],
-          textStyle: { color: '#a89984' },
-          top: 0
-        },
-        grid: { left: '8%', right: '4%', top: '15%', bottom: '10%', containLabel: true },
-        xAxis: {
-          type: 'category',
-          data: ['Games', 'Wins', 'Win Rate'],
-          axisLine: { lineStyle: { color: '#504945' } },
-          axisLabel: { color: '#a89984', fontSize: 10 }
-        },
-        yAxis: {
-          type: 'value',
-          axisLine: { lineStyle: { color: '#504945' } },
-          axisLabel: { color: '#a89984', fontSize: 10 },
-          splitLine: { lineStyle: { color: '#3c3836', type: 'dashed' } }
-        },
-        series: [
-          {
-            name: 'Shayne',
-            type: 'bar',
-            data: [data.shayne_stats.games, data.shayne_stats.wins, data.shayne_stats.win_rate],
-            itemStyle: { color: '#fe8019' }
-          },
-          {
-            name: 'Matt',
-            type: 'bar',
-            data: [data.matt_stats.games, data.matt_stats.wins, data.matt_stats.win_rate],
-            itemStyle: { color: '#b8bb26' }
-          }
-        ]
-      });
-
-      const resizeObserver = new ResizeObserver(() => chart.resize());
-      resizeObserver.observe(playerComparisonRef.current);
-
-      return () => {
-        resizeObserver.disconnect();
-        chart.dispose();
-      };
-    }
-  }, [data]);
-
-
-  // Timeline Chart - Games per session
-  useEffect(() => {
-    if (!timelineData || timelineData.length === 0) return;
-    if (!timelineChartRef.current) return;
-
-    const chart = echarts.init(timelineChartRef.current);
-
-    // Format dates for display
-    const dates = timelineData.map(d => {
-      const date = new Date(d.datetime);
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    });
-    const games = timelineData.map(d => d.games);
-
-    // Calculate rolling average (window of 5 sessions)
-    const rollingAvg: number[] = [];
-    const window = Math.min(5, Math.ceil(timelineData.length / 10)); // Adaptive window
-    for (let i = 0; i < games.length; i++) {
-      const start = Math.max(0, i - Math.floor(window / 2));
-      const end = Math.min(games.length, i + Math.ceil(window / 2));
-      const slice = games.slice(start, end);
-      const avg = slice.reduce((sum, val) => sum + val, 0) / slice.length;
-      rollingAvg.push(parseFloat(avg.toFixed(1)));
-    }
-      
-      chart.setOption({
-        backgroundColor: 'transparent',
-        tooltip: {
-          trigger: 'axis',
-        axisPointer: { type: 'cross' },
-          backgroundColor: '#3c3836',
-          borderColor: '#504945',
-        borderWidth: 2,
-          textStyle: { color: '#ebdbb2', fontSize: 11 },
-          formatter: (params: any) => {
-          const dataIndex = params[0].dataIndex;
-          const session = timelineData[dataIndex];
-          const date = new Date(session.datetime);
-          const formattedDate = date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric',
-            year: 'numeric'
-          });
-          let tooltip = `<div style="font-weight: bold; margin-bottom: 4px;">${formattedDate}</div>`;
-          
-          params.forEach((param: any) => {
-            if (param.seriesName === 'Games') {
-              tooltip += `<div style="color: #689d6a;">Games: ${param.value}</div>`;
-            } else if (param.seriesName === 'Trend') {
-              tooltip += `<div style="color: #fabd2f;">Avg: ${param.value}</div>`;
-            }
-          });
-          
-          tooltip += `<div style="color: #a89984; font-size: 10px;">Session ${session.session_id}</div>`;
-          return tooltip;
-        }
-      },
-      legend: {
-        data: ['Games', 'Trend'],
-        textStyle: { color: '#a89984', fontSize: 11 },
-        top: 0,
-        right: '8%'
-      },
-        grid: { 
-        left: '8%', 
-          right: '8%', 
-        top: '15%', 
-        bottom: timelineData.length > 20 ? '20%' : '15%',
-          containLabel: true 
-        },
-        xAxis: {
-        type: 'category',
-        data: dates,
-        axisLine: { lineStyle: { color: '#504945', width: 2 } },
-          axisLabel: { 
-            color: '#a89984', 
-            fontSize: 9,
-          rotate: timelineData.length > 20 ? 45 : 0,
-          interval: timelineData.length > 30 ? Math.floor(timelineData.length / 20) : 0
-          },
-        axisTick: { lineStyle: { color: '#504945' } }
-        },
-        yAxis: {
-        type: 'value',
-        axisLine: { show: true, lineStyle: { color: '#504945', width: 2 } },
-        axisLabel: { color: '#a89984', fontSize: 10 },
-        splitLine: { lineStyle: { color: '#3c3836', type: 'dashed' } }
-      },
-      series: [
-        {
-          name: 'Games',
-          data: games,
-          type: 'bar',
-            itemStyle: {
-            color: '#689d6a',
-            borderRadius: [4, 4, 0, 0]
-          },
-          emphasis: {
-            itemStyle: {
-              color: '#8ec07c'
-            }
-          },
-          barWidth: '60%',
-          animationDelay: (idx: number) => idx * 20
-        },
-        {
-          name: 'Trend',
-          data: rollingAvg,
-          type: 'line',
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 6,
-          lineStyle: {
-            color: '#fabd2f',
-            width: 3
-          },
-          itemStyle: {
-            color: '#fabd2f',
-            borderColor: '#d79921',
-            borderWidth: 2
-          },
-          emphasis: {
-            itemStyle: {
-              color: '#fabd2f',
-              borderColor: '#d79921',
-              borderWidth: 3,
-              shadowBlur: 10,
-              shadowColor: 'rgba(250, 189, 47, 0.5)'
-            }
-          },
-          z: 10
-        }
+  const playerComparisonData: PlayerComparisonRow[] = data
+    ? [
+        { metric: 'Games', shayne: data.shayne_stats.games, matt: data.matt_stats.games },
+        { metric: 'Wins', shayne: data.shayne_stats.wins, matt: data.matt_stats.wins },
+        { metric: 'Win Rate', shayne: data.shayne_stats.win_rate, matt: data.matt_stats.win_rate },
       ]
-      });
+    : [];
 
-      const resizeObserver = new ResizeObserver(() => chart.resize());
-      resizeObserver.observe(timelineChartRef.current);
-
-      return () => {
-        resizeObserver.disconnect();
-        chart.dispose();
-      };
-  }, [timelineData]);
+  // Games per session plus adaptive rolling average trend
+  const timelineWindow = Math.min(5, Math.ceil(timelineData.length / 10));
+  const timelineChartData: TimelineChartRow[] = timelineData.map((d, i) => {
+    const start = Math.max(0, i - Math.floor(timelineWindow / 2));
+    const end = Math.min(timelineData.length, i + Math.ceil(timelineWindow / 2));
+    const slice = timelineData.slice(start, end);
+    const avg = slice.reduce((sum, s) => sum + s.games, 0) / slice.length;
+    return {
+      date: new Date(d.datetime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      games: d.games,
+      trend: Number(avg.toFixed(1)),
+    };
+  });
 
   if (loading) {
     return (
@@ -618,11 +368,42 @@ const CharacterDetail: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
         <div className="card" style={{ padding: '1rem' }}>
           <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>📊 Player Comparison</h3>
-          <div ref={playerComparisonRef} style={{ height: '220px', width: '100%' }}></div>
+          <div style={{ height: '220px', width: '100%' }}>
+            <BarChart data={playerComparisonData} config={playerComparisonConfig}>
+              <XAxis dataKey="metric" />
+              <YAxis />
+              <Legend isClickable />
+              <Tooltip labelKey="metric" />
+              <Bar dataKey="shayne" variant="gradient" />
+              <Bar dataKey="matt" variant="gradient" />
+            </BarChart>
+          </div>
         </div>
         <div className="card" style={{ padding: '1rem' }}>
           <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>🎯 Top Matchups</h3>
-          <div ref={matchupRadarRef} style={{ height: '220px', width: '100%' }}></div>
+          <div style={{ height: '220px', width: '100%' }}>
+            {matchupChartData.length > 0 ? (
+              <BarChart data={matchupChartData} config={matchupChartConfig}>
+                <XAxis dataKey="opponent" tickFormatter={(value) => String(value).split(' ')[0]} />
+                <YAxis tickFormatter={(value) => `${value}%`} />
+                <Tooltip labelKey="opponent" />
+                <Bar dataKey="winRate" variant="gradient" />
+              </BarChart>
+            ) : (
+              <div style={{
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#a89984',
+                fontSize: '0.8rem',
+                fontStyle: 'italic',
+                textAlign: 'center'
+              }}>
+                Not enough data<br />(12+ games needed per matchup)
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -927,7 +708,16 @@ const CharacterDetail: React.FC = () => {
           }}>
             Games played with {character} across {timelineData.length} session{timelineData.length !== 1 ? 's' : ''}
           </div>
-          <div ref={timelineChartRef} style={{ height: '300px', width: '100%' }}></div>
+          <div style={{ height: '300px', width: '100%' }}>
+            <LineChart data={timelineChartData} config={timelineChartConfig}>
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Legend isClickable />
+              <Tooltip labelKey="date" />
+              <Line dataKey="games" variant="gradient" />
+              <Line dataKey="trend" strokeVariant="dashed" />
+            </LineChart>
+          </div>
         </div>
       )}
 

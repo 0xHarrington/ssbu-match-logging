@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import * as echarts from 'echarts';
 import CharacterDisplay from './components/CharacterDisplay';
+import { BarChart, Bar, XAxis, YAxis, Tooltip } from './components/dither';
 
 // ===== TYPE DEFINITIONS =====
 interface MonthlyActivityItem {
@@ -139,9 +139,6 @@ const StatsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartInstanceRef = useRef<echarts.ECharts | null>(null);
-
   useEffect(() => {
     const fetchStats = async () => {
       setLoading(true);
@@ -182,84 +179,13 @@ const StatsPage: React.FC = () => {
   }, []);
 
   // Initialize eCharts chart for monthly activity
-  useEffect(() => {
-    if (!chartRef.current || !stats) return;
-
-    const chartInstance = echarts.init(chartRef.current);
-    chartInstanceRef.current = chartInstance;
-
-    const months = stats.monthly_activity.map(item => {
-      const [year, month] = item.month.split('-');
-      const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('default', { month: 'short' });
-      const yearShort = year.slice(-2);
-      return `${monthName}. '${yearShort}`;
-    });
-    const gamesData = stats.monthly_activity.map(item => item.games);
-
-    const option = {
-      backgroundColor: 'transparent',
-      grid: {
-        left: '8%',
-        right: '8%',
-        top: '10%',
-        bottom: stats.monthly_activity.length > 12 ? '15%' : '10%',
-        containLabel: true
-      },
-      xAxis: {
-        type: 'category',
-        data: months,
-        axisLine: { lineStyle: { color: '#504945' } },
-        axisLabel: {
-          color: '#ebdbb2',
-          fontSize: 11,
-          rotate: stats.monthly_activity.length > 12 ? -45 : 0
-        },
-        axisTick: { lineStyle: { color: '#504945' } }
-      },
-      yAxis: {
-        type: 'value',
-        axisLine: { lineStyle: { color: '#504945' } },
-        axisLabel: { color: '#ebdbb2', fontSize: 11 },
-        splitLine: { lineStyle: { color: '#3c3836' } }
-      },
-      series: [{
-        type: 'bar',
-        data: gamesData,
-        itemStyle: {
-          color: '#83a598',
-          borderRadius: [4, 4, 0, 0]
-        },
-        barWidth: '50%',
-        label: {
-          show: true,
-          position: 'top',
-          color: '#ebdbb2',
-          fontSize: 11,
-          fontWeight: 'bold'
-        }
-      }],
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: 'rgba(60, 56, 54, 0.95)',
-        borderColor: '#504945',
-        textStyle: { color: '#ebdbb2' },
-        formatter: (params: any) => {
-          const param = params[0];
-          return `${param.name}<br/>Games: ${param.value}`;
-        }
-      }
-    };
-
-    chartInstance.setOption(option);
-
-    const handleResize = () => chartInstance.resize();
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      chartInstance.dispose();
-    };
-  }, [stats]);
+  const monthlyChartData = stats
+    ? stats.monthly_activity.map(item => {
+        const [year, month] = item.month.split('-');
+        const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('default', { month: 'short' });
+        return { month: `${monthName}. '${year.slice(-2)}`, games: item.games };
+      })
+    : [];
 
   if (loading) return <div className="stats-container"><div style={{ textAlign: 'center', padding: '3rem', fontSize: '1.2rem' }}>Loading statistics...</div></div>;
   if (error) return <div className="stats-container"><div className="error" style={{ textAlign: 'center', padding: '2rem' }}>{error}</div></div>;
@@ -843,7 +769,14 @@ const StatsPage: React.FC = () => {
       <section className="stats-section">
         <h2 style={{ fontSize: '1.3rem', marginBottom: '0.75rem', color: '#fbf1c7' }}>Games by Month</h2>
         <div className="card" style={{ padding: '1rem' }}>
-          <div ref={chartRef} style={{ width: '100%', height: 300 }} />
+          <div style={{ width: '100%', height: 300 }}>
+            <BarChart data={monthlyChartData} config={{ games: { label: 'Games', color: 'blue' } }}>
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip labelKey="month" />
+              <Bar dataKey="games" variant="gradient" />
+            </BarChart>
+          </div>
         </div>
       </section>
 
