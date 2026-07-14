@@ -44,14 +44,14 @@ const SessionDesktop = forwardRef<SessionDesktopHandle, SessionDesktopProps>(fun
       <div style={{ padding: '30px 34px', display: 'flex', flexDirection: 'column', gap: 22, minWidth: 0 }}>
         <TitleStrip live={live} onAutoDetect={onAutoDetect} />
         <Scoreboard
-          shayneChar={live.onDeck?.shayneChar ?? ''}
-          mattChar={live.onDeck?.mattChar ?? ''}
+          shayneChar={live.onDeck.shayneChar}
+          mattChar={live.onDeck.mattChar}
           shayneWins={live.shayneWins}
           mattWins={live.mattWins}
           gameNumber={live.totalGames + 1}
           runPips={live.runPips}
         />
-        {live.onDeck && <MatchupHistoryCard onDeck={live.onDeck} />}
+        <MatchupHistoryCard onDeck={live.onDeck} />
         <SessionTiles live={live} />
         <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: 20 }}>
           <SessionMatchesCard matches={live.matches} total={live.totalGames} onSeeAll={onSeeAll} onEdit={onEditMatch} />

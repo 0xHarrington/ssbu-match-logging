@@ -52,12 +52,12 @@ export default function ScoreboardMobile({ live }: { live: LiveSession }) {
   return (
     <div style={{ animation: 'popIn 0.3s ease' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'stretch', marginBottom: 14 }}>
-        <PlayerPanel player="Shayne" character={live.onDeck?.shayneChar ?? ''} score={live.shayneWins} />
+        <PlayerPanel player="Shayne" character={live.onDeck.shayneChar} score={live.shayneWins} />
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--faint)', fontWeight: 600 }}>VS</div>
           <div style={{ width: 1, flex: 1, background: 'linear-gradient(#3c3836,transparent,#3c3836)', margin: '8px 0' }} />
         </div>
-        <PlayerPanel player="Matt" character={live.onDeck?.mattChar ?? ''} score={live.mattWins} />
+        <PlayerPanel player="Matt" character={live.onDeck.mattChar} score={live.mattWins} />
       </div>
 
       <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: '12px 14px' }}>

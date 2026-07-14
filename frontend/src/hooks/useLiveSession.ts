@@ -65,7 +65,9 @@ export interface LiveSession {
   /** Current within-session win run, from the newest games backward. */
   currentRun: { player: Player; length: number } | null;
   stages: StageSplit[];
-  onDeck: OnDeckMatchup | null;
+  /** The characters in the most recent game — always populated when a
+   *  LiveSession exists (there's always at least one match). */
+  onDeck: OnDeckMatchup;
 }
 
 export interface UseLiveSessionResult {
