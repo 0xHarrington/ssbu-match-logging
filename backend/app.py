@@ -174,7 +174,7 @@ class GameDataManager:
 
             # Check if file has content (more than just headers)
             try:
-                df = pd.read_csv(self.csv_path)
+                df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
                 if len(df) == 0:
                     logger.info("CSV file is empty, skipping backup")
                     return
@@ -204,7 +204,7 @@ class GameDataManager:
     def _load_data(self) -> pd.DataFrame:
         """Load the current CSV data into a pandas DataFrame."""
         try:
-            df = pd.read_csv(self.csv_path)
+            df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
             # Convert datetime column to datetime type
             df["datetime"] = pd.to_datetime(df["datetime"])
             # Ensure timestamp is numeric
@@ -695,7 +695,7 @@ class GameDataManager:
             there are no games to undo.
         """
         with self._write_lock:
-            df = pd.read_csv(self.csv_path)
+            df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
             if len(df) == 0:
                 return None
 
@@ -737,7 +737,7 @@ class GameDataManager:
         silently dropped by _load_data's cleaning."""
         try:
             with self._write_lock:
-                df = pd.read_csv(self.csv_path)
+                df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
                 if len(df) == 0:
                     return
                 changed = False
@@ -785,7 +785,7 @@ class GameDataManager:
         only when at least one session_id was actually missing."""
         try:
             with self._write_lock:
-                df = pd.read_csv(self.csv_path)
+                df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
                 if len(df) == 0:
                     return
                 if "session_id" not in df.columns:
@@ -834,7 +834,7 @@ class GameDataManager:
         Reads the raw CSV so unrelated malformed rows are never dropped.
         """
         with self._write_lock:
-            df = pd.read_csv(self.csv_path)
+            df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
             idx = self._find_row_index(df, match_id)
             if idx is None:
                 return None
@@ -849,7 +849,7 @@ class GameDataManager:
     def delete_match(self, match_id: str) -> Optional[Dict[str, Any]]:
         """Remove one match by id. Returns the removed row or None if unknown."""
         with self._write_lock:
-            df = pd.read_csv(self.csv_path)
+            df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
             idx = self._find_row_index(df, match_id)
             if idx is None:
                 return None
