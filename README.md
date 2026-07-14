@@ -182,6 +182,9 @@ Match data is stored in `game_results.csv` (on `/data` in production) with colum
 | `stage` | stage name (or `No Stage`) |
 | `timestamp` | Unix timestamp |
 | `session_id` | session identifier, derived from time gaps |
+| `match_id` | stable 12-hex match identity; backfilled idempotently at boot |
+
+Authoritative column list: `GameDataManager.columns` in `backend/app.py`.
 
 ## Development notes
 
