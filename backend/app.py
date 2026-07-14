@@ -1772,13 +1772,12 @@ def get_all_characters_stats():
                 "matt_usage": matt_usage,
             }
 
-        # Sort by usage rate, with safety check for numeric values
-        def safe_sort_key(item):
-            usage_rate = item[1]["usage_rate"]
-            return float(usage_rate) if usage_rate is not None else 0.0
-
+        # Sort by usage rate (always a float — the len(df) == 0 case returns
+        # early above, so `usage_rate` here is never None).
         sorted_characters = sorted(
-            characters_data.items(), key=safe_sort_key, reverse=True
+            characters_data.items(),
+            key=lambda item: item[1]["usage_rate"],
+            reverse=True,
         )
 
         return jsonify(
