@@ -53,6 +53,7 @@ class GameDataManager:
         self._ensure_characters_file_exists()
         self._create_session_backup()
         self._backfill_match_ids_and_timestamps()
+        self._backfill_session_ids()
 
     def _ensure_csv_exists(self) -> None:
         """Create CSV file with headers if it doesn't exist."""
@@ -286,12 +287,9 @@ class GameDataManager:
             if len(df) == 0:
                 return []
 
-            # Ensure all games have session IDs
+            # Ensure all games have session IDs (in-memory only; the startup
+            # repair pass persists them — a read must never rewrite the CSV)
             df = self._assign_missing_session_ids(df)
-
-            # Save session IDs back to CSV if any were assigned
-            if df["session_id"].notna().any():
-                self._save_session_ids(df)
 
             # Group by session
             sessions = []
@@ -332,17 +330,6 @@ class GameDataManager:
         except Exception as e:
             logger.error(f"Error getting sessions: {str(e)}")
             return []
-
-    def _save_session_ids(self, df: pd.DataFrame) -> None:
-        """Save the dataframe with session IDs back to CSV."""
-        try:
-            # Ensure the column order matches self.columns
-            columns_to_save = [col for col in self.columns if col in df.columns]
-            with self._write_lock:
-                df[columns_to_save].to_csv(self.csv_path, index=False)
-            logger.info("Session IDs saved to CSV")
-        except Exception as e:
-            logger.error(f"Error saving session IDs: {str(e)}")
 
     def _assign_missing_session_ids(self, df: pd.DataFrame) -> pd.DataFrame:
         """Assign session IDs to any games that don't have them."""
@@ -785,6 +772,29 @@ class GameDataManager:
         except Exception as e:
             # Never block startup on the repair pass
             logger.error(f"Error during match-id/timestamp backfill: {str(e)}")
+
+    def _backfill_session_ids(self) -> None:
+        """Idempotent startup repair pass (mirrors the match-id backfill):
+        assign a session_id to every row that lacks one. Reads the raw CSV so
+        no rows are silently dropped by _load_data's cleaning, and writes back
+        only when at least one session_id was actually missing."""
+        try:
+            with self._write_lock:
+                df = pd.read_csv(self.csv_path)
+                if len(df) == 0:
+                    return
+                if "session_id" not in df.columns:
+                    df["session_id"] = None
+                df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
+                n_missing = int(df["session_id"].isna().sum())
+                if n_missing:
+                    df = self._assign_missing_session_ids(df)
+                    columns_to_save = [c for c in self.columns if c in df.columns]
+                    df[columns_to_save].to_csv(self.csv_path, index=False)
+                    logger.info(f"Backfill: filled {n_missing} session_ids")
+        except Exception as e:
+            # Never block startup on the repair pass
+            logger.error(f"Error during session-id backfill: {str(e)}")
 
     @staticmethod
     def _find_row_index(df: pd.DataFrame, match_id: str) -> Optional[Any]:
