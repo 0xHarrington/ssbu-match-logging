@@ -23,7 +23,6 @@ from pathlib import Path
 from types import ModuleType
 
 import pandas as pd
-import pytest
 import pytz
 
 EASTERN = pytz.timezone("US/Eastern")

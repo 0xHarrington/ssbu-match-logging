@@ -55,7 +55,12 @@ class TestRecentN:
             "/matchup_stats?shayne_character=Kirby&matt_character=Bowser&recent_n=50"
         ).get_json()
         assert body["total_games"] == 0
-        assert body["recent_n"] == {"n": 50, "games": 0, "shayne_wins": 0, "matt_wins": 0}
+        assert body["recent_n"] == {
+            "n": 50,
+            "games": 0,
+            "shayne_wins": 0,
+            "matt_wins": 0,
+        }
 
     def test_invalid_recent_n_rejected(self, client) -> None:
         assert (

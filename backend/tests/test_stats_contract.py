@@ -9,11 +9,11 @@ key set.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 
-COLUMNS: List[str] = [
+COLUMNS: list[str] = [
     "datetime",
     "shayne_character",
     "matt_character",
@@ -27,21 +27,19 @@ COLUMNS: List[str] = [
 
 
 def _write_empty(data_dir: Path) -> None:
-    pd.DataFrame([], columns=COLUMNS).to_csv(
-        data_dir / "game_results.csv", index=False
-    )
+    pd.DataFrame([], columns=COLUMNS).to_csv(data_dir / "game_results.csv", index=False)
 
 
 class TestStatsShapeParity:
     def test_empty_and_populated_key_sets_match(
         self, client: Any, data_dir: Path
     ) -> None:
-        populated_body: Dict[str, Any] = client.get("/api/stats").get_json()
+        populated_body: dict[str, Any] = client.get("/api/stats").get_json()
         populated_keys = set(populated_body["stats"].keys())
         assert populated_keys, "populated branch returned no keys — seed broken"
 
         _write_empty(data_dir)
-        empty_body: Dict[str, Any] = client.get("/api/stats").get_json()
+        empty_body: dict[str, Any] = client.get("/api/stats").get_json()
         empty_keys = set(empty_body["stats"].keys())
 
         assert empty_keys == populated_keys

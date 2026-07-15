@@ -76,7 +76,9 @@ class TestUpdateMatch:
             assert res.status_code == 400, payload
             assert res.get_json()["success"] is False
 
-    def test_empty_stage_canonicalizes_to_no_stage(self, client, data_dir: Path) -> None:
+    def test_empty_stage_canonicalizes_to_no_stage(
+        self, client, data_dir: Path
+    ) -> None:
         res = client.put("/api/matches/seedmatch0001", json={"stage": ""})
         assert res.status_code == 200
         row = _read_csv(data_dir).set_index("match_id").loc["seedmatch0001"]

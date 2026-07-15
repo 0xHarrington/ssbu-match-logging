@@ -10,13 +10,13 @@ startup repair pass.
 import re
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 
 SESSION_ID_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-\d{2}$")
 
-COLUMNS: List[str] = [
+COLUMNS: list[str] = [
     "datetime",
     "shayne_character",
     "matt_character",
@@ -29,7 +29,7 @@ COLUMNS: List[str] = [
 ]
 
 
-def _write_rows(data_dir: Path, rows: List[Dict[str, Any]]) -> None:
+def _write_rows(data_dir: Path, rows: list[dict[str, Any]]) -> None:
     pd.DataFrame(rows, columns=COLUMNS).to_csv(
         data_dir / "game_results.csv", index=False
     )
@@ -39,7 +39,7 @@ def _read_csv(data_dir: Path) -> pd.DataFrame:
     return pd.read_csv(data_dir / "game_results.csv")
 
 
-def _valid_row() -> Dict[str, Any]:
+def _valid_row() -> dict[str, Any]:
     return {
         "datetime": "2025-12-11 21:05:18",
         "shayne_character": "Fox",
