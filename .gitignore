@@ -24,6 +24,7 @@ backups/
 # Python
 __pycache__/
 *.pyc
+.coverage
 *.pyo
 *.pyd
 .env
