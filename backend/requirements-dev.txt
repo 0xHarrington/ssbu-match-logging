@@ -1,4 +1,5 @@
 -r requirements.txt
 pytest==8.3.4
+pytest-cov==7.*
 ruff==0.15.*
 black==26.*
