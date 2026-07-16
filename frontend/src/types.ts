@@ -17,7 +17,6 @@ export interface Match {
   stage: string;
   stocks_remaining: number | string | null;
   session_id?: string;
-  timestamp?: string | number;
 }
 
 /** One session summary row from /api/sessions. */

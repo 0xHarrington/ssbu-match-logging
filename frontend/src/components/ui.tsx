@@ -83,29 +83,32 @@ export function GlowPanel({ children, style }: { children: ReactNode; style?: CS
 }
 
 /** A single stat tile: big mono value + label. `caps` puts a small uppercase
- *  label above the value instead (Session History variant). */
+ *  label above the value instead (Session History variant). `size` overrides
+ *  the value's font-size (defaults to the original 26px). */
 export function StatTile({
   value,
   label,
   color = 'var(--fg-light)',
   caps = false,
+  size = 26,
 }: {
   value: ReactNode;
   label: string;
   color?: string;
   caps?: boolean;
+  size?: number;
 }) {
   if (caps) {
     return (
       <div style={{ background: 'var(--panel)', border: '1px solid var(--line-2)', borderRadius: 16, padding: 18 }}>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--gray)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>{label}</div>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 26, fontWeight: 700, color }}>{value}</div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: size, fontWeight: 700, color }}>{value}</div>
       </div>
     );
   }
   return (
     <div style={{ background: 'var(--panel)', border: '1px solid var(--line-2)', borderRadius: 16, padding: 18 }}>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 26, fontWeight: 700, color }}>{value}</div>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: size, fontWeight: 700, color }}>{value}</div>
       <div style={{ fontSize: 11, color: 'var(--gray)', marginTop: 5 }}>{label}</div>
     </div>
   );

@@ -1,8 +1,7 @@
 // CharacterPicker — a compact searchable roster popover.
 //
-// The prototype's log form assumed characters carried over from the last game.
-// Real logging needs a way to change fighters, so each player token opens this:
-// a filterable icon list backed by /api/characters' all_characters.
+// Opens from a player token to let the log/edit forms change fighters: a
+// filterable icon list backed by /api/characters' all_characters.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCharacterIconUrl } from '../../components/CharacterDisplay';
 
@@ -25,11 +24,23 @@ export default function CharacterPicker({
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
+  // Every call site passes a fresh `onClose` arrow, so route the listeners
+  // below through a ref rather than depending on it directly — otherwise any
+  // parent re-render would re-run the effect and steal focus back to the
+  // input mid-interaction.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Mount-only: focus the search input once, not on every parent re-render.
   useEffect(() => {
     inputRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+  }, []);
+
+  // Listeners installed once for the life of the popover.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCloseRef.current();
     const onClick = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) onClose();
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) onCloseRef.current();
     };
     document.addEventListener('keydown', onKey);
     // Defer so the opening click doesn't immediately close it.
@@ -39,7 +50,7 @@ export default function CharacterPicker({
       document.removeEventListener('mousedown', onClick);
       clearTimeout(t);
     };
-  }, [onClose]);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

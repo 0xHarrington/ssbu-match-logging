@@ -1,0 +1,15 @@
+[project]
+name = "ssbu-match-logging-backend"
+version = "0"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]

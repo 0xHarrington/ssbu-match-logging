@@ -1,19 +1,26 @@
 # app.py
-from flask import Flask, Response, request, jsonify, send_from_directory
-from datetime import datetime
 import csv
+import glob
 import hmac
-import pandas as pd
-import os
+import json
 import logging
+import os
+import shutil
 import threading
 import uuid
-from typing import Dict, Any, Optional
-import json
+from datetime import datetime
+from typing import Any
+
+import pandas as pd
 import pytz
-import shutil
+from flask import Flask, Response, jsonify, request, send_from_directory
 
 app = Flask(__name__)
+
+# Session IDs and other Eastern-local timestamps are always generated from
+# this fixed zone, independent of the host/container's process timezone
+# (the Fly container runs UTC; dev machines are typically already ET).
+EASTERN = pytz.timezone("US/Eastern")
 
 # Directory holding game_results.csv and backups/. Defaults to cwd (dev);
 # set DATA_DIR=/data in production so match data lives on a persistent volume.
@@ -53,6 +60,7 @@ class GameDataManager:
         self._ensure_characters_file_exists()
         self._create_session_backup()
         self._backfill_match_ids_and_timestamps()
+        self._backfill_session_ids()
 
     def _ensure_csv_exists(self) -> None:
         """Create CSV file with headers if it doesn't exist."""
@@ -168,7 +176,7 @@ class GameDataManager:
 
             # Check if file has content (more than just headers)
             try:
-                df = pd.read_csv(self.csv_path)
+                df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
                 if len(df) == 0:
                     logger.info("CSV file is empty, skipping backup")
                     return
@@ -176,7 +184,8 @@ class GameDataManager:
                 logger.warning(f"Could not read CSV for backup check: {str(e)}")
                 return
 
-            # Create backups directory alongside the CSV (persists with the volume in prod)
+            # Create backups directory alongside the CSV (persists with the
+            # volume in prod)
             backup_dir = os.path.join(os.path.dirname(self.csv_path) or ".", "backups")
             if not os.path.exists(backup_dir):
                 os.makedirs(backup_dir)
@@ -191,6 +200,23 @@ class GameDataManager:
             shutil.copy2(self.csv_path, backup_path)
             logger.info(f"Session backup created: {backup_path}")
 
+            # Prune old backups: fly.toml scale-to-zero means every couch
+            # session is a boot, so backups/ grows unbounded without this.
+            # Filenames are `game_results_backup_YYYYMMDD_HHMMSS.csv`, which
+            # sort lexicographically in chronological order.
+            backup_files = sorted(
+                glob.glob(os.path.join(backup_dir, "game_results_backup_*.csv"))
+            )
+            retain = 20
+            stale = backup_files[:-retain] if len(backup_files) > retain else []
+            for stale_path in stale:
+                try:
+                    os.remove(stale_path)
+                except OSError as e:
+                    logger.warning(f"Could not prune old backup {stale_path}: {str(e)}")
+            if stale:
+                logger.info(f"Pruned {len(stale)} old backup(s), kept newest {retain}")
+
         except Exception as e:
             logger.error(f"Error creating session backup: {str(e)}")
             # Don't raise - backup failure shouldn't prevent app from starting
@@ -198,7 +224,7 @@ class GameDataManager:
     def _load_data(self) -> pd.DataFrame:
         """Load the current CSV data into a pandas DataFrame."""
         try:
-            df = pd.read_csv(self.csv_path)
+            df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
             # Convert datetime column to datetime type
             df["datetime"] = pd.to_datetime(df["datetime"])
             # Ensure timestamp is numeric
@@ -236,14 +262,15 @@ class GameDataManager:
     def _get_or_create_session_id(self, game_timestamp: float) -> str:
         """
         Determine the session ID for a new game.
-        Creates a new session if more than session_gap_hours have passed since last game.
+        Creates a new session if more than session_gap_hours have passed
+        since last game.
         """
         try:
             df = self._load_data()
 
             if len(df) == 0:
                 # First game ever - create new session
-                game_time = datetime.fromtimestamp(game_timestamp)
+                game_time = datetime.fromtimestamp(game_timestamp, tz=EASTERN)
                 return self._generate_session_id(game_time)
 
             # Get the most recent game
@@ -257,10 +284,11 @@ class GameDataManager:
 
             if time_gap_hours > self.session_gap_hours:
                 # Start new session
-                game_time = datetime.fromtimestamp(game_timestamp)
+                game_time = datetime.fromtimestamp(game_timestamp, tz=EASTERN)
                 new_session_id = self._generate_session_id(game_time)
                 logger.info(
-                    f"Starting new session: {new_session_id} (gap: {time_gap_hours:.1f}h)"
+                    f"Starting new session: {new_session_id} "
+                    f"(gap: {time_gap_hours:.1f}h)"
                 )
                 return new_session_id
             else:
@@ -269,13 +297,13 @@ class GameDataManager:
                     return str(last_session_id)
                 else:
                     # Last game doesn't have session_id, create one based on its time
-                    last_game_time = datetime.fromtimestamp(last_timestamp)
+                    last_game_time = datetime.fromtimestamp(last_timestamp, tz=EASTERN)
                     return self._generate_session_id(last_game_time)
 
         except Exception as e:
             logger.error(f"Error determining session ID: {str(e)}")
             # Fallback to creating new session
-            game_time = datetime.fromtimestamp(game_timestamp)
+            game_time = datetime.fromtimestamp(game_timestamp, tz=EASTERN)
             return self._generate_session_id(game_time)
 
     def get_sessions(self) -> list:
@@ -286,12 +314,9 @@ class GameDataManager:
             if len(df) == 0:
                 return []
 
-            # Ensure all games have session IDs
+            # Ensure all games have session IDs (in-memory only; the startup
+            # repair pass persists them — a read must never rewrite the CSV)
             df = self._assign_missing_session_ids(df)
-
-            # Save session IDs back to CSV if any were assigned
-            if df["session_id"].notna().any():
-                self._save_session_ids(df)
 
             # Group by session
             sessions = []
@@ -333,17 +358,6 @@ class GameDataManager:
             logger.error(f"Error getting sessions: {str(e)}")
             return []
 
-    def _save_session_ids(self, df: pd.DataFrame) -> None:
-        """Save the dataframe with session IDs back to CSV."""
-        try:
-            # Ensure the column order matches self.columns
-            columns_to_save = [col for col in self.columns if col in df.columns]
-            with self._write_lock:
-                df[columns_to_save].to_csv(self.csv_path, index=False)
-            logger.info("Session IDs saved to CSV")
-        except Exception as e:
-            logger.error(f"Error saving session IDs: {str(e)}")
-
     def _assign_missing_session_ids(self, df: pd.DataFrame) -> pd.DataFrame:
         """Assign session IDs to any games that don't have them."""
         if len(df) == 0:
@@ -366,14 +380,14 @@ class GameDataManager:
 
             if last_timestamp is None:
                 # First game
-                game_time = datetime.fromtimestamp(timestamp)
+                game_time = datetime.fromtimestamp(timestamp, tz=EASTERN)
                 current_session_id = self._generate_session_id(game_time)
             else:
                 # Check time gap
                 time_gap_hours = (timestamp - last_timestamp) / 3600
                 if time_gap_hours > self.session_gap_hours:
                     # New session
-                    game_time = datetime.fromtimestamp(timestamp)
+                    game_time = datetime.fromtimestamp(timestamp, tz=EASTERN)
                     current_session_id = self._generate_session_id(game_time)
 
             df.at[idx, "session_id"] = current_session_id
@@ -381,7 +395,7 @@ class GameDataManager:
 
         return df
 
-    def get_session_stats(self, session_id: str) -> Dict[str, Any]:
+    def get_session_stats(self, session_id: str) -> dict[str, Any]:
         """Get detailed statistics for a specific session."""
         try:
             df = self._load_data()
@@ -464,9 +478,10 @@ class GameDataManager:
             logger.error(f"Error getting session stats: {str(e)}")
             return {"success": False, "message": str(e)}
 
-    def get_user_win_rate_timeline(self, username: str) -> Dict[str, Any]:
+    def get_user_win_rate_timeline(self, username: str) -> dict[str, Any]:
         """
-        Get win rate timeline data for a user showing average win rate across 20-game windows.
+        Get win rate timeline data for a user showing average win rate
+        across 20-game windows.
 
         Returns:
         - game_numbers: List of game indices (1-100)
@@ -550,10 +565,11 @@ class GameDataManager:
             return {"success": False, "message": str(e), "data": []}
 
     def get_user_heatmap_data(
-        self, username: str, character: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, username: str, character: str | None = None
+    ) -> dict[str, Any]:
         """
-        Get heatmap data for a user showing win rate and game count by day of week and hour.
+        Get heatmap data for a user showing win rate and game count by day
+        of week and hour.
         Optionally filter by character.
 
         Args:
@@ -627,7 +643,7 @@ class GameDataManager:
             logger.error(f"Error getting heatmap data: {str(e)}")
             return {"success": False, "message": str(e), "data": []}
 
-    def add_game(self, game_data: Dict[str, Any]) -> bool:
+    def add_game(self, game_data: dict[str, Any]) -> bool:
         """
         Add a new game record to the CSV file.
 
@@ -658,7 +674,7 @@ class GameDataManager:
                 return False
 
             # Create a new entry with Eastern time
-            eastern = pytz.timezone("US/Eastern")
+            eastern = EASTERN
             now = datetime.now(eastern)
             timestamp = now.timestamp()
 
@@ -694,7 +710,7 @@ class GameDataManager:
             logger.error(f"Game data that caused error: {game_data}")
             return False
 
-    def undo_last_game(self) -> Optional[Dict[str, Any]]:
+    def undo_last_game(self) -> dict[str, Any] | None:
         """
         Remove the most recently logged game (by timestamp) from the CSV file.
 
@@ -703,7 +719,7 @@ class GameDataManager:
             there are no games to undo.
         """
         with self._write_lock:
-            df = pd.read_csv(self.csv_path)
+            df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
             if len(df) == 0:
                 return None
 
@@ -714,7 +730,7 @@ class GameDataManager:
             df = df.drop(index=last_idx)
             df.to_csv(self.csv_path, index=False)
 
-        removed: Dict[str, Any] = {}
+        removed: dict[str, Any] = {}
         for key, value in removed_row.items():
             if pd.isna(value):
                 removed[str(key)] = None
@@ -726,9 +742,9 @@ class GameDataManager:
         return removed
 
     @staticmethod
-    def _row_to_dict(row: pd.Series) -> Dict[str, Any]:
+    def _row_to_dict(row: pd.Series) -> dict[str, Any]:
         """Convert a DataFrame row to a plain JSON-serializable dict."""
-        out: Dict[str, Any] = {}
+        out: dict[str, Any] = {}
         for key, value in row.items():
             if pd.isna(value):
                 out[str(key)] = None
@@ -745,7 +761,7 @@ class GameDataManager:
         silently dropped by _load_data's cleaning."""
         try:
             with self._write_lock:
-                df = pd.read_csv(self.csv_path)
+                df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
                 if len(df) == 0:
                     return
                 changed = False
@@ -754,7 +770,7 @@ class GameDataManager:
                     changed = True
 
                 df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
-                eastern = pytz.timezone("US/Eastern")
+                eastern = EASTERN
                 missing_ts = df["timestamp"].isna() & df["datetime"].notna()
                 for idx in df.index[missing_ts]:
                     try:
@@ -786,8 +802,31 @@ class GameDataManager:
             # Never block startup on the repair pass
             logger.error(f"Error during match-id/timestamp backfill: {str(e)}")
 
+    def _backfill_session_ids(self) -> None:
+        """Idempotent startup repair pass (mirrors the match-id backfill):
+        assign a session_id to every row that lacks one. Reads the raw CSV so
+        no rows are silently dropped by _load_data's cleaning, and writes back
+        only when at least one session_id was actually missing."""
+        try:
+            with self._write_lock:
+                df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
+                if len(df) == 0:
+                    return
+                if "session_id" not in df.columns:
+                    df["session_id"] = None
+                df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
+                n_missing = int(df["session_id"].isna().sum())
+                if n_missing:
+                    df = self._assign_missing_session_ids(df)
+                    columns_to_save = [c for c in self.columns if c in df.columns]
+                    df[columns_to_save].to_csv(self.csv_path, index=False)
+                    logger.info(f"Backfill: filled {n_missing} session_ids")
+        except Exception as e:
+            # Never block startup on the repair pass
+            logger.error(f"Error during session-id backfill: {str(e)}")
+
     @staticmethod
-    def _find_row_index(df: pd.DataFrame, match_id: str) -> Optional[Any]:
+    def _find_row_index(df: pd.DataFrame, match_id: str) -> Any | None:
         """Locate the DataFrame index of a match by its match_id."""
         if "match_id" not in df.columns:
             return None
@@ -796,10 +835,10 @@ class GameDataManager:
 
     def get_matches(
         self,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
         limit: int = 50,
         offset: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Paginated match list, newest first, optionally scoped to a session."""
         df = self._load_data()
         df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
@@ -811,15 +850,15 @@ class GameDataManager:
         return {"matches": page.to_dict("records"), "total": total}
 
     def update_match(
-        self, match_id: str, updates: Dict[str, Any]
-    ) -> Optional[Dict[str, Dict[str, Any]]]:
+        self, match_id: str, updates: dict[str, Any]
+    ) -> dict[str, dict[str, Any]] | None:
         """Apply pre-validated column updates to one match.
 
         Returns {"before": ..., "after": ...} or None if the id is unknown.
         Reads the raw CSV so unrelated malformed rows are never dropped.
         """
         with self._write_lock:
-            df = pd.read_csv(self.csv_path)
+            df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
             idx = self._find_row_index(df, match_id)
             if idx is None:
                 return None
@@ -831,10 +870,10 @@ class GameDataManager:
             after = self._row_to_dict(df.loc[idx])
         return {"before": before, "after": after}
 
-    def delete_match(self, match_id: str) -> Optional[Dict[str, Any]]:
+    def delete_match(self, match_id: str) -> dict[str, Any] | None:
         """Remove one match by id. Returns the removed row or None if unknown."""
         with self._write_lock:
-            df = pd.read_csv(self.csv_path)
+            df = pd.read_csv(self.csv_path, dtype={"match_id": "string"})
             idx = self._find_row_index(df, match_id)
             if idx is None:
                 return None
@@ -854,7 +893,7 @@ class GameDataManager:
         df = self._load_data()
         return df.sort_values("timestamp", ascending=False).head(n)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Calculate and return basic statistics about the games."""
         df = self._load_data()
         if len(df) == 0:
@@ -871,6 +910,10 @@ class GameDataManager:
                 "current_streak": None,
                 "monthly_activity": [],
                 "top_matchups": [],
+                "top_shayne_chars": [],
+                "top_matt_chars": [],
+                "avg_stocks_shayne": 0,
+                "avg_stocks_matt": 0,
             }
 
         # Basic stats
@@ -878,12 +921,16 @@ class GameDataManager:
             "total_games": len(df),
             "shayne_wins": len(df[df["winner"] == "Shayne"]),
             "matt_wins": len(df[df["winner"] == "Matt"]),
-            "most_played_shayne": df["shayne_character"].mode().iloc[0]
-            if not df["shayne_character"].empty
-            else None,
-            "most_played_matt": df["matt_character"].mode().iloc[0]
-            if not df["matt_character"].empty
-            else None,
+            "most_played_shayne": (
+                df["shayne_character"].mode().iloc[0]
+                if not df["shayne_character"].empty
+                else None
+            ),
+            "most_played_matt": (
+                df["matt_character"].mode().iloc[0]
+                if not df["matt_character"].empty
+                else None
+            ),
         }
 
         # Calculate win rates
@@ -936,7 +983,7 @@ class GameDataManager:
         # Calculate current win streaks
         shayne_streak = 0
         matt_streak = 0
-        for winner in reversed(df["winner"]):
+        for winner in df.sort_values("date")["winner"].tolist()[::-1]:
             if winner == "Shayne":
                 if matt_streak > 0:
                     break
@@ -986,25 +1033,10 @@ class GameDataManager:
 
         return stats
 
-    def get_character_rankings(self, player: str) -> list:
-        """Get character rankings for a player, sorted by usage."""
-        df = self._load_data()
-        if player == "shayne":
-            char_counts = df["shayne_character"].value_counts()
-        else:
-            char_counts = df["matt_character"].value_counts()
-        return char_counts.index.tolist()
-
-    def get_stage_rankings(self) -> list:
-        """Get stage rankings sorted by usage."""
-        df = self._load_data()
-        stage_counts = df["stage"].value_counts()
-        return stage_counts.index.tolist()
-
     def get_characters(self) -> dict:
         """Get the list of characters with their usage data per player."""
         try:
-            with open(self.characters_path, "r") as f:
+            with open(self.characters_path) as f:
                 characters = json.load(f)
 
             # Get character usage from game data
@@ -1025,7 +1057,7 @@ class GameDataManager:
             logger.error(f"Error loading characters: {str(e)}")
             return {"shayne": {}, "matt": {}, "all_characters": []}
 
-    def get_character_win_rates(self) -> Dict[str, Any]:
+    def get_character_win_rates(self) -> dict[str, Any]:
         """Calculate and return character win rates for both players."""
         df = self._load_data()
         if len(df) == 0:
@@ -1063,7 +1095,7 @@ data_manager = GameDataManager(os.path.join(DATA_DIR, "game_results.csv"))
 
 
 @app.before_request
-def require_site_password() -> Optional[Response]:
+def require_site_password() -> Response | None:
     """Gate the whole app behind HTTP Basic auth when SITE_PASSWORD is set.
 
     Unset in dev (no-op); required for any non-local deployment until real
@@ -1083,6 +1115,7 @@ def require_site_password() -> Optional[Response]:
 
 
 @app.route("/log_game", methods=["POST"])
+@app.route("/api/log_game", methods=["POST"])
 def log_game():
     """Handle game logging POST requests."""
     try:
@@ -1098,14 +1131,26 @@ def log_game():
             ]
 
             # Prepare recent games with only needed columns and handle NaN values
-            recent_games_df = matchup_data.sort_values("datetime", ascending=False).head(5)
+            recent_games_df = matchup_data.sort_values(
+                "datetime", ascending=False
+            ).head(5)
             recent_games = []
             for _, row in recent_games_df.iterrows():
-                recent_games.append({
-                    "datetime": row["datetime"].strftime("%Y-%m-%d %H:%M:%S") if pd.notna(row["datetime"]) else None,
-                    "winner": row["winner"] if pd.notna(row["winner"]) else None,
-                    "stocks_remaining": float(row["stocks_remaining"]) if pd.notna(row["stocks_remaining"]) else None,
-                })
+                recent_games.append(
+                    {
+                        "datetime": (
+                            row["datetime"].strftime("%Y-%m-%d %H:%M:%S")
+                            if pd.notna(row["datetime"])
+                            else None
+                        ),
+                        "winner": row["winner"] if pd.notna(row["winner"]) else None,
+                        "stocks_remaining": (
+                            float(row["stocks_remaining"])
+                            if pd.notna(row["stocks_remaining"])
+                            else None
+                        ),
+                    }
+                )
 
             stats = {
                 "total_games": len(matchup_data),
@@ -1151,6 +1196,7 @@ def get_recent_games():
 
 
 @app.route("/matchup_stats", methods=["GET"])
+@app.route("/api/matchup_stats", methods=["GET"])
 def get_matchup_stats():
     """Get historical stats for a specific character matchup."""
     shayne_char = request.args.get("shayne_character")
@@ -1193,11 +1239,21 @@ def get_matchup_stats():
     recent_games_df = matchup_data.sort_values("datetime", ascending=False).head(5)
     recent_games = []
     for _, row in recent_games_df.iterrows():
-        recent_games.append({
-            "datetime": row["datetime"].strftime("%Y-%m-%d %H:%M:%S") if pd.notna(row["datetime"]) else None,
-            "winner": row["winner"] if pd.notna(row["winner"]) else None,
-            "stocks_remaining": float(row["stocks_remaining"]) if pd.notna(row["stocks_remaining"]) else None,
-        })
+        recent_games.append(
+            {
+                "datetime": (
+                    row["datetime"].strftime("%Y-%m-%d %H:%M:%S")
+                    if pd.notna(row["datetime"])
+                    else None
+                ),
+                "winner": row["winner"] if pd.notna(row["winner"]) else None,
+                "stocks_remaining": (
+                    float(row["stocks_remaining"])
+                    if pd.notna(row["stocks_remaining"])
+                    else None
+                ),
+            }
+        )
 
     stats = {
         "total_games": len(matchup_data),
@@ -1241,7 +1297,7 @@ def session_stats():
 
         # Otherwise, return current session stats (backward compatible)
         # Get current date in Eastern time
-        eastern = pytz.timezone("US/Eastern")
+        eastern = EASTERN
         now = datetime.now(eastern)
         today_start = eastern.localize(datetime(now.year, now.month, now.day))
         today_end = eastern.localize(datetime(now.year, now.month, now.day, 23, 59, 59))
@@ -1250,7 +1306,9 @@ def session_stats():
         df = data_manager._load_data()
 
         # Convert datetime column to datetime objects in Eastern timezone
-        df["datetime"] = pd.to_datetime(df["datetime"]).dt.tz_localize("US/Eastern")
+        df["datetime"] = pd.to_datetime(df["datetime"]).dt.tz_localize(
+            "US/Eastern", ambiguous=True, nonexistent="shift_forward"
+        )
 
         # Filter for today's games
         games = df[(df["datetime"] >= today_start) & (df["datetime"] <= today_end)]
@@ -1315,11 +1373,6 @@ def session_stats():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-@app.route("/api/log_game", methods=["POST"])
-def api_log_game():
-    return log_game()
-
-
 @app.route("/api/undo_last_game", methods=["POST"])
 def undo_last_game() -> Any:
     """Remove the most recently logged match."""
@@ -1360,8 +1413,8 @@ MATCH_EDIT_FIELDS = {
 
 
 def _validate_match_updates(
-    data: Dict[str, Any],
-) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+    data: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str | None]:
     """Validate an edit payload. Returns (column_updates, None) or (None, error)."""
     if not data:
         return None, "No fields provided"
@@ -1369,7 +1422,7 @@ def _validate_match_updates(
     if unknown:
         return None, f"Unknown fields: {', '.join(unknown)}"
     roster = set(data_manager.get_character_roster())
-    updates: Dict[str, Any] = {}
+    updates: dict[str, Any] = {}
     for key, value in data.items():
         if key in ("shayneCharacter", "mattCharacter"):
             if value not in roster:
@@ -1396,8 +1449,8 @@ def _validate_match_updates(
 def _append_edit_log(
     action: str,
     match_id: str,
-    before: Optional[Dict[str, Any]],
-    after: Optional[Dict[str, Any]],
+    before: dict[str, Any] | None,
+    after: dict[str, Any] | None,
 ) -> None:
     """Audit trail for match edits/deletes: one CSV row per action.
 
@@ -1408,25 +1461,24 @@ def _append_edit_log(
         auth = request.authorization
         editor = auth.username if auth and auth.username else ""
         log_path = os.path.join(DATA_DIR, "edit_log.csv")
-        new_file = not os.path.exists(log_path)
-        with open(log_path, "a", newline="") as f:
-            writer = csv.writer(f)
-            if new_file:
+        with data_manager._write_lock:
+            new_file = not os.path.exists(log_path)
+            with open(log_path, "a", newline="") as f:
+                writer = csv.writer(f)
+                if new_file:
+                    writer.writerow(
+                        ["edited_at", "editor", "action", "match_id", "before", "after"]
+                    )
                 writer.writerow(
-                    ["edited_at", "editor", "action", "match_id", "before", "after"]
+                    [
+                        datetime.now(EASTERN).strftime("%Y-%m-%d %H:%M:%S"),
+                        editor,
+                        action,
+                        match_id,
+                        json.dumps(before),
+                        json.dumps(after),
+                    ]
                 )
-            writer.writerow(
-                [
-                    datetime.now(pytz.timezone("US/Eastern")).strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    ),
-                    editor,
-                    action,
-                    match_id,
-                    json.dumps(before),
-                    json.dumps(after),
-                ]
-            )
     except Exception as e:
         logger.error(f"Error writing edit log: {str(e)}")
 
@@ -1436,8 +1488,11 @@ def api_list_matches() -> Any:
     """Paginated match list, newest first; filterable by session_id."""
     try:
         session_id = request.args.get("session_id")
-        limit = min(int(request.args.get("limit", 50)), 200)
-        offset = max(int(request.args.get("offset", 0)), 0)
+        try:
+            limit = min(int(request.args.get("limit", 50)), 200)
+            offset = max(int(request.args.get("offset", 0)), 0)
+        except ValueError:
+            return jsonify({"error": "limit and offset must be integers"}), 400
         result = data_manager.get_matches(
             session_id=session_id, limit=limit, offset=offset
         )
@@ -1544,9 +1599,9 @@ def get_character_stats(character):
         shayne_stats = {
             "games": len(shayne_games),
             "wins": shayne_wins,
-            "win_rate": (shayne_wins / len(shayne_games) * 100)
-            if len(shayne_games) > 0
-            else 0,
+            "win_rate": (
+                (shayne_wins / len(shayne_games) * 100) if len(shayne_games) > 0 else 0
+            ),
         }
 
         matt_games = character_games[character_games["matt_character"] == character]
@@ -1554,9 +1609,9 @@ def get_character_stats(character):
         matt_stats = {
             "games": len(matt_games),
             "wins": matt_wins,
-            "win_rate": (matt_wins / len(matt_games) * 100)
-            if len(matt_games) > 0
-            else 0,
+            "win_rate": (
+                (matt_wins / len(matt_games) * 100) if len(matt_games) > 0 else 0
+            ),
         }
 
         # Matchup analysis
@@ -1663,9 +1718,9 @@ def get_character_stats(character):
         recent_performance = {
             "games": len(recent_games),
             "wins": recent_wins,
-            "win_rate": (recent_wins / len(recent_games) * 100)
-            if len(recent_games) > 0
-            else 0,
+            "win_rate": (
+                (recent_wins / len(recent_games) * 100) if len(recent_games) > 0 else 0
+            ),
         }
 
         return jsonify(
@@ -1753,13 +1808,12 @@ def get_all_characters_stats():
                 "matt_usage": matt_usage,
             }
 
-        # Sort by usage rate, with safety check for numeric values
-        def safe_sort_key(item):
-            usage_rate = item[1]["usage_rate"]
-            return float(usage_rate) if usage_rate is not None else 0.0
-
+        # Sort by usage rate (always a float — the len(df) == 0 case returns
+        # early above, so `usage_rate` here is never None).
         sorted_characters = sorted(
-            characters_data.items(), key=safe_sort_key, reverse=True
+            characters_data.items(),
+            key=lambda item: item[1]["usage_rate"],
+            reverse=True,
         )
 
         return jsonify(
@@ -1777,142 +1831,156 @@ def get_all_characters_stats():
 
 @app.route("/api/users/<username>/stats")
 def get_user_stats(username):
-    # Read the CSV file
-    df = pd.read_csv("game_results.csv")
-    df["datetime"] = pd.to_datetime(df["datetime"])
+    try:
+        # Read the CSV file
+        df = data_manager._load_data()
 
-    # Calculate total games and wins for the user
-    total_games = len(df)
-    user_wins = len(df[df["winner"] == username])
-    overall_win_rate = (user_wins / total_games) * 100 if total_games > 0 else 0
+        # Calculate total games and wins for the user
+        total_games = len(df)
+        user_wins = len(df[df["winner"] == username])
+        overall_win_rate = (user_wins / total_games) * 100 if total_games > 0 else 0
 
-    # Calculate average stocks remaining when winning
-    avg_stocks = df[df["winner"] == username]["stocks_remaining"].mean()
+        # Calculate average stocks remaining when winning
+        avg_stocks = df[df["winner"] == username]["stocks_remaining"].mean()
 
-    # Calculate win streak
-    df = df.sort_values("datetime")
-    current_streak = 0
-    max_streak = 0
-    current_streak_type = None  # 'win' or 'loss'
-    max_streak_type = None
+        # Calculate win streak
+        df = df.sort_values("datetime")
+        current_streak = 0
+        max_streak = 0
+        current_streak_type = None  # 'win' or 'loss'
+        max_streak_type = None
 
-    for winner in df["winner"]:
-        if winner == username:
-            if current_streak_type == "win" or current_streak_type is None:
-                current_streak += 1
-                current_streak_type = "win"
+        for winner in df["winner"]:
+            if winner == username:
+                if current_streak_type == "win" or current_streak_type is None:
+                    current_streak += 1
+                    current_streak_type = "win"
+                else:
+                    current_streak = 1
+                    current_streak_type = "win"
             else:
-                current_streak = 1
-                current_streak_type = "win"
-        else:
-            if current_streak_type == "loss" or current_streak_type is None:
-                current_streak += 1
-                current_streak_type = "loss"
-            else:
-                current_streak = 1
-                current_streak_type = "loss"
+                if current_streak_type == "loss" or current_streak_type is None:
+                    current_streak += 1
+                    current_streak_type = "loss"
+                else:
+                    current_streak = 1
+                    current_streak_type = "loss"
 
-        if current_streak > max_streak:
-            max_streak = current_streak
-            max_streak_type = current_streak_type
+            if current_streak > max_streak:
+                max_streak = current_streak
+                max_streak_type = current_streak_type
 
-    # Calculate recent performance (last 20 games)
-    recent_games = df.tail(20)
-    recent_wins = len(recent_games[recent_games["winner"] == username])
-    recent_win_rate = (
-        (recent_wins / len(recent_games)) * 100 if len(recent_games) > 0 else 0
-    )
+        # Calculate recent performance (last 20 games)
+        recent_games = df.tail(20)
+        recent_wins = len(recent_games[recent_games["winner"] == username])
+        recent_win_rate = (
+            (recent_wins / len(recent_games)) * 100 if len(recent_games) > 0 else 0
+        )
 
-    # Calculate character stats
-    user_char_col = f"{username.lower()}_character"
-    character_stats = []
+        # Calculate character stats
+        user_char_col = f"{username.lower()}_character"
+        character_stats = []
 
-    if user_char_col in df.columns:
-        char_games = df.groupby(user_char_col).size()
-        char_wins = df[df["winner"] == username].groupby(user_char_col).size()
+        if user_char_col in df.columns:
+            char_games = df.groupby(user_char_col).size()
+            char_wins = df[df["winner"] == username].groupby(user_char_col).size()
 
-        for char in char_games.index:
-            games = char_games[char]
-            wins = char_wins.get(char, 0)
+            for char in char_games.index:
+                games = char_games[char]
+                wins = char_wins.get(char, 0)
+                win_rate = (wins / games) * 100 if games > 0 else 0
+
+                if games >= 10:  # Only include characters with 10+ games
+                    character_stats.append(
+                        {
+                            "character": char,
+                            "winRate": win_rate,
+                            "totalGames": int(games),
+                        }
+                    )
+
+            # Sort by number of games, then win rate
+            character_stats.sort(key=lambda x: (-x["totalGames"], -x["winRate"]))
+
+        # Calculate stage stats
+        stage_stats = []
+        stage_games = df[df["stage"] != "No Stage"].groupby("stage").size()
+        stage_wins = (
+            df[(df["winner"] == username) & (df["stage"] != "No Stage")]
+            .groupby("stage")
+            .size()
+        )
+
+        for stage in stage_games.index:
+            games = stage_games[stage]
+            wins = stage_wins.get(stage, 0)
+            losses = games - wins
             win_rate = (wins / games) * 100 if games > 0 else 0
 
-            if games >= 10:  # Only include characters with 10+ games
-                character_stats.append(
-                    {"character": char, "winRate": win_rate, "totalGames": int(games)}
+            if games >= 5:  # Only include stages with 5+ games
+                stage_stats.append(
+                    {
+                        "stage": stage,
+                        "winRate": win_rate,
+                        "totalGames": int(games),
+                        "wins": int(wins),
+                        "losses": int(losses),
+                    }
                 )
 
         # Sort by number of games, then win rate
-        character_stats.sort(key=lambda x: (-x["totalGames"], -x["winRate"]))
+        stage_stats.sort(key=lambda x: (-x["totalGames"], -x["winRate"]))
 
-    # Calculate stage stats
-    stage_stats = []
-    stage_games = df[df["stage"] != "No Stage"].groupby("stage").size()
-    stage_wins = (
-        df[(df["winner"] == username) & (df["stage"] != "No Stage")]
-        .groupby("stage")
-        .size()
-    )
+        # Calculate most frequent opponent character matchups
+        opponent_char_col = (
+            "matt_character" if username.lower() == "shayne" else "shayne_character"
+        )
+        opponent_chars = (
+            df.groupby(opponent_char_col).size().sort_values(ascending=False)
+        )
+        most_faced_chars = [
+            {
+                "character": char,
+                "games": int(count),
+                "wins": int(
+                    len(
+                        df[(df[opponent_char_col] == char) & (df["winner"] == username)]
+                    )
+                ),
+            }
+            for char, count in opponent_chars.head(5).items()
+        ]
 
-    for stage in stage_games.index:
-        games = stage_games[stage]
-        wins = stage_wins.get(stage, 0)
-        losses = games - wins
-        win_rate = (wins / games) * 100 if games > 0 else 0
-
-        if games >= 5:  # Only include stages with 5+ games
-            stage_stats.append(
-                {
-                    "stage": stage,
-                    "winRate": win_rate,
-                    "totalGames": int(games),
-                    "wins": int(wins),
-                    "losses": int(losses),
-                }
-            )
-
-    # Sort by number of games, then win rate
-    stage_stats.sort(key=lambda x: (-x["totalGames"], -x["winRate"]))
-
-    # Calculate most frequent opponent character matchups
-    opponent_char_col = (
-        "matt_character" if username.lower() == "shayne" else "shayne_character"
-    )
-    opponent_chars = df.groupby(opponent_char_col).size().sort_values(ascending=False)
-    most_faced_chars = [
-        {
-            "character": char,
-            "games": int(count),
-            "wins": int(
-                len(df[(df[opponent_char_col] == char) & (df["winner"] == username)])
-            ),
-        }
-        for char, count in opponent_chars.head(5).items()
-    ]
-
-    return jsonify(
-        {
-            "overallWinRate": overall_win_rate,
-            "totalGames": total_games,
-            "avgStocksWhenWinning": float(avg_stocks) if not pd.isna(avg_stocks) else 0,
-            "currentStreak": {
-                "count": int(current_streak),
-                "type": current_streak_type,
-            },
-            "maxStreak": {"count": int(max_streak), "type": max_streak_type},
-            "recentPerformance": {
-                "games": len(recent_games),
-                "winRate": recent_win_rate,
-            },
-            "characterStats": character_stats,
-            "stageStats": stage_stats,
-            "mostFacedCharacters": most_faced_chars,
-        }
-    )
+        return jsonify(
+            {
+                "overallWinRate": overall_win_rate,
+                "totalGames": total_games,
+                "avgStocksWhenWinning": (
+                    float(avg_stocks) if not pd.isna(avg_stocks) else 0
+                ),
+                "currentStreak": {
+                    "count": int(current_streak),
+                    "type": current_streak_type,
+                },
+                "maxStreak": {"count": int(max_streak), "type": max_streak_type},
+                "recentPerformance": {
+                    "games": len(recent_games),
+                    "winRate": recent_win_rate,
+                },
+                "characterStats": character_stats,
+                "stageStats": stage_stats,
+                "mostFacedCharacters": most_faced_chars,
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error in user stats endpoint: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 @app.route("/api/users/<username>/win-rate-timeline")
 def get_user_win_rate_timeline(username):
-    """Get win rate timeline data for a user showing trailing 50-game average over last 100 games."""
+    """Get win rate timeline data for a user showing trailing 50-game
+    average over last 100 games."""
     try:
         result = data_manager.get_user_win_rate_timeline(username)
         return jsonify(result)
@@ -1923,7 +1991,8 @@ def get_user_win_rate_timeline(username):
 
 @app.route("/api/users/<username>/heatmap")
 def get_user_heatmap(username):
-    """Get heatmap data for a user showing performance by day and hour. Optionally filter by character."""
+    """Get heatmap data for a user showing performance by day and hour.
+    Optionally filter by character."""
     try:
         character = request.args.get("character", None)
         result = data_manager.get_user_heatmap_data(username, character)
@@ -1935,7 +2004,8 @@ def get_user_heatmap(username):
 
 @app.route("/api/characters/<character>/heatmap")
 def get_character_heatmap(character):
-    """Get heatmap data for a character showing performance by day and hour across all players."""
+    """Get heatmap data for a character showing performance by day and
+    hour across all players."""
     try:
         # Get heatmap data for both players and combine
         shayne_result = data_manager.get_user_heatmap_data("Shayne", character)
@@ -2143,7 +2213,7 @@ def get_head_to_head_stats():
 
         temp_streak = {"player": None, "length": 0, "start_date": None}
 
-        for idx, row in df.iterrows():
+        for _idx, row in df.iterrows():
             winner = row["winner"]
             date = row["datetime"]
 
@@ -2189,7 +2259,7 @@ def get_head_to_head_stats():
         current_loss_streak = 0
         loss_start_date = None
 
-        for idx, row in df.iterrows():
+        for _idx, row in df.iterrows():
             winner = row["winner"]
             loser = "Matt" if winner == "Shayne" else "Shayne"
             date = row["datetime"]
@@ -2275,12 +2345,16 @@ def get_advanced_metrics():
             two_stock_wins[player.lower()] = {
                 "two_stock_wins": two_stock_count,
                 "total_wins": total_wins,
-                "two_stock_rate": round((two_stock_count / total_wins * 100), 1)
-                if total_wins > 0
-                else 0,
-                "of_all_games": round((two_stock_count / total_games * 100), 1)
-                if total_games > 0
-                else 0,
+                "two_stock_rate": (
+                    round((two_stock_count / total_wins * 100), 1)
+                    if total_wins > 0
+                    else 0
+                ),
+                "of_all_games": (
+                    round((two_stock_count / total_games * 100), 1)
+                    if total_games > 0
+                    else 0
+                ),
             }
 
         # Dominance factor (3-stock wins)
@@ -2293,12 +2367,16 @@ def get_advanced_metrics():
             dominance_factor[player.lower()] = {
                 "three_stock_wins": three_stock_wins,
                 "total_wins": total_wins,
-                "dominance_rate": round((three_stock_wins / total_wins * 100), 1)
-                if total_wins > 0
-                else 0,
-                "of_all_games": round((three_stock_wins / total_games * 100), 1)
-                if total_games > 0
-                else 0,
+                "dominance_rate": (
+                    round((three_stock_wins / total_wins * 100), 1)
+                    if total_wins > 0
+                    else 0
+                ),
+                "of_all_games": (
+                    round((three_stock_wins / total_games * 100), 1)
+                    if total_games > 0
+                    else 0
+                ),
             }
 
         # Consistency score (std dev of stocks remaining)
@@ -2322,7 +2400,7 @@ def get_advanced_metrics():
             games_after_loss = 0
 
             prev_winner = None
-            for idx, row in df.iterrows():
+            for _idx, row in df.iterrows():
                 current_winner = row["winner"]
 
                 if prev_winner is not None:
@@ -2338,12 +2416,16 @@ def get_advanced_metrics():
                 prev_winner = current_winner
 
             momentum_analysis[player.lower()] = {
-                "win_after_win": round((wins_after_win / games_after_win * 100), 1)
-                if games_after_win > 0
-                else 0,
-                "win_after_loss": round((wins_after_loss / games_after_loss * 100), 1)
-                if games_after_loss > 0
-                else 0,
+                "win_after_win": (
+                    round((wins_after_win / games_after_win * 100), 1)
+                    if games_after_win > 0
+                    else 0
+                ),
+                "win_after_loss": (
+                    round((wins_after_loss / games_after_loss * 100), 1)
+                    if games_after_loss > 0
+                    else 0
+                ),
             }
 
         # Close game record (1 stock differential)
@@ -2356,12 +2438,12 @@ def get_advanced_metrics():
             close_game_record[player.lower()] = {
                 "wins": close_wins,
                 "total_wins": total_wins,
-                "win_rate": round((close_wins / total_wins * 100), 1)
-                if total_wins > 0
-                else 0,
-                "of_all_games": round((close_wins / total_games * 100), 1)
-                if total_games > 0
-                else 0,
+                "win_rate": (
+                    round((close_wins / total_wins * 100), 1) if total_wins > 0 else 0
+                ),
+                "of_all_games": (
+                    round((close_wins / total_games * 100), 1) if total_games > 0 else 0
+                ),
             }
 
         return jsonify(
@@ -2416,7 +2498,7 @@ def get_matchup_matrix():
                 matchup_matrix[matchup_key]["matt_wins"] += 1
 
         # Calculate win rates and create list
-        for key, data in matchup_matrix.items():
+        for _key, data in matchup_matrix.items():
             data["shayne_win_rate"] = round(
                 (data["shayne_wins"] / data["total_games"] * 100), 1
             )
@@ -2529,9 +2611,9 @@ def get_current_session():
             {
                 "success": True,
                 "session_id": session_id,
-                "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S")
-                if start_time
-                else None,
+                "start_time": (
+                    start_time.strftime("%Y-%m-%d %H:%M:%S") if start_time else None
+                ),
                 "game_count": len(session_games),
                 "is_active": is_active,
             }
@@ -2547,32 +2629,32 @@ def get_user_tearsheet(username):
     """Get comprehensive tearsheet data for a specific player."""
     try:
         df = data_manager._load_data()
-        
+
         if len(df) == 0:
             return jsonify({"success": False, "message": "No data available"})
-        
+
         df["datetime"] = pd.to_datetime(df["datetime"])
         df = df.sort_values("datetime")
-        
+
         # Basic stats
         total_games = len(df)
         user_wins = len(df[df["winner"] == username])
         overall_win_rate = (user_wins / total_games) * 100 if total_games > 0 else 0
-        
+
         # Opponent info
         opponent = "Matt" if username == "Shayne" else "Shayne"
         opponent_wins = total_games - user_wins
-        
+
         # Average stocks remaining when winning
         avg_stocks = df[df["winner"] == username]["stocks_remaining"].mean()
         avg_stocks = float(avg_stocks) if not pd.isna(avg_stocks) else 0
-        
+
         # Calculate streaks
         current_streak = 0
         max_win_streak = 0
         current_streak_type = None
         temp_win_streak = 0
-        
+
         for winner in df["winner"]:
             if winner == username:
                 if current_streak_type == "win" or current_streak_type is None:
@@ -2592,123 +2674,143 @@ def get_user_tearsheet(username):
                     current_streak = 1
                     current_streak_type = "loss"
                 temp_win_streak = 0
-        
+
         # Recent form (last 100 games)
         last_100 = df.tail(100)
         last_100_wins = len(last_100[last_100["winner"] == username])
-        last_100_rate = (last_100_wins / len(last_100) * 100) if len(last_100) > 0 else 0
-        
+        last_100_rate = (
+            (last_100_wins / len(last_100) * 100) if len(last_100) > 0 else 0
+        )
+
         # Dominance stats
         user_char_col = f"{username.lower()}_character"
-        three_stock_wins = len(df[(df["winner"] == username) & (df["stocks_remaining"] == 3)])
-        two_stock_wins = len(df[(df["winner"] == username) & (df["stocks_remaining"] == 2)])
+        three_stock_wins = len(
+            df[(df["winner"] == username) & (df["stocks_remaining"] == 3)]
+        )
+        two_stock_wins = len(
+            df[(df["winner"] == username) & (df["stocks_remaining"] == 2)]
+        )
         two_stock_rate = (two_stock_wins / user_wins * 100) if user_wins > 0 else 0
-        
+
         # Top characters
         if user_char_col in df.columns:
             char_games = df.groupby(user_char_col).size()
             char_wins = df[df["winner"] == username].groupby(user_char_col).size()
-            
+
             character_usage = []
             for char in char_games.index:
                 games = int(char_games[char])
                 wins = int(char_wins.get(char, 0))
                 win_rate = (wins / games) * 100 if games > 0 else 0
-                
-                character_usage.append({
-                    "character": char,
-                    "games": games,
-                    "wins": wins,
-                    "win_rate": round(win_rate, 1)
-                })
-            
+
+                character_usage.append(
+                    {
+                        "character": char,
+                        "games": games,
+                        "wins": wins,
+                        "win_rate": round(win_rate, 1),
+                    }
+                )
+
             # Sort by games played
             character_usage.sort(key=lambda x: (-x["games"], -x["win_rate"]))
         else:
             character_usage = []
-        
+
         # Stage performance
         stage_games = df[df["stage"] != "No Stage"].groupby("stage").size()
-        stage_wins = df[(df["winner"] == username) & (df["stage"] != "No Stage")].groupby("stage").size()
-        
+        stage_wins = (
+            df[(df["winner"] == username) & (df["stage"] != "No Stage")]
+            .groupby("stage")
+            .size()
+        )
+
         stage_stats = []
         for stage in stage_games.index:
             games = int(stage_games[stage])
             wins = int(stage_wins.get(stage, 0))
             win_rate = (wins / games) * 100 if games > 0 else 0
-            
-            stage_stats.append({
-                "stage": stage,
-                "games": games,
-                "wins": wins,
-                "win_rate": round(win_rate, 1)
-            })
-        
+
+            stage_stats.append(
+                {
+                    "stage": stage,
+                    "games": games,
+                    "wins": wins,
+                    "win_rate": round(win_rate, 1),
+                }
+            )
+
         # Sort by games played
         stage_stats.sort(key=lambda x: (-x["games"], -x["win_rate"]))
-        
+
         # Best and worst matchups (opponent characters)
-        opponent_char_col = "matt_character" if username == "Shayne" else "shayne_character"
+        opponent_char_col = (
+            "matt_character" if username == "Shayne" else "shayne_character"
+        )
         opp_char_games = df.groupby(opponent_char_col).size()
         opp_char_wins = df[df["winner"] == username].groupby(opponent_char_col).size()
-        
+
         matchup_stats = []
         for char in opp_char_games.index:
             games = int(opp_char_games[char])
             wins = int(opp_char_wins.get(char, 0))
             losses = games - wins
             win_rate = (wins / games) * 100 if games > 0 else 0
-            
+
             if games >= 5:  # Only include matchups with 5+ games
-                matchup_stats.append({
-                    "opponent_character": char,
-                    "games": games,
-                    "wins": wins,
-                    "losses": losses,
-                    "win_rate": round(win_rate, 1)
-                })
-        
+                matchup_stats.append(
+                    {
+                        "opponent_character": char,
+                        "games": games,
+                        "wins": wins,
+                        "losses": losses,
+                        "win_rate": round(win_rate, 1),
+                    }
+                )
+
         # Sort by win rate for best/worst
         matchup_stats.sort(key=lambda x: -x["win_rate"])
         best_matchups = matchup_stats[:5]
         worst_matchups = sorted(matchup_stats, key=lambda x: x["win_rate"])[:5]
-        
-        return jsonify({
-            "success": True,
-            "username": username,
-            "opponent": opponent,
-            "overall_stats": {
-                "total_games": total_games,
-                "wins": user_wins,
-                "losses": opponent_wins,
-                "win_rate": round(overall_win_rate, 1),
-                "avg_stocks_when_winning": round(avg_stocks, 2)
-            },
-            "streaks": {
-                "current_streak": {
-                    "count": current_streak,
-                    "type": current_streak_type
+
+        return jsonify(
+            {
+                "success": True,
+                "username": username,
+                "opponent": opponent,
+                "overall_stats": {
+                    "total_games": total_games,
+                    "wins": user_wins,
+                    "losses": opponent_wins,
+                    "win_rate": round(overall_win_rate, 1),
+                    "avg_stocks_when_winning": round(avg_stocks, 2),
                 },
-                "max_win_streak": max_win_streak
-            },
-            "recent_form": {
-                "last_100": {
-                    "wins": last_100_wins,
-                    "games": len(last_100),
-                    "win_rate": round(last_100_rate, 1)
-                }
-            },
-            "dominance": {
-                "three_stock_wins": three_stock_wins,
-                "two_stock_wins": two_stock_wins,
-                "two_stock_rate": round(two_stock_rate, 1)
-            },
-            "character_usage": character_usage[:10],  # Top 10 characters
-            "stage_stats": stage_stats[:9],  # Top 9 stages
-            "best_matchups": best_matchups,
-            "worst_matchups": worst_matchups
-        })
-        
+                "streaks": {
+                    "current_streak": {
+                        "count": current_streak,
+                        "type": current_streak_type,
+                    },
+                    "max_win_streak": max_win_streak,
+                },
+                "recent_form": {
+                    "last_100": {
+                        "wins": last_100_wins,
+                        "games": len(last_100),
+                        "win_rate": round(last_100_rate, 1),
+                    }
+                },
+                "dominance": {
+                    "three_stock_wins": three_stock_wins,
+                    "two_stock_wins": two_stock_wins,
+                    "two_stock_rate": round(two_stock_rate, 1),
+                },
+                "character_usage": character_usage[:10],  # Top 10 characters
+                "stage_stats": stage_stats[:9],  # Top 9 stages
+                "best_matchups": best_matchups,
+                "worst_matchups": worst_matchups,
+            }
+        )
+
     except Exception as e:
         logger.error(f"Error in user tearsheet endpoint: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
@@ -2724,10 +2826,19 @@ def serve_frontend(path: str = "index.html") -> Any:
     if os.path.isfile(os.path.join(FRONTEND_DIST, "index.html")):
         return send_from_directory(FRONTEND_DIST, "index.html")
     return (
-        jsonify({"success": False, "message": "Frontend build not found; use the Vite dev server in development"}),
+        jsonify(
+            {
+                "success": False,
+                "message": "Frontend build not found; "
+                "use the Vite dev server in development",
+            }
+        ),
         404,
     )
 
 
 if __name__ == "__main__":
-    app.run(debug=os.environ.get("FLASK_DEBUG", "1") == "1", host="0.0.0.0")
+    app.run(
+        debug=os.environ.get("FLASK_DEBUG", "1") == "1",
+        host=os.environ.get("HOST", "127.0.0.1"),
+    )

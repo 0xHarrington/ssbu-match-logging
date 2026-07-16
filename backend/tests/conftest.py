@@ -11,7 +11,7 @@ import os
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -19,7 +19,7 @@ import pytest
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))
 
-SEED_ROWS: List[Dict[str, Any]] = [
+SEED_ROWS: list[dict[str, Any]] = [
     {
         # Modern row: complete
         "datetime": "2025-12-11 21:05:18",

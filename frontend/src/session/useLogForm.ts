@@ -8,6 +8,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { logGame } from '../lib/api';
 import type { Player } from '../types';
 
+export { ACTIVE_STAGES } from '../lib/stages';
+
 export interface OnDeckSeed {
   shayneChar: string;
   mattChar: string;
@@ -110,15 +112,3 @@ export function useLogForm(seed: OnDeckSeed | null, onLogged: (winner: Player) =
     submit,
   };
 }
-
-/** The 8 active stages, in the picker order the design specifies. */
-export const ACTIVE_STAGES: string[] = [
-  'Battlefield',
-  'Small Battlefield',
-  'Final Destination',
-  'Pokemon Stadium 2',
-  'Smashville',
-  'Town & City',
-  'Kalos Pokemon League',
-  'Hollow Bastion',
-];

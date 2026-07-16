@@ -1,6 +1,6 @@
 // SessionMobile — the phone experience: a Session/Log/Stats/History tab app
 // with the three live-session hero directions and a bottom tab bar.
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import ScoreboardMobile from './ScoreboardMobile';
 import MomentumHero from './MomentumHero';
 import TapeHero from './TapeHero';
@@ -157,9 +157,22 @@ function BottomNav({ tab, onPick }: { tab: Tab; onPick: (t: Tab) => void }) {
   );
 }
 
-export default function SessionMobile({ live, form, characters, rematchSeed, onAutoDetect }: SessionMobileProps) {
+/** Imperative handle so `SessionPage` can drive the tab bar from outside
+ *  (e.g. AutoDetectSheet's "Log manually" CTA) without lifting tab state up. */
+export interface SessionMobileHandle {
+  goToLogTab: () => void;
+}
+
+const SessionMobile = forwardRef<SessionMobileHandle, SessionMobileProps>(function SessionMobile(
+  { live, form, characters, rematchSeed, onAutoDetect },
+  ref,
+) {
   const [tab, setTab] = useState<Tab>('session');
   const [hero, setHero] = useState<Hero>('scoreboard');
+
+  useImperativeHandle(ref, () => ({
+    goToLogTab: () => setTab('log'),
+  }));
 
   const goLog = () => setTab('log');
   const goRematch = () => {
@@ -181,7 +194,9 @@ export default function SessionMobile({ live, form, characters, rematchSeed, onA
       <BottomNav tab={tab} onPick={setTab} />
     </div>
   );
-}
+});
+
+export default SessionMobile;
 
 function EmptyMobile() {
   return (

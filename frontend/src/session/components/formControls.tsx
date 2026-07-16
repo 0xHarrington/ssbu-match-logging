@@ -16,7 +16,6 @@ interface WinnerPickerProps {
   /** 'stack' = two full-width rows (desktop rail); 'row' = side-by-side. */
   layout?: 'stack' | 'row';
   tokenSize?: number;
-  showCharSublabel?: boolean;
   /** Optional click handler on the token itself (opens a character picker). */
   onTokenClick?: (p: Player) => void;
   tokenSlot?: (p: Player) => ReactNode;
@@ -29,7 +28,6 @@ export function WinnerPicker({
   onChange,
   layout = 'stack',
   tokenSize = 44,
-  showCharSublabel = true,
   onTokenClick,
   tokenSlot,
 }: WinnerPickerProps) {
@@ -85,22 +83,20 @@ export function WinnerPicker({
             </span>
             <span style={{ minWidth: 0 }}>
               <span style={{ display: 'block' }}>{p}</span>
-              {showCharSublabel && (
-                <span
-                  style={{
-                    display: 'block',
-                    fontSize: 11,
-                    color: 'var(--gray)',
-                    fontWeight: 400,
-                    fontFamily: 'var(--font-mono)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {chars[p] || 'Pick fighter'}
-                </span>
-              )}
+              <span
+                style={{
+                  display: 'block',
+                  fontSize: 11,
+                  color: 'var(--gray)',
+                  fontWeight: 400,
+                  fontFamily: 'var(--font-mono)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {chars[p] || 'Pick fighter'}
+              </span>
             </span>
           </button>
         );

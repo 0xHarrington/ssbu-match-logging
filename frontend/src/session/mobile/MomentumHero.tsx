@@ -1,12 +1,11 @@
 // MomentumHero — hero direction B: session-lead sparkline + recent match feed.
 import { LineChart, Line } from '../../components/dither';
 import MatchRow from '../components/MatchRow';
+import { sessionLead } from '../palette';
 import type { LiveSession } from '../../hooks/useLiveSession';
 
 export default function MomentumHero({ live }: { live: LiveSession }) {
-  const lead = live.shayneWins - live.mattWins;
-  const leadLabel = lead === 0 ? 'Even' : lead > 0 ? `Shayne +${lead}` : `Matt +${-lead}`;
-  const leadColor = lead === 0 ? 'var(--gray)' : lead > 0 ? 'var(--shayne)' : 'var(--matt)';
+  const { label: leadLabel, color: leadColor } = sessionLead(live.shayneWins, live.mattWins);
   // Line needs >=2 points; pad a single-game session with a leading zero.
   const series = live.momentum.length >= 2 ? live.momentum : [0, ...live.momentum];
   const chartData = series.map((v, i) => ({ i, v }));

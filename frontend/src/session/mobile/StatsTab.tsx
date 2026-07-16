@@ -46,7 +46,12 @@ export default function StatsTab() {
   const longest = h2h.streaks?.longest_win_streaks;
   const sStreak = longest?.Shayne?.length ?? 0;
   const mStreak = longest?.Matt?.length ?? 0;
-  const longestStreak = sStreak >= mStreak ? { player: 'Shayne', length: sStreak } : { player: 'Matt', length: mStreak };
+  const longestStreak =
+    sStreak > mStreak
+      ? { player: 'Shayne', length: sStreak }
+      : mStreak > sStreak
+        ? { player: 'Matt', length: mStreak }
+        : { player: 'Tied', length: sStreak };
 
   return (
     <div style={{ padding: '8px 18px 24px' }}>
@@ -89,7 +94,15 @@ export default function StatsTab() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
         <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: 14 }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 24, fontWeight: 700, color: 'var(--yellow)' }}>{longestStreak.length}</div>
-          <div style={{ fontSize: 11, color: 'var(--gray)', marginTop: 3 }}>Longest streak ({longestStreak.player})</div>
+          <div style={{ fontSize: 11, color: 'var(--gray)', marginTop: 3 }}>
+            Longest win streak (
+            {longestStreak.player === 'Tied' ? (
+              <span style={{ color: 'var(--fg-light)' }}>Tied</span>
+            ) : (
+              longestStreak.player
+            )}
+            )
+          </div>
         </div>
         <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: 14 }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 24, fontWeight: 700, color: 'var(--blue)' }}>{sessionCount}</div>

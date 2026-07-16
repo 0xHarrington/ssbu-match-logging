@@ -1,8 +1,7 @@
 // CharToken — a character avatar in a player-colored rounded frame.
 //
-// The prototype used a colored ring with a letter placeholder; here we render
-// the real roster icon via the existing import.meta.glob resolver and fall back
-// to the character's initial when no art resolves.
+// Renders the roster icon via the existing import.meta.glob resolver and
+// falls back to the character's initial when no art resolves.
 import type { CSSProperties } from 'react';
 import { getCharacterIconUrl } from '../../components/CharacterDisplay';
 import { PLAYER_HEX } from '../palette';

@@ -1,8 +1,8 @@
 // SessionPage — top-level orchestrator for the Session experience.
 //
 // Owns the live-session fetch, the shared log form, modal + undo state, and the
-// character roster. Renders the desktop dashboard (mobile layout arrives in a
-// follow-up). Modals and the undo toast are rendered here so they overlay the
+// character roster. Renders SessionDesktop or SessionMobile depending on
+// useIsMobile. Modals and the undo toast are rendered here so they overlay the
 // whole page.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ErrorState, LoadingState } from '../components/Feedback';
@@ -10,8 +10,8 @@ import { useLiveSession } from '../hooks/useLiveSession';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { getCharacters, undoLastGame } from '../lib/api';
 import { useLogForm, type OnDeckSeed } from './useLogForm';
-import SessionDesktop from './SessionDesktop';
-import SessionMobile from './mobile/SessionMobile';
+import SessionDesktop, { type SessionDesktopHandle } from './SessionDesktop';
+import SessionMobile, { type SessionMobileHandle } from './mobile/SessionMobile';
 import LogRail from './components/LogRail';
 import SeeAllModal from './components/SeeAllModal';
 import EditMatchModal from './components/EditMatchModal';
@@ -30,6 +30,8 @@ export default function SessionPage() {
   const [showAuto, setShowAuto] = useState(false);
   const [undo, setUndo] = useState<{ winner: Player } | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mobileRef = useRef<SessionMobileHandle>(null);
+  const desktopRef = useRef<SessionDesktopHandle>(null);
 
   useEffect(() => {
     let active = true;
@@ -91,6 +93,7 @@ export default function SessionPage() {
     return (
       <>
         <SessionMobile
+          ref={mobileRef}
           live={empty ? null : live}
           form={form}
           characters={characters}
@@ -98,7 +101,14 @@ export default function SessionPage() {
           onAutoDetect={() => setShowAuto(true)}
         />
         {showAuto && (
-          <AutoDetectSheet mobile onClose={() => setShowAuto(false)} onLogManually={() => setShowAuto(false)} />
+          <AutoDetectSheet
+            mobile
+            onClose={() => setShowAuto(false)}
+            onLogManually={() => {
+              setShowAuto(false);
+              mobileRef.current?.goToLogTab();
+            }}
+          />
         )}
         {undo && <UndoToast winner={undo.winner} onUndo={handleUndo} bottomOffset={92} />}
       </>
@@ -126,6 +136,7 @@ export default function SessionPage() {
   return (
     <>
       <SessionDesktop
+        ref={desktopRef}
         live={live}
         form={form}
         characters={characters}
@@ -158,7 +169,13 @@ export default function SessionPage() {
       )}
 
       {showAuto && (
-        <AutoDetectSheet onClose={() => setShowAuto(false)} onLogManually={() => setShowAuto(false)} />
+        <AutoDetectSheet
+          onClose={() => setShowAuto(false)}
+          onLogManually={() => {
+            setShowAuto(false);
+            desktopRef.current?.focusLogRail();
+          }}
+        />
       )}
 
       {undo && <UndoToast winner={undo.winner} onUndo={handleUndo} />}

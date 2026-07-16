@@ -6,9 +6,13 @@
 ## 1. Where the repo stands (July 2026 survey)
 
 3,197 matches logged through 2025-12-11. Flask (single-file `app.py`, pandas-on-CSV,
-24 API routes) + React 19/Vite frontend (ECharts, Gruvbox theme). Mature analytics,
-zero tests, two-player assumption baked into the CSV schema itself
-(`shayne_character` / `matt_character` columns).
+27 API handlers — count with `grep -c '@app.route' backend/app.py`; 30 decorators,
+since 3 handlers each answer two routes: `/log_game`+`/api/log_game`,
+`/matchup_stats`+`/api/matchup_stats`, and the SPA catch-all pair) + React 19/Vite
+frontend (dither-kit charts, Gruvbox theme). Mature analytics,
+~~zero tests~~ → first pytest suite landed 2026-07-14 (`backend/tests/`), seed of
+the P2 characterization harness, two-player assumption baked into the CSV schema
+itself (`shayne_character` / `matt_character` columns).
 
 **Fixed in the 2026-07-12 session** (unblocking any deploy):
 
@@ -53,12 +57,12 @@ zero tests, two-player assumption baked into the CSV schema itself
 |---|---|---|
 | 1 | Two-player schema hardcoded (columns, `["Shayne","Matt"]` loops, ternary opponent derivation) | `app.py` throughout |
 | 2 | CSV read-modify-write; GET endpoints rewrite the file (session-ID backfill) | `app.py` `get_sessions` |
-| 3 | Zero tests; nothing guards a data-layer migration | — |
+| 3 | ~~Zero tests; nothing guards a data-layer migration~~ → first pytest suite landed 2026-07-14 (`backend/tests/`), seed of the P2 characterization harness | — |
 | 4 | ~700 hardcoded Gruvbox hex literals in TSX vs. the CSS-variable system that already exists | all pages |
-| 5 | `stageImages` map + stage imports copy-pasted in 7 files; icon logic in 11; per-component `fetch` | frontend |
-| 6 | 3 chart deps (echarts + chart.js for one chart + dead plotly stub); 1.9 MB JS bundle, no code splitting | `frontend/package.json` |
+| 5 | `stageImages` map + stage imports copy-pasted in 7 files; icon logic in 11; per-component `fetch` — **fixed** (see §4/§5) | frontend |
+| 6 | 3 chart deps (echarts + chart.js for one chart + dead plotly stub); 1.9 MB JS bundle, no code splitting — **fixed** (see §4/§5) | `frontend/package.json` |
 | 7 | Streak logic reimplemented 4× with drifting semantics; duplicated groupby blocks | `app.py` |
-| 8 | Stray files: empty `instance/` SQLite, empty `models|routes|services|utils/` dirs, root `package.json`, `reid_family_feud_data.csv`, `spare data/`, one-shot scripts | repo root / backend |
+| 8 | Stray files: empty `instance/` SQLite, empty `models|routes|services|utils/` dirs, root `package.json`, `reid_family_feud_data.csv`, `spare data/`, one-shot scripts — dirs/root-package fixed; one-shot scripts removed in the 2026-07 hygiene pass | repo root / backend |
 | 9 | Inconsistent API envelopes (`{success,...}` vs bare objects); 2 routes lack error handling | `app.py` |
 | 10 | Local venv is x86_64/Rosetta on an arm64 Mac (`arch -x86_64` needed) | `backend/venv` |
 
@@ -106,9 +110,10 @@ env-var override is a 1-hour patch if it grates; `backend/spare data/jaspy.csv`
 suggests this data already exists — seed it).
 
 ### P2 — Data layer: CSV → SQLite on the volume (~1 week of evenings)
-- Characterization tests **first**: snapshot all 23 endpoint responses against
-  the real CSV (pytest + Flask test client); these are the migration oracle
-  (LAUNCH.md principle 4).
+- Characterization tests **first**: snapshot every API handler (27 at last
+  count — recount at execution: `grep -c '@app.route' backend/app.py`)
+  response against the real CSV (pytest + Flask test client); these are the
+  migration oracle (LAUNCH.md principle 4).
 - SQLite (stdlib, single file on `/data`, WAL mode) — not Postgres yet: keeps
   one service, keeps Fly snapshot backups meaningful, removes the
   read-that-writes hazard and the whole-file-rewrite-per-append pattern, and

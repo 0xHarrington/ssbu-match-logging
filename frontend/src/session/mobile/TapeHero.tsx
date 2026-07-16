@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { SplitBar } from '../components/bars';
 import { getAllTimeStats } from '../../lib/api';
+import { parseStocks } from '../format';
 import type { LiveSession } from '../../hooks/useLiveSession';
 import type { AllTimeStats, Player } from '../../types';
 
@@ -16,10 +17,7 @@ interface TapeRow {
 function avgStocksWhenWinning(live: LiveSession, player: Player): string {
   const wins = live.matches.filter((m) => m.winner === player);
   if (wins.length === 0) return '—';
-  const total = wins.reduce((sum, m) => {
-    const s = typeof m.stocks_remaining === 'string' ? parseFloat(m.stocks_remaining) : m.stocks_remaining;
-    return sum + (Number.isFinite(s as number) ? (s as number) : 0);
-  }, 0);
+  const total = wins.reduce((sum, m) => sum + (parseStocks(m.stocks_remaining) ?? 0), 0);
   return (total / wins.length).toFixed(1);
 }
 

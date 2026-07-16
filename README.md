@@ -49,7 +49,7 @@ the nesty deployment pattern:
 ```mermaid
 flowchart LR
     DEV["Local dev<br/>./dev.sh — Vite :5173 + Flask :5000"] --> PUSH["git push / PR"]
-    PUSH --> CI["GitHub Actions CI<br/>lint · tsc · vite build<br/>backend smoke · docker build"]
+    PUSH --> CI["GitHub Actions CI<br/>lint · vitest · tsc/vite build<br/>backend ruff/black/pytest · docker build"]
     CI -->|green| MERGE["merge to main"]
     MERGE --> DEPLOY["fly deploy --remote-only<br/>(manual)"]
     DEPLOY --> PROD["ssbu-match-logger.fly.dev<br/>gunicorn + /data volume"]
@@ -124,7 +124,8 @@ cold-starts in a few seconds on the first request — right for a bursty session
    cd frontend && npm install && cd ..
    ```
 
-4. Run both servers (requires `nvm` for Node):
+4. Run both servers (uses `nvm` if available, otherwise falls back to system
+   Node with a warning):
 
    ```bash
    ./dev.sh
@@ -182,6 +183,9 @@ Match data is stored in `game_results.csv` (on `/data` in production) with colum
 | `stage` | stage name (or `No Stage`) |
 | `timestamp` | Unix timestamp |
 | `session_id` | session identifier, derived from time gaps |
+| `match_id` | stable 12-hex match identity; backfilled idempotently at boot |
+
+Authoritative column list: `GameDataManager.columns` in `backend/app.py`.
 
 ## Development notes
 
@@ -191,8 +195,10 @@ Match data is stored in `game_results.csv` (on `/data` in production) with colum
 - **Keep gunicorn at `--workers 1`**: the CSV write lock is in-process, so multiple
   workers would reintroduce lost-write races. Lift this only after the data layer
   moves to SQLite/Postgres (see [docs/ROADMAP.md](docs/ROADMAP.md)).
-- CI gates every push/PR (frontend lint + `tsc` + `vite build`, backend compile +
-  import smoke test, full Docker build). It never deploys — deploys stay manual.
+- CI gates every push/PR (frontend lint + vitest + `tsc` + `vite build`; backend
+  `ruff check` + `black --check` + pytest with `--cov=app` coverage reporting,
+  plus a compile/import smoke test; full Docker build). It never deploys —
+  deploys stay manual.
 
 ## License
 
