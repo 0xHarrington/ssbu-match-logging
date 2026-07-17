@@ -10,6 +10,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useIsMobile } from '../../hooks/useMediaQuery';
+import { useViewer } from '../../viewer';
 import {
   CharactersIcon,
   CloseIcon,
@@ -67,7 +68,7 @@ function Logo({ compact = false }: { compact?: boolean }) {
           width: 30,
           height: 30,
           borderRadius: 9,
-          background: 'var(--matt)',
+          background: 'var(--home)',
           color: '#1b1817',
           display: 'flex',
           alignItems: 'center',
@@ -90,7 +91,7 @@ function Logo({ compact = false }: { compact?: boolean }) {
             fontFamily: 'var(--font-display)',
           }}
         >
-          Smash<span style={{ color: 'var(--matt)' }}>Log</span>
+          Smash<span style={{ color: 'var(--home)' }}>Log</span>
         </span>
       )}
     </Link>
@@ -122,7 +123,7 @@ function NavLinks({ onNavigate, compact = false }: { onNavigate?: () => void; co
               borderRadius: 11,
               textDecoration: 'none',
               transition: 'all 0.15s',
-              background: active ? 'var(--matt)' : isHover ? 'rgba(184,187,38,0.08)' : 'transparent',
+              background: active ? 'var(--home)' : isHover ? 'var(--home-soft)' : 'transparent',
               color: active ? '#1b1817' : 'var(--gray)',
               fontFamily: 'var(--font-display)',
               fontSize: 14,
@@ -139,9 +140,11 @@ function NavLinks({ onNavigate, compact = false }: { onNavigate?: () => void; co
 }
 
 function ActiveRivalryCard() {
+  const { home, away } = useViewer();
+  const colorFor = (p: string) => (p === 'Matt' ? 'var(--matt)' : 'var(--shayne)');
   const players: Array<{ name: string; color: string }> = [
-    { name: 'Matt', color: 'var(--matt)' },
-    { name: 'Shayne', color: 'var(--shayne)' },
+    { name: home, color: colorFor(home) },
+    { name: away, color: colorFor(away) },
   ];
   return (
     <div

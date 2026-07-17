@@ -1,8 +1,10 @@
 // MatchRow — a single logged match, shared by the session feed, the see-all
 // modal, and the mobile momentum feed. A 6px accent bar in the winner's color,
-// the char-vs-char line, stage/time, the winner label, and an optional edit ✎.
+// the char-vs-char line (home player's fighter first), stage/time, the winner
+// label, and an optional edit ✎.
 import { PLAYER_COLOR_VAR, winnerColorVar } from '../palette';
 import { matchTime, stocksLabel } from '../format';
+import { useViewer } from '../../viewer';
 import type { Match } from '../../types';
 
 interface MatchRowProps {
@@ -12,8 +14,13 @@ interface MatchRowProps {
 }
 
 export default function MatchRow({ match, onEdit, compact = false }: MatchRowProps) {
+  const { home } = useViewer();
   const winColor = winnerColorVar(String(match.winner));
   const fontSize = compact ? 13 : 14;
+  const charFor = (p: 'Matt' | 'Shayne') =>
+    p === 'Matt' ? match.matt_character : match.shayne_character;
+  const first = home;
+  const second = home === 'Matt' ? ('Shayne' as const) : ('Matt' as const);
 
   return (
     <div
@@ -30,12 +37,12 @@ export default function MatchRow({ match, onEdit, compact = false }: MatchRowPro
       <div style={{ width: 6, alignSelf: 'stretch', borderRadius: 4, background: winColor, flex: '0 0 auto' }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize, fontWeight: 600, color: 'var(--fg-light)' }}>
-          <span style={{ color: PLAYER_COLOR_VAR.Matt, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {match.matt_character}
+          <span style={{ color: PLAYER_COLOR_VAR[first], whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {charFor(first)}
           </span>
           <span style={{ color: 'var(--faint)', fontSize: 12, flex: '0 0 auto' }}>vs</span>
-          <span style={{ color: PLAYER_COLOR_VAR.Shayne, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {match.shayne_character}
+          <span style={{ color: PLAYER_COLOR_VAR[second], whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {charFor(second)}
           </span>
         </div>
         <div style={{ fontSize: 11, color: 'var(--gray)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>

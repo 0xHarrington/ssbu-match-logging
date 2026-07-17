@@ -21,6 +21,7 @@ import {
   getSessions,
 } from '../lib/api';
 import { sessionDisplayName } from '../session/format';
+import { useViewer } from '../viewer';
 import type { Match, Player, SessionSummary } from '../types';
 
 export interface StageSplit {
@@ -70,8 +71,8 @@ export interface LiveSession {
   matches: Match[];
   /** Winner per game, oldest -> newest (newest last / rightmost). */
   runPips: Player[];
-  /** Cumulative (mattWins - shayneWins) after each game, oldest -> newest.
-   *  Positive = Matt ahead. */
+  /** Cumulative home-player lead after each game, oldest -> newest.
+   *  Positive = the logged-in (home) player ahead. */
   momentum: number[];
   /** Current within-session win run, from the newest games backward. */
   currentRun: { player: Player; length: number } | null;
@@ -167,6 +168,7 @@ function deriveStageSplits(matches: Match[]): StageSplit[] {
 }
 
 export function useLiveSession(): UseLiveSessionResult {
+  const { home } = useViewer();
   const [data, setData] = useState<LiveSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -223,8 +225,8 @@ export function useLiveSession(): UseLiveSessionResult {
         for (const m of chrono) {
           const p = toPlayer(String(m.winner));
           if (p) runPips.push(p);
-          if (m.winner === 'Matt') lead += 1;
-          else if (m.winner === 'Shayne') lead -= 1;
+          if (p === home) lead += 1;
+          else if (p) lead -= 1;
           momentum.push(lead);
         }
 
@@ -309,7 +311,7 @@ export function useLiveSession(): UseLiveSessionResult {
     return () => {
       cancelled = true;
     };
-  }, [nonce]);
+  }, [nonce, home]);
 
   return { data, loading, error, empty, refresh };
 }

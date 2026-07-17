@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import CharToken from './CharToken';
 import { stageImages } from '../../lib/stages';
 import { PLAYER_HEX, PLAYER_PICK_BG } from '../palette';
+import { useViewer } from '../../viewer';
 import type { Player } from '../../types';
 
 // --- Winner picker --------------------------------------------------------
@@ -31,7 +32,8 @@ export function WinnerPicker({
   onTokenClick,
   tokenSlot,
 }: WinnerPickerProps) {
-  const players: Player[] = ['Matt', 'Shayne'];
+  const { home, away } = useViewer();
+  const players: Player[] = [home, away];
   const chars: Record<Player, string> = { Shayne: shayneChar, Matt: mattChar };
 
   return (
@@ -116,6 +118,7 @@ interface StageGridProps {
 }
 
 export function StageGrid({ stages, value, onChange, variant = 'tile' }: StageGridProps) {
+  const { home } = useViewer();
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: variant === 'tile' ? 8 : 6 }}>
       {stages.map((stage) => {
@@ -134,9 +137,9 @@ export function StageGrid({ stages, value, onChange, variant = 'tile' }: StageGr
                 fontFamily: 'var(--font-display)',
                 transition: 'all 0.15s',
                 textAlign: 'left',
-                background: selected ? PLAYER_PICK_BG.Matt : 'var(--card)',
-                color: selected ? 'var(--matt)' : 'var(--gray)',
-                border: `1px solid ${selected ? 'var(--matt)' : 'var(--line)'}`,
+                background: selected ? PLAYER_PICK_BG[home] : 'var(--card)',
+                color: selected ? 'var(--home)' : 'var(--gray)',
+                border: `1px solid ${selected ? 'var(--home)' : 'var(--line)'}`,
               }}
             >
               {stage}
@@ -156,8 +159,8 @@ export function StageGrid({ stages, value, onChange, variant = 'tile' }: StageGr
               transition: 'all 0.15s',
               padding: 0,
               background: 'var(--card)',
-              border: `1px solid ${selected ? 'var(--matt)' : 'var(--line)'}`,
-              boxShadow: selected ? '0 0 0 1px var(--matt)' : undefined,
+              border: `1px solid ${selected ? 'var(--home)' : 'var(--line)'}`,
+              boxShadow: selected ? '0 0 0 1px var(--home)' : undefined,
             }}
           >
             <div
@@ -178,7 +181,7 @@ export function StageGrid({ stages, value, onChange, variant = 'tile' }: StageGr
                 display: 'flex',
                 alignItems: 'center',
                 fontFamily: 'var(--font-display)',
-                color: selected ? 'var(--matt)' : 'var(--fg)',
+                color: selected ? 'var(--home)' : 'var(--fg)',
               }}
             >
               {stage}

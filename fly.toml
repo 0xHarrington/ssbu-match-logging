@@ -4,7 +4,8 @@
 # First-time setup (see docs/DEPLOY.md for the full runbook):
 #   fly launch --no-deploy --copy-config
 #   fly volumes create ssbu_data --region ewr --size 1
-#   fly secrets set SITE_PASSWORD=<shared password>
+#   fly secrets set SITE_USERS="matt:<pw>,shayne:<pw>"   # per-user logins
+#   (legacy fallback: SITE_PASSWORD=<shared pw> — any username, one password)
 #   fly deploy --remote-only --ha=false
 
 app = "ssbu-match-logger"

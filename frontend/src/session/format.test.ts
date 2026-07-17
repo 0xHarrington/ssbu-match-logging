@@ -74,13 +74,26 @@ describe('sessionLead', () => {
     expect(sessionLead(3, 3)).toEqual({ lead: 0, label: 'Even', color: 'var(--gray)' });
   });
 
-  // Matt-denominated: positive lead = Matt ahead.
+  // Viewer-denominated: positive lead = the home player ahead (default Matt).
   it('labels a Shayne lead', () => {
     expect(sessionLead(5, 2)).toEqual({ lead: -3, label: 'Shayne +3', color: 'var(--shayne)' });
   });
 
   it('labels a Matt lead', () => {
     expect(sessionLead(2, 5)).toEqual({ lead: 3, label: 'Matt +3', color: 'var(--matt)' });
+  });
+
+  it('denominates to a Shayne home viewer', () => {
+    expect(sessionLead(5, 2, 'Shayne')).toEqual({
+      lead: 3,
+      label: 'Shayne +3',
+      color: 'var(--shayne)',
+    });
+    expect(sessionLead(2, 5, 'Shayne')).toEqual({
+      lead: -3,
+      label: 'Matt +3',
+      color: 'var(--matt)',
+    });
   });
 });
 

@@ -1,4 +1,6 @@
 // Small proportional-bar primitives shared across the Session screens.
+// Ordering is viewer-relative: the logged-in (home) player's segment first.
+import { useViewer } from '../../viewer';
 import type { Player } from '../../types';
 
 interface SplitBarProps {
@@ -8,11 +10,14 @@ interface SplitBarProps {
   radius?: number;
 }
 
-/** Two-segment proportional bar: Matt (green) | Shayne (orange) — Matt is the
- *  home player and always reads first. A zero-zero split renders an empty
- *  track rather than dividing by zero. */
+/** Two-segment proportional bar, home player's segment first.
+ *  A zero-zero split renders an empty track rather than dividing by zero. */
 export function SplitBar({ shayne, matt, height = 8, radius = 5 }: SplitBarProps) {
+  const { home } = useViewer();
   const empty = shayne <= 0 && matt <= 0;
+  const mattSeg = { player: 'Matt' as Player, value: matt, color: 'var(--matt)' };
+  const shayneSeg = { player: 'Shayne' as Player, value: shayne, color: 'var(--shayne)' };
+  const segments = home === 'Matt' ? [mattSeg, shayneSeg] : [shayneSeg, mattSeg];
   return (
     <div
       style={{
@@ -24,8 +29,12 @@ export function SplitBar({ shayne, matt, height = 8, radius = 5 }: SplitBarProps
         background: empty ? 'var(--deep1)' : undefined,
       }}
     >
-      <div style={{ flex: empty ? 1 : matt, background: 'var(--matt)', borderRadius: radius - 1 }} />
-      <div style={{ flex: empty ? 1 : shayne, background: 'var(--shayne)', borderRadius: radius - 1 }} />
+      {segments.map((s) => (
+        <div
+          key={s.player}
+          style={{ flex: empty ? 1 : s.value, background: s.color, borderRadius: radius - 1 }}
+        />
+      ))}
     </div>
   );
 }

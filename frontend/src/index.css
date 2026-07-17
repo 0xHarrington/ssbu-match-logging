@@ -32,6 +32,10 @@
   --shayne-deep: #d65d0e;
   --matt: #b8bb26;
   --matt-deep: #98971a;
+  /* Viewer-relative accents: ViewerProvider repoints these at the logged-in
+     player's colors (defaults: Matt is home). */
+  --home: var(--matt);
+  --home-soft: rgba(184, 187, 38, 0.08);
   /* Type system */
   --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;

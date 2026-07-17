@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { SplitBar } from '../components/bars';
 import { getAllTimeStats } from '../../lib/api';
 import { parseStocks } from '../format';
+import { PLAYER_COLOR_VAR } from '../palette';
+import { useViewer } from '../../viewer';
 import type { LiveSession } from '../../hooks/useLiveSession';
 import type { AllTimeStats, Player } from '../../types';
 
@@ -49,6 +51,7 @@ function topMatchup(live: LiveSession) {
 }
 
 export default function TapeHero({ live }: { live: LiveSession }) {
+  const { home, away } = useViewer();
   const [allTime, setAllTime] = useState<AllTimeStats | null>(null);
   useEffect(() => {
     let active = true;
@@ -61,13 +64,19 @@ export default function TapeHero({ live }: { live: LiveSession }) {
   }, []);
 
   const total = live.totalGames || 1;
+  const sessionWins = (p: Player) => (p === 'Matt' ? live.mattWins : live.shayneWins);
+  const allTimeWins = (p: Player) =>
+    allTime ? String(p === 'Matt' ? allTime.matt_wins : allTime.shayne_wins) : '—';
+  const allTimeRate = (p: Player) =>
+    allTime ? `${Math.round(p === 'Matt' ? allTime.matt_win_rate : allTime.shayne_win_rate)}` : '—';
+  // Left column is the home (logged-in) player.
   const rows: TapeRow[] = [
-    { label: 'this session', left: String(live.mattWins), right: String(live.shayneWins) },
-    { label: 'win rate', left: `${Math.round((live.mattWins / total) * 100)}%`, right: `${Math.round((live.shayneWins / total) * 100)}%` },
-    { label: 'avg stocks', left: avgStocksWhenWinning(live, 'Matt'), right: avgStocksWhenWinning(live, 'Shayne') },
-    { label: 'best run', left: bestRun(live, 'Matt'), right: bestRun(live, 'Shayne') },
-    { label: 'all-time', left: allTime ? String(allTime.matt_wins) : '—', right: allTime ? String(allTime.shayne_wins) : '—' },
-    { label: 'all-time %', left: allTime ? `${Math.round(allTime.matt_win_rate)}` : '—', right: allTime ? `${Math.round(allTime.shayne_win_rate)}` : '—' },
+    { label: 'this session', left: String(sessionWins(home)), right: String(sessionWins(away)) },
+    { label: 'win rate', left: `${Math.round((sessionWins(home) / total) * 100)}%`, right: `${Math.round((sessionWins(away) / total) * 100)}%` },
+    { label: 'avg stocks', left: avgStocksWhenWinning(live, home), right: avgStocksWhenWinning(live, away) },
+    { label: 'best run', left: bestRun(live, home), right: bestRun(live, away) },
+    { label: 'all-time', left: allTimeWins(home), right: allTimeWins(away) },
+    { label: 'all-time %', left: allTimeRate(home), right: allTimeRate(away) },
   ];
 
   const chip = (color: string, align: 'left' | 'right') =>
@@ -93,11 +102,11 @@ export default function TapeHero({ live }: { live: LiveSession }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 6, alignItems: 'center' }}>
         {rows.map((r) => (
           <div key={r.label} style={{ display: 'contents' }}>
-            <div style={chip('var(--matt)', 'right')}>{r.left}</div>
+            <div style={chip(PLAYER_COLOR_VAR[home], 'right')}>{r.left}</div>
             <div style={{ fontSize: 9, color: 'var(--faint)', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center', fontFamily: 'var(--font-mono)', padding: '0 4px' }}>
               {r.label}
             </div>
-            <div style={chip('var(--shayne)', 'left')}>{r.right}</div>
+            <div style={chip(PLAYER_COLOR_VAR[away], 'left')}>{r.right}</div>
           </div>
         ))}
       </div>
@@ -106,9 +115,9 @@ export default function TapeHero({ live }: { live: LiveSession }) {
         <div style={{ marginTop: 16, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: 14 }}>
           <div style={{ fontSize: 11, color: 'var(--gray)', fontFamily: 'var(--font-mono)', marginBottom: 10 }}>TOP MATCHUP THIS SESSION</div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--matt)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{top.m}</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-light)', flex: '0 0 auto' }}>{top.mWins} – {top.sWins}</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--shayne)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'right' }}>{top.s}</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: PLAYER_COLOR_VAR[home], whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{home === 'Matt' ? top.m : top.s}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-light)', flex: '0 0 auto' }}>{home === 'Matt' ? top.mWins : top.sWins} – {home === 'Matt' ? top.sWins : top.mWins}</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: PLAYER_COLOR_VAR[away], whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'right' }}>{home === 'Matt' ? top.s : top.m}</span>
           </div>
           <div style={{ marginTop: 8 }}>
             <SplitBar shayne={top.sWins} matt={top.mWins} height={7} radius={4} />
