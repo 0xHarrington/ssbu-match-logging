@@ -133,7 +133,7 @@ LAUNCH.md. Migrate both pairs' volumes into rivalries; retire the per-pair apps.
 
 ### P4 — UX overhaul + dither-kit (see §4–5)
 
-### P5 — Auto-logging companion (see §6) — can start anytime after P2
+### P5 — Auto-logging companion (see §6) — V0 is independent of P2 (no schema change); planned in `plans/010`
 
 ### P6 — Public launch hardening
 Rate limiting (Flask-Limiter), signup captcha, error monitoring (Sentry free
@@ -238,67 +238,61 @@ Chart-by-chart mapping (from the survey's full inventory):
 **Pilot:** convert StatsPage + one tearsheet behind the P4 branch; if the
 aesthetic lands, sweep the rest and drop both chart deps.
 
-## 6. Auto-logging: live convnet match tracking (P5 design)
+## 6. Auto-logging: hands-free capture with VLM extraction (P5 design)
 
-Goal: a phone pointed at the TV auto-detects match results; the session on the
-laptop/site receives them; humans only confirm.
+Goal: a phone propped against the TV auto-detects matches; humans only confirm.
+Full implementation plan: **`plans/010-auto-logging-v0-vlm-capture.md`**
+(engine + UX decisions locked 2026-07-17; supersedes the earlier
+on-device-ONNX-first ordering of this section).
 
 ```mermaid
 flowchart LR
-    subgraph phone["Phone (PWA capture page)"]
-        CAM[Camera 1080p\npointed at TV] --> FE[Frame sampler\n2-4 fps]
-        FE --> M[On-device model\nWebGPU/wasm ONNX]
-        M --> EV[Event builder]
+    subgraph phone["Phone — /capture route (existing SPA + Basic auth)"]
+        CAM[Rear camera\n~2 fps sampler] --> KF[Keyframe detector\nscene-change + 2s stability\ncanvas math, no OpenCV.js]
+        KF -->|stable keyframe JPEG| UP[POST /api/vision/keyframe]
+        C[Confirm card on same phone:\nchars, winner, stocks, stage\n✓ log  ✎ edit  ✗ discard]
     end
     subgraph server["Fly app"]
-        WS[WebSocket /pair/&lt;code&gt;] --> Q[Pending-result queue]
-        Q --> API[/api/log_game/]
+        UP --> EX[Claude Haiku vision\nclassify + extract\nstructured output]
+        EX --> ASM[Match assembler\nstage-select + results frames]
+        ASM --> Q[Pending queue] -->|poll| C
+        C -->|confirm| API[/api/log_game/]
     end
-    subgraph desk["Logger UI (any device)"]
-        C[Confirm card:\nwinner, chars, stocks\n✓ log  ✎ edit  ✗ discard]
-    end
-    EV -->|result events only,\nnever video| WS
-    Q --> C
 ```
 
-**Pairing** ("local session + mobile session"): the logger page shows a QR code
-encoding a short-lived pairing token; the phone opens the capture PWA, scans it,
-and both join a WebSocket room scoped to the rivalry. No app store, no native app.
+**Why VLM-first (V0):** the log is five closed-world fields (10 stages ever
+played, modest character pool), all visible on two static screens per match.
+Haiku vision reads skewed/glarey camera frames zero-shot — no training data, no
+homography calibration, no ONNX pipeline — at ~$0.20–0.60/session. Every
+confirmed/corrected extraction is appended to `data/vision/log.jsonl` with its
+saved frame: that corpus is the training set for V1's free local models. Ship
+first, label by using.
 
-**Why events-only uplink:** streaming video to the server costs bandwidth,
-battery, and privacy (living-room audio/video). All vision runs on-device;
-only `{event, confidence, crop_thumbnail?}` leaves the phone. A tiny
-result-screen crop as evidence for the confirm card is opt-in.
+**Escalation path:**
 
-**Vision approach — escalate only as needed:**
+- **V0 (plans/010, buildable now):** hands-free keyframe capture → Haiku
+  structured extraction → confirm card. No pairing (the `/capture` page lives
+  in the existing SPA behind the shared password; QR pairing is a P3 concern),
+  no long-lived connections (1 gunicorn worker — polling only), CSV untouched
+  (provenance in a JSONL sidecar; `source`/`confidence` columns wait for P2
+  SQLite). *(The 2026-07-14 redesign's confirm-sheet preview finally gets real
+  data behind it.)*
+- **V1 (local CV swap + damage telemetry):** replace the per-keyframe VLM call
+  with server-side OpenCV — template matching / small classifier heads trained
+  on V0's confirmed frames; cost → $0, latency → ms. This unlocks continuous
+  1–2 fps processing, which VLM pricing forbids (~$1/match), and with it the
+  **damage-over-time series**: OCR the two fixed-position % readouts, store
+  `{t, p1_pct, p2_pct, stock_events[]}` as a per-match JSON artifact, chart it
+  on a match detail view. Homography calibration (corner-tap) enters here,
+  where classical CV needs it.
+- **V2 (optional):** on-device ONNX/WebGPU for offline/private capture, and/or
+  auto-submit with a 10-s undo window once measured precision justifies it.
 
-- **M0 (no ML):** pairing + a manual one-tap "log it" remote on the phone.
-  Ships the transport and confirm-queue plumbing alone. *(The 2026-07-14 redesign
-  added the confirm-sheet UI as a labelled roadmap preview — an "Auto-detect"
-  pill/button that explains the feature and routes to manual logging; it writes
-  no data and has no detection behind it yet.)*
-- **M1 (classical CV):** detect the "GAME!" splash and results screen via
-  template matching / perceptual hash — SSBU's UI is fixed-layout, high-contrast.
-  OpenCV.js in a web worker. This alone answers *when* a match ended and
-  triggers the confirm card (human fills winner/stocks in 2 taps).
-- **M2 (small convnet):** MobileNet-class classifier heads on fixed HUD crops:
-  character portraits + damage region (player identity), stock icons (count),
-  results-screen winner banner. Train on frames harvested from session
-  recordings + YouTube VODs; a few hundred labeled frames per class is enough
-  because the HUD is deterministic. Export ONNX → WebGPU (~10 MB, fine at 2 fps).
-- **M3 (auto-log):** when confidence ≥ threshold across N consecutive frames,
-  pre-fill and (optionally) auto-submit with a 10-s undo window. Every
-  human correction is a labeled training example — the flywheel that makes M2
-  improve with use.
-
-**Perspective correction:** phone-camera capture of a TV needs a one-time
-corner-tap homography calibration at session start (worth it; keeps the setup
-to "prop phone on coffee table"). A capture card + OBS plugin is the
-higher-fidelity alternative but per-living-room hardware — keep as a v2 option.
-
-**Backend additions (small):** `flask-sock` WebSocket (or SSE + POST), pairing
-tokens table, pending-results queue, `source: auto|manual` + confidence columns
-on matches. All post-P2 so results land in SQLite.
+**Permanently descoped — spatial damage heat maps:** camera pixels can't
+recover stage-space coordinates (the camera pans/zooms dynamically over
+parallax backgrounds; reconstructing per-frame camera pose is research-grade
+work). Slippi gets positions from game memory, which an unmodded Switch
+doesn't expose. The damage time series captures most of the analytical value.
 
 ## 7. Open decisions for Matt
 
@@ -306,5 +300,5 @@ on matches. All post-P2 so results land in SQLite.
 2. P3 auth: Authlib-on-Fly (single service) vs Supabase (managed auth+Postgres)?
 3. Scale-to-zero (default, ~$0 idle) vs always-warm (~$3–4/mo, no cold start)?
 4. Dither-kit pilot scope: StatsPage-only first, or commit to the full sweep?
-5. Auto-logging M0/M1 priority: before or after multi-tenancy (P3)? They're
-   independent tracks.
+5. ~~Auto-logging M0/M1 priority~~ **Decided 2026-07-17:** V0 (VLM capture,
+   `plans/010`) proceeds independently of P2/P3 — no schema change, no pairing.
