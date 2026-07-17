@@ -125,3 +125,27 @@ export interface MatchUpdatePayload {
   stage?: string;
   stocksRemaining?: number | null;
 }
+
+/** A vision-extracted match awaiting human confirmation (plans/010 V0).
+ *  Character/stage fields may be null or non-canonical when the model
+ *  couldn't read them — `needsReview` lists which. */
+export interface VisionPendingMatch {
+  id: string;
+  shayneCharacter: string | null;
+  mattCharacter: string | null;
+  winner: Player;
+  stocksRemaining: number | null;
+  stage: string | null;
+  confidence: number;
+  needsReview: string[];
+  frameUrl: string | null;
+  createdAt: number;
+}
+
+/** POST /api/vision/keyframe response. */
+export interface VisionKeyframeResult {
+  success: boolean;
+  screenType: string;
+  pendingCount: number;
+  callsToday: number;
+}
