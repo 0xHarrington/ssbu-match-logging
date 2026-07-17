@@ -13,7 +13,8 @@ function MatchupColumn({ label, record }: Column) {
   const games = record?.games ?? 0;
   const s = record?.shayneWins ?? 0;
   const m = record?.mattWins ?? 0;
-  const pct = games > 0 ? Math.round((s / games) * 100) : null;
+  // Matt-denominated: the headline percentage is Matt's win rate.
+  const pct = games > 0 ? Math.round((m / games) * 100) : null;
 
   return (
     <div style={{ background: 'var(--deep0)', border: '1px solid var(--line-2)', borderRadius: 14, padding: 15 }}>
@@ -25,9 +26,9 @@ function MatchupColumn({ label, record }: Column) {
         <>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '8px 0 10px' }}>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 24, fontWeight: 700, color: 'var(--fg-light)' }}>
-              {s}–{m}
+              {m}–{s}
             </span>
-            {pct != null && <span style={{ fontSize: 12, color: 'var(--shayne)', fontWeight: 600 }}>{pct}%</span>}
+            {pct != null && <span style={{ fontSize: 12, color: 'var(--matt)', fontWeight: 600 }}>{pct}%</span>}
           </div>
           <SplitBar shayne={s} matt={m} height={7} radius={4} />
         </>
@@ -50,11 +51,11 @@ export default function MatchupHistoryCard({ onDeck }: { onDeck: OnDeckMatchup }
     <div style={{ background: 'linear-gradient(135deg,#201d1c,#1a1716)', border: '1px solid var(--line)', borderRadius: 18, padding: 22 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <CharToken character={onDeck.shayneChar} player="Shayne" size={38} radius={11} />
-          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg-light)', fontFamily: 'var(--font-display)' }}>
-            {onDeck.shayneChar} <span style={{ color: 'var(--faint)', fontWeight: 400 }}>vs</span> {onDeck.mattChar}
-          </span>
           <CharToken character={onDeck.mattChar} player="Matt" size={38} radius={11} />
+          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg-light)', fontFamily: 'var(--font-display)' }}>
+            {onDeck.mattChar} <span style={{ color: 'var(--faint)', fontWeight: 400 }}>vs</span> {onDeck.shayneChar}
+          </span>
+          <CharToken character={onDeck.shayneChar} player="Shayne" size={38} radius={11} />
         </div>
         <span
           style={{

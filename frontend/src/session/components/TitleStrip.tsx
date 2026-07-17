@@ -1,4 +1,7 @@
-// TitleStrip — session name + streak chip + meta line + auto-detect pill.
+// TitleStrip — session name + streak chip + meta line + tearsheet/auto-detect
+// pills.
+import { Link } from 'react-router-dom';
+import { TearsheetIcon } from '../../components/shell/icons';
 import { formatDuration } from '../format';
 import type { LiveSession } from '../../hooks/useLiveSession';
 
@@ -13,7 +16,7 @@ export default function TitleStrip({ live, onAutoDetect, size = 'desktop' }: Tit
   const run = live.currentRun;
   const metaParts = [
     live.ordinal ? `Session #${live.ordinal}` : 'Session',
-    `${live.totalGames} games`,
+    `${live.totalGames} game${live.totalGames === 1 ? '' : 's'}`,
     formatDuration(live.durationMinutes),
     live.isActive ? 'live' : 'ended',
   ];
@@ -57,27 +60,49 @@ export default function TitleStrip({ live, onAutoDetect, size = 'desktop' }: Tit
           {metaParts.join(' · ')}
         </div>
       </div>
-      <button
-        onClick={onAutoDetect}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 8,
-          background: 'var(--blue)',
-          color: '#1b1817',
-          border: 'none',
-          borderRadius: 12,
-          padding: '6px 8px 6px 14px',
-          fontSize: 12,
-          fontWeight: 600,
-          fontFamily: 'var(--font-mono)',
-          cursor: 'pointer',
-          flex: '0 0 auto',
-        }}
-      >
-        Auto-detect
-        <span style={{ width: 22, height: 22, borderRadius: 7, background: 'rgba(27,24,23,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>◉</span>
-      </button>
+      <div style={{ display: 'flex', gap: 8, flex: '0 0 auto' }}>
+        <Link
+          to={`/session-tearsheet?session_id=${encodeURIComponent(live.sessionId)}`}
+          title="Generate a shareable tearsheet for this session"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'var(--deep1)',
+            color: 'var(--fg)',
+            border: '1px solid var(--line-2)',
+            borderRadius: 12,
+            padding: '6px 14px',
+            fontSize: 12,
+            fontWeight: 600,
+            fontFamily: 'var(--font-mono)',
+            textDecoration: 'none',
+          }}
+        >
+          <TearsheetIcon size={14} />
+          Tearsheet
+        </Link>
+        <button
+          onClick={onAutoDetect}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'var(--blue)',
+            color: '#1b1817',
+            border: 'none',
+            borderRadius: 12,
+            padding: '6px 8px 6px 14px',
+            fontSize: 12,
+            fontWeight: 600,
+            fontFamily: 'var(--font-mono)',
+            cursor: 'pointer',
+          }}
+        >
+          Auto-detect
+          <span style={{ width: 22, height: 22, borderRadius: 7, background: 'rgba(27,24,23,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>◉</span>
+        </button>
+      </div>
       <style>{`@keyframes flamePulse { 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.12);} }`}</style>
     </div>
   );

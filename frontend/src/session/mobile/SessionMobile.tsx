@@ -9,7 +9,7 @@ import StatsTab from './StatsTab';
 import HistoryTab from './HistoryTab';
 import { SessionIcon } from '../../components/shell/icons';
 import type { LiveSession } from '../../hooks/useLiveSession';
-import type { LogFormState, OnDeckSeed } from '../useLogForm';
+import type { LogFormState } from '../useLogForm';
 import { formatDuration } from '../format';
 
 type Tab = 'session' | 'log' | 'stats' | 'history';
@@ -32,7 +32,6 @@ interface SessionMobileProps {
   live: LiveSession | null;
   form: LogFormState;
   characters: string[];
-  rematchSeed: OnDeckSeed | null;
   onAutoDetect: () => void;
 }
 
@@ -55,7 +54,7 @@ function HeroSwitcher({ hero, onPick }: { hero: Hero; onPick: (h: Hero) => void 
               fontSize: 12,
               fontWeight: 600,
               transition: 'all 0.15s',
-              background: active ? 'var(--shayne)' : 'transparent',
+              background: active ? 'var(--matt)' : 'transparent',
               color: active ? '#1b1817' : 'var(--gray)',
             }}
           >
@@ -72,14 +71,12 @@ function SessionTab({
   hero,
   setHero,
   onLog,
-  onRematch,
   onAutoDetect,
 }: {
   live: LiveSession;
   hero: Hero;
   setHero: (h: Hero) => void;
   onLog: () => void;
-  onRematch: () => void;
   onAutoDetect: () => void;
 }) {
   return (
@@ -89,7 +86,7 @@ function SessionTab({
           {live.displayName}
         </div>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', marginTop: 2 }}>
-          {live.ordinal ? `Session #${live.ordinal}` : 'Session'} · {live.totalGames} games · {formatDuration(live.durationMinutes)}
+          {live.ordinal ? `Session #${live.ordinal}` : 'Session'} · {live.totalGames} game{live.totalGames === 1 ? '' : 's'} · {formatDuration(live.durationMinutes)}
         </div>
       </div>
 
@@ -101,14 +98,8 @@ function SessionTab({
 
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
         <button
-          onClick={onRematch}
-          style={{ flex: 1, background: 'var(--card)', border: '1px solid var(--border-light)', borderRadius: 14, padding: 14, color: 'var(--fg)', fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-        >
-          <span style={{ color: 'var(--blue)' }}>↻</span>Rematch
-        </button>
-        <button
           onClick={onLog}
-          style={{ flex: 1.4, background: 'var(--shayne)', border: 'none', borderRadius: 14, padding: 14, color: '#1b1817', fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+          style={{ flex: 1, background: 'var(--matt)', border: 'none', borderRadius: 14, padding: 14, color: '#1b1817', fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
         >
           + Log match
         </button>
@@ -146,9 +137,9 @@ function BottomNav({ tab, onPick }: { tab: Tab; onPick: (t: Tab) => void }) {
           <button
             key={t.key}
             onClick={() => onPick(t.key)}
-            style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: 4, color: active ? 'var(--shayne)' : 'var(--faint)' }}
+            style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: 4, color: active ? 'var(--matt)' : 'var(--faint)' }}
           >
-            <div style={{ width: 20, height: 20, borderRadius: 6, background: active ? 'var(--shayne)' : 'var(--line)' }} />
+            <div style={{ width: 20, height: 20, borderRadius: 6, background: active ? 'var(--matt)' : 'var(--line)' }} />
             <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: active ? 600 : 400 }}>{t.label}</span>
           </button>
         );
@@ -164,7 +155,7 @@ export interface SessionMobileHandle {
 }
 
 const SessionMobile = forwardRef<SessionMobileHandle, SessionMobileProps>(function SessionMobile(
-  { live, form, characters, rematchSeed, onAutoDetect },
+  { live, form, characters, onAutoDetect },
   ref,
 ) {
   const [tab, setTab] = useState<Tab>('session');
@@ -175,20 +166,16 @@ const SessionMobile = forwardRef<SessionMobileHandle, SessionMobileProps>(functi
   }));
 
   const goLog = () => setTab('log');
-  const goRematch = () => {
-    if (rematchSeed) form.quickRematch(rematchSeed);
-    setTab('log');
-  };
 
   return (
     <div style={{ paddingBottom: 84, minHeight: '100vh' }}>
       {tab === 'session' &&
         (live ? (
-          <SessionTab live={live} hero={hero} setHero={setHero} onLog={goLog} onRematch={goRematch} onAutoDetect={onAutoDetect} />
+          <SessionTab live={live} hero={hero} setHero={setHero} onLog={goLog} onAutoDetect={onAutoDetect} />
         ) : (
           <EmptyMobile />
         ))}
-      {tab === 'log' && <LogTab form={form} characters={characters} rematchSeed={rematchSeed} />}
+      {tab === 'log' && <LogTab form={form} characters={characters} />}
       {tab === 'stats' && <StatsTab />}
       {tab === 'history' && <HistoryTab />}
       <BottomNav tab={tab} onPick={setTab} />

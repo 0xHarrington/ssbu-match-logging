@@ -2,14 +2,13 @@
 import { useState } from 'react';
 import CharacterPicker from './CharacterPicker';
 import { WinnerPicker, StageGrid, StocksPicker } from './formControls';
-import { ACTIVE_STAGES, type LogFormState, type OnDeckSeed } from '../useLogForm';
+import { ACTIVE_STAGES, type LogFormState } from '../useLogForm';
 import { PLAYER_HEX } from '../palette';
 import type { Player } from '../../types';
 
 interface LogRailProps {
   form: LogFormState;
   characters: string[];
-  rematchSeed: OnDeckSeed | null;
 }
 
 const MonoLabel = ({ children }: { children: React.ReactNode }) => (
@@ -18,7 +17,7 @@ const MonoLabel = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-export default function LogRail({ form, characters, rematchSeed }: LogRailProps) {
+export default function LogRail({ form, characters }: LogRailProps) {
   const [pickerFor, setPickerFor] = useState<Player | null>(null);
 
   return (
@@ -38,58 +37,6 @@ export default function LogRail({ form, characters, rematchSeed }: LogRailProps)
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)', marginBottom: 18 }}>
         Winner · stage · stocks
       </div>
-
-      {rematchSeed && (rematchSeed.shayneChar || rematchSeed.mattChar) && (
-        <div
-          style={{
-            background: 'linear-gradient(120deg,#1f2410,#221f1e)',
-            border: '1px solid #4a5410',
-            borderRadius: 13,
-            padding: '12px 14px',
-            marginBottom: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 10,
-          }}
-        >
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 10, color: 'var(--aqua)', fontFamily: 'var(--font-mono)', marginBottom: 3 }}>
-              QUICK REMATCH
-            </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: 'var(--fg)',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {rematchSeed.shayneChar} vs {rematchSeed.mattChar}
-              {rematchSeed.stage ? ` · ${rematchSeed.stage}` : ''}
-            </div>
-          </div>
-          <button
-            onClick={() => form.quickRematch(rematchSeed)}
-            style={{
-              background: 'var(--matt)',
-              border: 'none',
-              borderRadius: 9,
-              padding: '8px 12px',
-              color: '#1b1817',
-              fontWeight: 700,
-              fontSize: 12,
-              cursor: 'pointer',
-              fontFamily: 'var(--font-display)',
-              flex: '0 0 auto',
-            }}
-          >
-            Use
-          </button>
-        </div>
-      )}
 
       <MonoLabel>WHO WON?</MonoLabel>
       <div style={{ marginBottom: 20 }}>
@@ -143,7 +90,7 @@ export default function LogRail({ form, characters, rematchSeed }: LogRailProps)
           fontSize: 15,
           fontWeight: 700,
           transition: 'all 0.15s',
-          background: form.ready ? 'var(--shayne)' : '#2a2624',
+          background: form.ready ? 'var(--matt)' : '#2a2624',
           color: form.ready ? '#1b1817' : 'var(--faint)',
           cursor: form.ready && !form.submitting ? 'pointer' : 'not-allowed',
         }}

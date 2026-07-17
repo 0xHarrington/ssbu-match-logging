@@ -1,9 +1,9 @@
 // useLogForm — shared state + submit for the match log form.
 //
-// Used by both the desktop log rail and the mobile Log tab so "Quick Rematch",
-// defaults, and submission behave identically. Characters default to the
-// on-deck (last-game) matchup for couch-fast logging; winner/stocks stay empty
-// until the game is over.
+// Used by both the desktop log rail and the mobile Log tab so defaults and
+// submission behave identically. Characters default to the on-deck (last-game)
+// matchup for couch-fast logging; winner/stocks stay empty until the game is
+// over.
 import { useCallback, useEffect, useState } from 'react';
 import { logGame } from '../lib/api';
 import type { Player } from '../types';
@@ -30,8 +30,6 @@ export interface LogFormState {
   setWinner: (w: Player) => void;
   setStocks: (s: number) => void;
   setStage: (s: string) => void;
-  /** Pre-fill the matchup (chars + stage) from the last game; clear result. */
-  quickRematch: (seed: OnDeckSeed) => void;
   /** POST the game. Returns the winner on success (for the undo toast). */
   submit: () => Promise<Player | null>;
 }
@@ -57,15 +55,6 @@ export function useLogForm(seed: OnDeckSeed | null, onLogged: (winner: Player) =
       setSeeded(true);
     }
   }, [seed, seeded]);
-
-  const quickRematch = useCallback((s: OnDeckSeed) => {
-    setShayneChar(s.shayneChar);
-    setMattChar(s.mattChar);
-    if (s.stage) setStage(s.stage);
-    setWinner(null);
-    setStocks(null);
-    setError(null);
-  }, []);
 
   const ready = Boolean(winner && stocks && shayneChar && mattChar && stage);
 
@@ -108,7 +97,6 @@ export function useLogForm(seed: OnDeckSeed | null, onLogged: (winner: Player) =
     setWinner,
     setStocks,
     setStage,
-    quickRematch,
     submit,
   };
 }

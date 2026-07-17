@@ -59,7 +59,8 @@ export default function SessionPage() {
     [refresh],
   );
 
-  const rematchSeed: OnDeckSeed | null = useMemo(() => {
+  // Seeds the form's initial characters/stage from the on-deck matchup.
+  const onDeckSeed: OnDeckSeed | null = useMemo(() => {
     if (!live?.onDeck) return null;
     return {
       shayneChar: live.onDeck.shayneChar,
@@ -68,7 +69,7 @@ export default function SessionPage() {
     };
   }, [live]);
 
-  const form = useLogForm(rematchSeed, onLogged);
+  const form = useLogForm(onDeckSeed, onLogged);
 
   const handleUndo = useCallback(async () => {
     clearUndoTimer();
@@ -85,8 +86,10 @@ export default function SessionPage() {
     refresh();
   }, [refresh]);
 
+  // Full-page states only before the first load; refreshes render over the
+  // previous data (stale-while-revalidate in useLiveSession).
   if (loading) return <LoadingState label="Loading session…" />;
-  if (error) return <ErrorState message={error} onRetry={refresh} />;
+  if (error && !live && !empty) return <ErrorState message={error} onRetry={refresh} />;
 
   // Mobile: the self-contained tab app handles its own empty state.
   if (isMobile) {
@@ -97,7 +100,6 @@ export default function SessionPage() {
           live={empty ? null : live}
           form={form}
           characters={characters}
-          rematchSeed={rematchSeed}
           onAutoDetect={() => setShowAuto(true)}
         />
         {showAuto && (
@@ -127,7 +129,7 @@ export default function SessionPage() {
             Log your first match in the rail to start a new session. It'll come to life here — scoreboard, momentum, and the on-deck matchup.
           </div>
         </div>
-        <LogRail form={form} characters={characters} rematchSeed={rematchSeed} />
+        <LogRail form={form} characters={characters} />
         {undo && <UndoToast winner={undo.winner} onUndo={handleUndo} />}
       </div>
     );
@@ -140,7 +142,6 @@ export default function SessionPage() {
         live={live}
         form={form}
         characters={characters}
-        rematchSeed={rematchSeed}
         onSeeAll={() => setModal('all')}
         onEditMatch={setEditMatch}
         onAutoDetect={() => setShowAuto(true)}

@@ -1,19 +1,23 @@
-// ScoreboardMobile — hero direction A: two arcade VS panels + a momentum card.
+// ScoreboardMobile — hero direction A: two arcade VS panels (Matt first) + a
+// momentum card.
 import CharToken from '../components/CharToken';
 import { SplitBar, RunPips } from '../components/bars';
 import { PLAYER_PANEL } from '../palette';
-import type { LiveSession } from '../../hooks/useLiveSession';
+import type { CharacterSessionUsage, LiveSession } from '../../hooks/useLiveSession';
 import type { Player } from '../../types';
 
 function PlayerPanel({
   player,
   character,
   score,
+  roster,
 }: {
   player: Player;
   character: string;
   score: number;
+  roster: CharacterSessionUsage[];
 }) {
+  const extras = roster.filter((u) => u.character !== character);
   const panel = PLAYER_PANEL[player];
   const color = player === 'Shayne' ? 'var(--shayne)' : 'var(--matt)';
   return (
@@ -42,6 +46,15 @@ function PlayerPanel({
         <div style={{ fontSize: 11, color: 'var(--gray)', marginTop: 4, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {character || '—'}
         </div>
+        {extras.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8, justifyContent: 'center' }}>
+            {extras.map((u) => (
+              <span key={u.character} title={`${u.character} — ${u.wins}W / ${u.games - u.wins}L this session`}>
+                <CharToken character={u.character} player={player} size={22} radius={7} />
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -52,12 +65,12 @@ export default function ScoreboardMobile({ live }: { live: LiveSession }) {
   return (
     <div style={{ animation: 'popIn 0.3s ease' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'stretch', marginBottom: 14 }}>
-        <PlayerPanel player="Shayne" character={live.onDeck.shayneChar} score={live.shayneWins} />
+        <PlayerPanel player="Matt" character={live.onDeck.mattChar} score={live.mattWins} roster={live.roster.matt} />
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--faint)', fontWeight: 600 }}>VS</div>
           <div style={{ width: 1, flex: 1, background: 'linear-gradient(#3c3836,transparent,#3c3836)', margin: '8px 0' }} />
         </div>
-        <PlayerPanel player="Matt" character={live.onDeck.mattChar} score={live.mattWins} />
+        <PlayerPanel player="Shayne" character={live.onDeck.shayneChar} score={live.shayneWins} roster={live.roster.shayne} />
       </div>
 
       <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: '12px 14px' }}>

@@ -1,8 +1,9 @@
 // AppShell — the redesign's application frame.
 //
-// Desktop (>=1220px): a 224px left sidebar (logo, nav, active-rivalry card) +
-// a fluid content area. The Session page supplies its own main+log-rail grid
-// inside that area; other pages just fill it.
+// Desktop (>=1220px): a left sidebar (logo, nav, active-rivalry card) + a
+// fluid content area. The sidebar collapses to an icon-only 68px ribbon; the
+// choice persists in localStorage. The Session page supplies its own
+// main+log-rail grid inside that area; other pages just fill it.
 //
 // Mobile (<1220px): a slim top bar with a hamburger that opens a left drawer
 // for cross-page navigation. The Session page renders its own bottom tab bar.
@@ -49,10 +50,11 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-function Logo() {
+function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <Link
       to="/"
+      title="SmashLog"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -65,7 +67,7 @@ function Logo() {
           width: 30,
           height: 30,
           borderRadius: 9,
-          background: 'var(--shayne)',
+          background: 'var(--matt)',
           color: '#1b1817',
           display: 'flex',
           alignItems: 'center',
@@ -78,22 +80,24 @@ function Logo() {
       >
         S
       </span>
-      <span
-        style={{
-          fontSize: 18,
-          fontWeight: 700,
-          color: 'var(--fg-light)',
-          letterSpacing: '-0.3px',
-          fontFamily: 'var(--font-display)',
-        }}
-      >
-        Smash<span style={{ color: 'var(--shayne)' }}>Log</span>
-      </span>
+      {!compact && (
+        <span
+          style={{
+            fontSize: 18,
+            fontWeight: 700,
+            color: 'var(--fg-light)',
+            letterSpacing: '-0.3px',
+            fontFamily: 'var(--font-display)',
+          }}
+        >
+          Smash<span style={{ color: 'var(--matt)' }}>Log</span>
+        </span>
+      )}
     </Link>
   );
 }
 
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+function NavLinks({ onNavigate, compact = false }: { onNavigate?: () => void; compact?: boolean }) {
   const { pathname } = useLocation();
   const [hovered, setHovered] = useState<string | null>(null);
   return (
@@ -108,15 +112,17 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             onMouseEnter={() => setHovered(item.to)}
             onMouseLeave={() => setHovered(null)}
+            title={compact ? item.label : undefined}
             style={{
               display: 'flex',
               alignItems: 'center',
+              justifyContent: compact ? 'center' : 'flex-start',
               gap: 12,
-              padding: '11px 12px',
+              padding: compact ? '11px 0' : '11px 12px',
               borderRadius: 11,
               textDecoration: 'none',
               transition: 'all 0.15s',
-              background: active ? 'var(--shayne)' : isHover ? 'rgba(254,128,25,0.08)' : 'transparent',
+              background: active ? 'var(--matt)' : isHover ? 'rgba(184,187,38,0.08)' : 'transparent',
               color: active ? '#1b1817' : 'var(--gray)',
               fontFamily: 'var(--font-display)',
               fontSize: 14,
@@ -124,7 +130,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             }}
           >
             <item.icon size={18} />
-            <span>{item.label}</span>
+            {!compact && <span>{item.label}</span>}
           </Link>
         );
       })}
@@ -134,8 +140,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 function ActiveRivalryCard() {
   const players: Array<{ name: string; color: string }> = [
-    { name: 'Shayne', color: 'var(--shayne)' },
     { name: 'Matt', color: 'var(--matt)' },
+    { name: 'Shayne', color: 'var(--shayne)' },
   ];
   return (
     <div
@@ -180,13 +186,13 @@ function ActiveRivalryCard() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   return (
     <aside
       style={{
         background: 'var(--deep1)',
         borderRight: '1px solid var(--line-2)',
-        padding: '26px 18px',
+        padding: collapsed ? '26px 12px' : '26px 18px',
         display: 'flex',
         flexDirection: 'column',
         position: 'sticky',
@@ -194,12 +200,37 @@ function Sidebar() {
         height: '100vh',
       }}
     >
-      <div style={{ padding: '0 8px', marginBottom: 32 }}>
-        <Logo />
+      <div
+        style={{
+          padding: collapsed ? 0 : '0 8px',
+          marginBottom: 32,
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <Logo compact={collapsed} />
       </div>
-      <NavLinks />
-      <div style={{ marginTop: 'auto' }}>
-        <ActiveRivalryCard />
+      <NavLinks compact={collapsed} />
+      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {!collapsed && <ActiveRivalryCard />}
+        <button
+          onClick={onToggle}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--line-2)',
+            borderRadius: 10,
+            padding: '8px 0',
+            color: 'var(--gray)',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 13,
+            width: '100%',
+          }}
+        >
+          {collapsed ? '»' : '« Collapse'}
+        </button>
       </div>
     </aside>
   );
@@ -287,10 +318,33 @@ function MobileDrawer({ onClose }: { onClose: () => void }) {
   );
 }
 
+const SIDEBAR_COLLAPSED_KEY = 'smashlog-sidebar-collapsed';
+
+function readSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export default function AppShell({ children }: { children: ReactNode }) {
   const isMobile = useIsMobile();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(readSidebarCollapsed);
+
+  const toggleSidebar = () => {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
+      } catch {
+        /* private mode / storage denied — collapse still works for the session */
+      }
+      return next;
+    });
+  };
 
   // Close the drawer whenever the route changes.
   useEffect(() => setDrawerOpen(false), [location.pathname]);
@@ -309,12 +363,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '224px minmax(0, 1fr)',
+        gridTemplateColumns: `${collapsed ? 68 : 224}px minmax(0, 1fr)`,
         minHeight: '100vh',
         background: 'var(--deep0)',
+        transition: 'grid-template-columns 0.2s ease',
       }}
     >
-      <Sidebar />
+      <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
       <main style={{ minWidth: 0 }}>{children}</main>
     </div>
   );

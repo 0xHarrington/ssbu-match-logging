@@ -30,12 +30,12 @@ export default function MatchRow({ match, onEdit, compact = false }: MatchRowPro
       <div style={{ width: 6, alignSelf: 'stretch', borderRadius: 4, background: winColor, flex: '0 0 auto' }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize, fontWeight: 600, color: 'var(--fg-light)' }}>
-          <span style={{ color: PLAYER_COLOR_VAR.Shayne, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {match.shayne_character}
-          </span>
-          <span style={{ color: 'var(--faint)', fontSize: 12, flex: '0 0 auto' }}>vs</span>
           <span style={{ color: PLAYER_COLOR_VAR.Matt, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {match.matt_character}
+          </span>
+          <span style={{ color: 'var(--faint)', fontSize: 12, flex: '0 0 auto' }}>vs</span>
+          <span style={{ color: PLAYER_COLOR_VAR.Shayne, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {match.shayne_character}
           </span>
         </div>
         <div style={{ fontSize: 11, color: 'var(--gray)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>

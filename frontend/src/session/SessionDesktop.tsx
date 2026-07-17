@@ -10,14 +10,13 @@ import SessionMatchesCard from './components/SessionMatchesCard';
 import StagesThisSession from './components/StagesThisSession';
 import LogRail from './components/LogRail';
 import type { LiveSession } from '../hooks/useLiveSession';
-import type { LogFormState, OnDeckSeed } from './useLogForm';
+import type { LogFormState } from './useLogForm';
 import type { Match } from '../types';
 
 interface SessionDesktopProps {
   live: LiveSession;
   form: LogFormState;
   characters: string[];
-  rematchSeed: OnDeckSeed | null;
   onSeeAll: () => void;
   onEditMatch: (m: Match) => void;
   onAutoDetect: () => void;
@@ -30,7 +29,7 @@ export interface SessionDesktopHandle {
 }
 
 const SessionDesktop = forwardRef<SessionDesktopHandle, SessionDesktopProps>(function SessionDesktop(
-  { live, form, characters, rematchSeed, onSeeAll, onEditMatch, onAutoDetect },
+  { live, form, characters, onSeeAll, onEditMatch, onAutoDetect },
   ref,
 ) {
   const railRef = useRef<HTMLDivElement>(null);
@@ -50,6 +49,8 @@ const SessionDesktop = forwardRef<SessionDesktopHandle, SessionDesktopProps>(fun
           mattWins={live.mattWins}
           gameNumber={live.totalGames + 1}
           runPips={live.runPips}
+          shayneRoster={live.roster.shayne}
+          mattRoster={live.roster.matt}
         />
         <MatchupHistoryCard onDeck={live.onDeck} />
         <SessionTiles live={live} />
@@ -59,7 +60,7 @@ const SessionDesktop = forwardRef<SessionDesktopHandle, SessionDesktopProps>(fun
         </div>
       </div>
       <div ref={railRef}>
-        <LogRail form={form} characters={characters} rematchSeed={rematchSeed} />
+        <LogRail form={form} characters={characters} />
       </div>
     </div>
   );

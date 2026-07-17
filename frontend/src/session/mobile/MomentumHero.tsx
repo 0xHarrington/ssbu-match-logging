@@ -17,8 +17,9 @@ export default function MomentumHero({ live }: { live: LiveSession }) {
           <span style={{ fontSize: 13, color: 'var(--gray)' }}>Session lead</span>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: leadColor, fontWeight: 600 }}>{leadLabel}</span>
         </div>
+        {/* Momentum is Matt-denominated: up = Matt ahead. */}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--faint)', fontFamily: 'var(--font-mono)' }}>
-          <span>SHAYNE</span>
+          <span>MATT</span>
         </div>
         <div style={{ height: 74, width: '100%' }}>
           <LineChart data={chartData} config={{ v: { label: 'Session lead', color: 'aqua' } }} interactive={false} animate={false} margins={{ top: 6, right: 4, bottom: 6, left: 4 }}>
@@ -26,7 +27,7 @@ export default function MomentumHero({ live }: { live: LiveSession }) {
           </LineChart>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--faint)', fontFamily: 'var(--font-mono)' }}>
-          <span>MATT</span>
+          <span>SHAYNE</span>
         </div>
       </div>
       <div style={{ fontSize: 11, color: 'var(--gray)', fontFamily: 'var(--font-mono)', letterSpacing: '0.5px', marginBottom: 10 }}>
