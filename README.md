@@ -66,8 +66,9 @@ flowchart LR
   On mobile, a tabbed phone app (Session / Log / Stats / History) with three
   switchable hero directions (Scoreboard · Momentum sparkline · Tale of the
   tape). Global all-time stats live on the Stats tab, keeping the homepage
-  session-scoped. The UI is Matt-denominated: Matt reads first everywhere, and
-  positive momentum/lead means Matt is ahead.
+  session-scoped. The UI is viewer-denominated: whoever logs in reads first
+  everywhere, positive momentum/lead means they're ahead, and the brand accent
+  takes their player color.
 - **Match logging**: fighter pickers pre-filled from the on-deck matchup, sticky
   stage, winner + stocks, and a one-tap undo toast after each log; logging
   refreshes the dashboard in place (no full-page reload)
@@ -94,11 +95,14 @@ flowchart LR
 ## Live deployment (Fly.io)
 
 Production is a single Fly.io app in `ewr` serving the API and the built frontend
-from one container, gated by HTTP Basic auth via the `SITE_PASSWORD` secret. Match
-data lives on a persistent volume (`DATA_DIR=/data`), never in the image, with
-14-day volume snapshots plus a boot-time CSV backup.
+from one container, gated by HTTP Basic auth. Per-user logins come from the
+`SITE_USERS` secret (`fly secrets set SITE_USERS="matt:<pw>,shayne:<pw>"`); the
+logged-in username picks whose view the UI denominates. The legacy `SITE_PASSWORD`
+secret (any username + shared password) still works when `SITE_USERS` is unset.
+Match data lives on a persistent volume (`DATA_DIR=/data`), never in the image,
+with 14-day volume snapshots plus a boot-time CSV backup.
 
-- **URL**: `https://ssbu-match-logger.fly.dev` (enter any username + the shared password)
+- **URL**: `https://ssbu-match-logger.fly.dev` (log in as `matt` or `shayne`)
 - **Deploy**: `fly deploy --remote-only --ha=false`
 - **Full runbook** (first deploy, seeding data, rollback, backups): [docs/DEPLOY.md](docs/DEPLOY.md)
 - **Roadmap** (public-launch plan, data-layer migration): [docs/ROADMAP.md](docs/ROADMAP.md)
