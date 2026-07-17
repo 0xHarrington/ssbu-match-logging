@@ -1,4 +1,4 @@
-// StagesThisSession — per-stage game counts + Shayne–Matt split for the stages
+// StagesThisSession — per-stage game counts + Matt–Shayne split for the stages
 // actually played this session.
 import { SplitBar } from './bars';
 import type { StageSplit } from '../../hooks/useLiveSession';
@@ -10,7 +10,7 @@ export default function StagesThisSession({ stages }: { stages: StageSplit[] }) 
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg-light)', fontFamily: 'var(--font-display)' }}>
           Stages this session
         </span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)' }}>S–M</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)' }}>M–S</span>
       </div>
       {stages.length === 0 ? (
         <div style={{ fontSize: 12, color: 'var(--faint)', fontFamily: 'var(--font-mono)' }}>No stages logged yet</div>
@@ -21,7 +21,7 @@ export default function StagesThisSession({ stages }: { stages: StageSplit[] }) 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                 <span style={{ fontSize: 13, color: 'var(--fg)', fontWeight: 500 }}>{st.stage}</span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)' }}>
-                  {st.games} games · {st.shayneWins}–{st.mattWins}
+                  {st.games} games · {st.mattWins}–{st.shayneWins}
                 </span>
               </div>
               <SplitBar shayne={st.shayneWins} matt={st.mattWins} height={6} radius={3} />

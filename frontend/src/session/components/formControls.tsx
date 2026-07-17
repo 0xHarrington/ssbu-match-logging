@@ -31,7 +31,7 @@ export function WinnerPicker({
   onTokenClick,
   tokenSlot,
 }: WinnerPickerProps) {
-  const players: Player[] = ['Shayne', 'Matt'];
+  const players: Player[] = ['Matt', 'Shayne'];
   const chars: Record<Player, string> = { Shayne: shayneChar, Matt: mattChar };
 
   return (
@@ -134,9 +134,9 @@ export function StageGrid({ stages, value, onChange, variant = 'tile' }: StageGr
                 fontFamily: 'var(--font-display)',
                 transition: 'all 0.15s',
                 textAlign: 'left',
-                background: selected ? PLAYER_PICK_BG.Shayne : 'var(--card)',
-                color: selected ? 'var(--shayne)' : 'var(--gray)',
-                border: `1px solid ${selected ? 'var(--shayne)' : 'var(--line)'}`,
+                background: selected ? PLAYER_PICK_BG.Matt : 'var(--card)',
+                color: selected ? 'var(--matt)' : 'var(--gray)',
+                border: `1px solid ${selected ? 'var(--matt)' : 'var(--line)'}`,
               }}
             >
               {stage}
@@ -156,8 +156,8 @@ export function StageGrid({ stages, value, onChange, variant = 'tile' }: StageGr
               transition: 'all 0.15s',
               padding: 0,
               background: 'var(--card)',
-              border: `1px solid ${selected ? 'var(--shayne)' : 'var(--line)'}`,
-              boxShadow: selected ? '0 0 0 1px var(--shayne)' : undefined,
+              border: `1px solid ${selected ? 'var(--matt)' : 'var(--line)'}`,
+              boxShadow: selected ? '0 0 0 1px var(--matt)' : undefined,
             }}
           >
             <div
@@ -178,7 +178,7 @@ export function StageGrid({ stages, value, onChange, variant = 'tile' }: StageGr
                 display: 'flex',
                 alignItems: 'center',
                 fontFamily: 'var(--font-display)',
-                color: selected ? 'var(--shayne)' : 'var(--fg)',
+                color: selected ? 'var(--matt)' : 'var(--fg)',
               }}
             >
               {stage}

@@ -74,12 +74,13 @@ describe('sessionLead', () => {
     expect(sessionLead(3, 3)).toEqual({ lead: 0, label: 'Even', color: 'var(--gray)' });
   });
 
+  // Matt-denominated: positive lead = Matt ahead.
   it('labels a Shayne lead', () => {
-    expect(sessionLead(5, 2)).toEqual({ lead: 3, label: 'Shayne +3', color: 'var(--shayne)' });
+    expect(sessionLead(5, 2)).toEqual({ lead: -3, label: 'Shayne +3', color: 'var(--shayne)' });
   });
 
   it('labels a Matt lead', () => {
-    expect(sessionLead(2, 5)).toEqual({ lead: -3, label: 'Matt +3', color: 'var(--matt)' });
+    expect(sessionLead(2, 5)).toEqual({ lead: 3, label: 'Matt +3', color: 'var(--matt)' });
   });
 });
 

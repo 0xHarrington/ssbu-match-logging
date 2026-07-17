@@ -12,7 +12,7 @@
 //
 // Everything is recomputed on refresh() (called after a log/edit/undo).
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getCurrentSession,
   getMatches,
@@ -44,6 +44,17 @@ export interface OnDeckMatchup {
   thisSession: MatchupRecord | null;
 }
 
+export interface CharacterSessionUsage {
+  character: string;
+  games: number;
+  wins: number;
+}
+
+export interface SessionRoster {
+  shayne: CharacterSessionUsage[];
+  matt: CharacterSessionUsage[];
+}
+
 export interface LiveSession {
   sessionId: string;
   isActive: boolean;
@@ -59,12 +70,14 @@ export interface LiveSession {
   matches: Match[];
   /** Winner per game, oldest -> newest (newest last / rightmost). */
   runPips: Player[];
-  /** Cumulative (shayneWins - mattWins) after each game, oldest -> newest.
-   *  Positive = Shayne ahead. */
+  /** Cumulative (mattWins - shayneWins) after each game, oldest -> newest.
+   *  Positive = Matt ahead. */
   momentum: number[];
   /** Current within-session win run, from the newest games backward. */
   currentRun: { player: Player; length: number } | null;
   stages: StageSplit[];
+  /** Every character each player has used this session, most-played first. */
+  roster: SessionRoster;
   /** The characters in the most recent game — always populated when a
    *  LiveSession exists (there's always at least one match). */
   onDeck: OnDeckMatchup;
@@ -114,6 +127,32 @@ async function fetchAllSessionMatches(sessionId: string): Promise<{ matches: Mat
   return { matches, total };
 }
 
+function tallyCharacters(
+  matches: Match[],
+  pick: (m: Match) => string,
+  player: Player,
+): CharacterSessionUsage[] {
+  const byChar = new Map<string, CharacterSessionUsage>();
+  for (const m of matches) {
+    const character = pick(m);
+    if (!character) continue;
+    const prev = byChar.get(character) ?? { character, games: 0, wins: 0 };
+    byChar.set(character, {
+      ...prev,
+      games: prev.games + 1,
+      wins: prev.wins + (m.winner === player ? 1 : 0),
+    });
+  }
+  return [...byChar.values()].sort((a, b) => b.games - a.games);
+}
+
+function deriveRoster(matches: Match[]): SessionRoster {
+  return {
+    shayne: tallyCharacters(matches, (m) => m.shayne_character, 'Shayne'),
+    matt: tallyCharacters(matches, (m) => m.matt_character, 'Matt'),
+  };
+}
+
 function deriveStageSplits(matches: Match[]): StageSplit[] {
   const byStage = new Map<string, StageSplit>();
   for (const m of matches) {
@@ -133,12 +172,15 @@ export function useLiveSession(): UseLiveSessionResult {
   const [error, setError] = useState<string | null>(null);
   const [empty, setEmpty] = useState(false);
   const [nonce, setNonce] = useState(0);
+  // Stale-while-revalidate: after the first load, refresh() refetches in the
+  // background while the previous data keeps rendering (no full-page redraw).
+  const hasLoaded = useRef(false);
 
   const refresh = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    if (!hasLoaded.current) setLoading(true);
     setError(null);
 
     (async () => {
@@ -146,6 +188,7 @@ export function useLiveSession(): UseLiveSessionResult {
         const current = await getCurrentSession();
         if (!current.session_id) {
           if (!cancelled) {
+            hasLoaded.current = true;
             setEmpty(true);
             setData(null);
             setLoading(false);
@@ -164,6 +207,7 @@ export function useLiveSession(): UseLiveSessionResult {
         const matches = matchesData.matches;
         if (matches.length === 0) {
           if (!cancelled) {
+            hasLoaded.current = true;
             setEmpty(true);
             setData(null);
             setLoading(false);
@@ -179,8 +223,8 @@ export function useLiveSession(): UseLiveSessionResult {
         for (const m of chrono) {
           const p = toPlayer(String(m.winner));
           if (p) runPips.push(p);
-          if (m.winner === 'Shayne') lead += 1;
-          else if (m.winner === 'Matt') lead -= 1;
+          if (m.winner === 'Matt') lead += 1;
+          else if (m.winner === 'Shayne') lead -= 1;
           momentum.push(lead);
         }
 
@@ -232,6 +276,7 @@ export function useLiveSession(): UseLiveSessionResult {
           momentum,
           currentRun: computeCurrentRun(matches),
           stages: deriveStageSplits(matches),
+          roster: deriveRoster(matches),
           onDeck: {
             shayneChar,
             mattChar,
@@ -248,6 +293,7 @@ export function useLiveSession(): UseLiveSessionResult {
         };
 
         if (!cancelled) {
+          hasLoaded.current = true;
           setData(live);
           setEmpty(false);
           setLoading(false);

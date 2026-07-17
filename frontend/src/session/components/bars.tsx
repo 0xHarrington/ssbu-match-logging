@@ -8,8 +8,9 @@ interface SplitBarProps {
   radius?: number;
 }
 
-/** Two-segment proportional bar: Shayne (orange) | Matt (green).
- *  A zero-zero split renders an empty track rather than dividing by zero. */
+/** Two-segment proportional bar: Matt (green) | Shayne (orange) — Matt is the
+ *  home player and always reads first. A zero-zero split renders an empty
+ *  track rather than dividing by zero. */
 export function SplitBar({ shayne, matt, height = 8, radius = 5 }: SplitBarProps) {
   const empty = shayne <= 0 && matt <= 0;
   return (
@@ -23,8 +24,8 @@ export function SplitBar({ shayne, matt, height = 8, radius = 5 }: SplitBarProps
         background: empty ? 'var(--deep1)' : undefined,
       }}
     >
-      <div style={{ flex: empty ? 1 : shayne, background: 'var(--shayne)', borderRadius: radius - 1 }} />
       <div style={{ flex: empty ? 1 : matt, background: 'var(--matt)', borderRadius: radius - 1 }} />
+      <div style={{ flex: empty ? 1 : shayne, background: 'var(--shayne)', borderRadius: radius - 1 }} />
     </div>
   );
 }

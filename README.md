@@ -58,14 +58,19 @@ flowchart LR
 ## Features
 
 - **Session command center** (homepage): a live scoreboard for the current
-  session. On desktop, a sidebar-framed dashboard — cinematic VS scoreboard,
-  on-deck matchup history (all-time / last-50 / this-session), session-scoped
-  tiles, the match feed, stages-this-session, and a docked log rail. On mobile,
-  a tabbed phone app (Session / Log / Stats / History) with three switchable
-  hero directions (Scoreboard · Momentum sparkline · Tale of the tape). Global
-  all-time stats live on the Stats tab, keeping the homepage session-scoped.
+  session. On desktop, a sidebar-framed dashboard (the sidebar collapses to an
+  icon-only ribbon, persisted per browser) — cinematic VS scoreboard with each
+  player's session character roster as mini-icons, on-deck matchup history
+  (all-time / last-50 / this-session), session-scoped tiles, the match feed,
+  stages-this-session, a docked log rail, and a one-click session tearsheet.
+  On mobile, a tabbed phone app (Session / Log / Stats / History) with three
+  switchable hero directions (Scoreboard · Momentum sparkline · Tale of the
+  tape). Global all-time stats live on the Stats tab, keeping the homepage
+  session-scoped. The UI is Matt-denominated: Matt reads first everywhere, and
+  positive momentum/lead means Matt is ahead.
 - **Match logging**: fighter pickers pre-filled from the on-deck matchup, sticky
-  stage, winner + stocks, and a one-tap undo toast after each log
+  stage, winner + stocks, and a one-tap undo toast after each log; logging
+  refreshes the dashboard in place (no full-page reload)
 - **Match editor**: fix mislogged matches (characters, winner, stage, stocks) or
   delete bogus rows from the session feed's see-all/edit modals; every edit is
   recorded in an audit log (`edit_log.csv`)
