@@ -74,6 +74,13 @@ flowchart LR
 - **Match editor**: fix mislogged matches (characters, winner, stage, stocks) or
   delete bogus rows from the session feed's see-all/edit modals; every edit is
   recorded in an audit log (`edit_log.csv`)
+- **Auto capture (V0)**: prop a phone facing the TV on `/capture` and matches
+  log themselves — a client-side keyframe detector fires on static screens
+  (stage select, results), Claude Haiku vision reads them server-side, and each
+  match comes back as a one-tap confirm card. Humans confirm; nothing is
+  written without approval. Requires the `ANTHROPIC_API_KEY` secret; costs
+  roughly $0.20–0.60 per session. Design + escalation path (local CV, damage
+  time series) in `docs/ROADMAP.md` §6 and `plans/010`
 - **Session tracking**: games auto-group into sessions (a 4+ hour gap starts a
   new one)
 - **Statistics dashboard**: H2H hero, win rates, streaks, recent form, advanced

@@ -16,6 +16,8 @@ import type {
   MatchUpdatePayload,
   SessionStats,
   SessionSummary,
+  VisionKeyframeResult,
+  VisionPendingMatch,
 } from '../types';
 
 /** Thrown for any non-2xx response or network failure. */
@@ -149,3 +151,54 @@ export const getCharacters = () =>
     matt: Record<string, number>;
     all_characters: string[];
   }>('/api/characters');
+
+// --- Auto-logging vision (plans/010 V0) -----------------------------------
+
+/** Multipart keyframe upload — bypasses request() so the browser sets the
+ *  multipart boundary itself. */
+export async function postVisionKeyframe(
+  frame: Blob,
+  opts: { captureSessionId: string; mattSide: 'left' | 'right' },
+): Promise<VisionKeyframeResult> {
+  const form = new FormData();
+  form.append('frame', frame, 'frame.jpg');
+  form.append('captureSessionId', opts.captureSessionId);
+  form.append('mattSide', opts.mattSide);
+  let res: Response;
+  try {
+    res = await fetch('/api/vision/keyframe', { method: 'POST', body: form });
+  } catch (err) {
+    throw new ApiError(
+      err instanceof Error ? err.message : 'Network request failed',
+      0,
+    );
+  }
+  if (!res.ok) {
+    let detail = `Request failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body && typeof body.message === 'string') detail = body.message;
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new ApiError(detail, res.status);
+  }
+  return (await res.json()) as VisionKeyframeResult;
+}
+
+export const getVisionPending = () =>
+  request<{ success: boolean; pending: VisionPendingMatch[] }>(
+    '/api/vision/pending',
+  ).then((r) => r.pending);
+
+export const confirmVisionPending = (id: string, payload: LogGamePayload) =>
+  request<{ success: boolean; message: string }>(
+    `/api/vision/pending/${encodeURIComponent(id)}/confirm`,
+    { method: 'POST', body: JSON.stringify(payload) },
+  );
+
+export const discardVisionPending = (id: string) =>
+  request<{ success: boolean }>(
+    `/api/vision/pending/${encodeURIComponent(id)}/discard`,
+    { method: 'POST' },
+  );
