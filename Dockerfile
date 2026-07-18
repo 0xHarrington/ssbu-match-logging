@@ -13,7 +13,7 @@ WORKDIR /app/backend
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY backend/app.py backend/characters.json ./
+COPY backend/app.py backend/vision.py backend/characters.json ./
 COPY --from=frontend /build/dist ./static
 
 # Match data lives on a mounted volume, never in the image
