@@ -1,11 +1,10 @@
-// AutoDetectSheet — the phone-camera auto-log confirm UI from the design.
+// AutoDetectSheet — entry point to the phone-camera auto-log flow.
 //
-// Honesty note: the detection backend (camera / WebSocket pending-queue) is
-// roadmap P5 and does not exist yet. Rather than fabricate a "detected" result
-// and write it to the CSV, this renders the designed capture visuals as a clearly
-// labelled preview whose real action routes to manual logging. No data is
-// written from here.
+// The V0 capture backend (plans/010) is live: /capture samples the phone
+// camera, the server extracts results via vision, and matches confirm on the
+// capture page itself. This sheet routes there (or to manual logging).
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface AutoDetectSheetProps {
   onClose: () => void;
@@ -16,6 +15,7 @@ interface AutoDetectSheetProps {
 }
 
 export default function AutoDetectSheet({ onClose, onLogManually, mobile = false }: AutoDetectSheetProps) {
+  const navigate = useNavigate();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', onKey);
@@ -68,23 +68,24 @@ export default function AutoDetectSheet({ onClose, onLogManually, mobile = false
             ◉ CAMERA AUTO-LOG
           </div>
           <div style={{ position: 'absolute', bottom: 12, left: 12, right: 12, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray)' }}>
-            Point your phone at the TV — coming soon
+            Point your phone at the TV — matches confirm themselves
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--aqua)', boxShadow: '0 0 8px var(--aqua)' }} />
-          <span style={{ fontSize: 13, color: 'var(--aqua)', fontFamily: 'var(--font-mono)' }}>Roadmap preview</span>
+          <span style={{ fontSize: 13, color: 'var(--aqua)', fontFamily: 'var(--font-mono)' }}>Live — V0</span>
         </div>
         <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg-light)', marginBottom: 2, fontFamily: 'var(--font-display)' }}>
-          Auto-detect is on the way
+          Auto-detect is here
         </div>
         <div style={{ fontSize: 13, color: 'var(--gray)', marginBottom: 20 }}>
-          Soon a phone pointed at the TV will read the GAME! screen and pre-fill the result for you to confirm. For now, log it manually.
+          Prop a phone facing the TV on the capture page and it reads each results
+          screen for you — every match becomes a one-tap confirm card.
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button
-            onClick={onClose}
+            onClick={onLogManually}
             style={{
               flex: 1,
               background: 'var(--card)',
@@ -98,10 +99,13 @@ export default function AutoDetectSheet({ onClose, onLogManually, mobile = false
               fontFamily: 'var(--font-display)',
             }}
           >
-            Dismiss
+            Log manually
           </button>
           <button
-            onClick={onLogManually}
+            onClick={() => {
+              onClose();
+              navigate('/capture');
+            }}
             style={{
               flex: 1.6,
               background: 'var(--aqua)',
@@ -115,7 +119,7 @@ export default function AutoDetectSheet({ onClose, onLogManually, mobile = false
               fontFamily: 'var(--font-display)',
             }}
           >
-            Log manually
+            Open capture
           </button>
         </div>
         <style>{`

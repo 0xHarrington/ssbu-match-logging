@@ -15,6 +15,8 @@ import pandas as pd
 import pytz
 from flask import Flask, Response, jsonify, request, send_from_directory
 
+from vision import create_vision_service
+
 app = Flask(__name__)
 
 # Session IDs and other Eastern-local timestamps are always generated from
@@ -1092,6 +1094,11 @@ class GameDataManager:
 
 # Initialize data manager
 data_manager = GameDataManager(os.path.join(DATA_DIR, "game_results.csv"))
+
+# Auto-logging V0 (plans/010): /api/vision/* keyframe -> extract -> confirm.
+# Module-level so tests can swap vision_service.extractor for a fake.
+vision_service = create_vision_service(data_manager, DATA_DIR)
+app.register_blueprint(vision_service.blueprint)
 
 
 # Basic-auth usernames -> canonical player names. The frontend denominates the

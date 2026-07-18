@@ -28,6 +28,10 @@ flowchart LR
   app when `SITE_USERS` is unset.
 - **Data**: `DATA_DIR=/data` puts `game_results.csv` and `backups/` on the volume.
   The image never contains match data.
+- **Vision (optional)**: auto-capture (`/capture`, plans/010) needs the
+  `ANTHROPIC_API_KEY` secret. Without it the app runs normally and the vision
+  endpoints return 503. `VISION_MAX_CALLS_PER_DAY` (default 1500) caps daily
+  spend; keyframes + extraction provenance land in `/data/vision/`.
 
 ## First deploy
 
@@ -38,6 +42,7 @@ cd ~/Dev/ssbu-match-logging
 fly launch --no-deploy --copy-config           # accept app name from fly.toml
 fly volumes create ssbu_data --region ewr --size 1
 fly secrets set SITE_USERS='matt:<matt pw>,shayne:<shayne pw>'
+fly secrets set ANTHROPIC_API_KEY='<key>'      # optional: enables /capture auto-logging
 fly deploy --remote-only --ha=false
 ```
 

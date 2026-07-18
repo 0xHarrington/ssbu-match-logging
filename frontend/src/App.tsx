@@ -16,6 +16,7 @@ const PlayerTearsheet = lazy(() => import('./PlayerTearsheet'));
 const SessionHistory = lazy(() => import('./SessionHistory'));
 const SessionDetail = lazy(() => import('./SessionDetail'));
 const SessionComparison = lazy(() => import('./SessionComparison'));
+const CapturePage = lazy(() => import('./CapturePage'));
 
 function RouteFallback() {
   return (
@@ -92,6 +93,8 @@ function PageTitle() {
       title = 'Sessions - Smash Match Logger';
     } else if (path.startsWith('/sessions/')) {
       title = 'Session Details - Smash Match Logger';
+    } else if (path === '/capture') {
+      title = 'Auto Capture - Smash Match Logger';
     }
     
     document.title = title;
@@ -117,6 +120,7 @@ function App() {
             <Route path="/sessions/:session_id" element={<SessionDetail />} />
             <Route path="/session-tearsheet" element={<SessionTearsheet />} />
             <Route path="/player-tearsheet" element={<PlayerTearsheet />} />
+            <Route path="/capture" element={<CapturePage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
