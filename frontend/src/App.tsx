@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import AppShell from './components/shell/AppShell';
 import SessionPage from './session/SessionPage';
+import { ViewerProvider } from './viewer';
 
 // Route-level code splitting: everything outside the logging homepage loads on demand.
 const StatsPage = lazy(() => import('./StatsPage'));
@@ -104,7 +105,7 @@ function PageTitle() {
 
 function App() {
   return (
-    <>
+    <ViewerProvider>
       <PageTitle />
       <AppShell>
         <Suspense fallback={<RouteFallback />}>
@@ -124,7 +125,7 @@ function App() {
           </Routes>
         </Suspense>
       </AppShell>
-    </>
+    </ViewerProvider>
   );
 }
 

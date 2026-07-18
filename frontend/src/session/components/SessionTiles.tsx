@@ -4,6 +4,8 @@ import { StatTile } from '../../components/ui';
 import type { LiveSession } from '../../hooks/useLiveSession';
 import { parseStocks } from '../format';
 import { sessionLead } from '../palette';
+import { useViewer } from '../../viewer';
+import type { Player } from '../../types';
 
 interface Tile {
   value: string;
@@ -11,8 +13,8 @@ interface Tile {
   color: string;
 }
 
-function deriveTiles(live: LiveSession): Tile[] {
-  const { label: leadLabel, color: leadColor } = sessionLead(live.shayneWins, live.mattWins);
+function deriveTiles(live: LiveSession, home: Player): Tile[] {
+  const { label: leadLabel, color: leadColor } = sessionLead(live.shayneWins, live.mattWins, home);
 
   const run = live.currentRun;
   const runLabel = run ? `${run.player} W${run.length}` : '—';
@@ -29,7 +31,8 @@ function deriveTiles(live: LiveSession): Tile[] {
 }
 
 export default function SessionTiles({ live }: { live: LiveSession }) {
-  const tiles = deriveTiles(live);
+  const { home } = useViewer();
+  const tiles = deriveTiles(live, home);
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>
       {tiles.map((t) => (

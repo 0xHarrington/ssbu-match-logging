@@ -97,7 +97,7 @@ export default function LogTab({
           fontSize: 15,
           fontWeight: 700,
           transition: 'all 0.15s',
-          background: form.ready ? 'var(--matt)' : '#2a2624',
+          background: form.ready ? 'var(--home)' : '#2a2624',
           color: form.ready ? '#1b1817' : 'var(--faint)',
           cursor: form.ready && !form.submitting ? 'pointer' : 'not-allowed',
         }}

@@ -1,11 +1,12 @@
-// Scoreboard — the cinematic desktop VS hero. Matt (home player) on the left,
-// two player cells mirrored around a center VS/GAME column, each with the
-// session's full character roster beneath the name, then a momentum strip
-// (split bar + run pips). Sizes clamp with the viewport so the card compresses
-// instead of overflowing when the window narrows.
+// Scoreboard — the cinematic desktop VS hero. The logged-in (home) player on
+// the left, two player cells mirrored around a center VS/GAME column, each
+// with the session's full character roster beneath the name, then a momentum
+// strip (split bar + run pips). Sizes clamp with the viewport so the card
+// compresses instead of overflowing when the window narrows.
 import CharToken from './CharToken';
 import { SplitBar, RunPips } from './bars';
 import { PLAYER_COLOR_VAR } from '../palette';
+import { useViewer } from '../../viewer';
 import type { CharacterSessionUsage } from '../../hooks/useLiveSession';
 import type { Player } from '../../types';
 
@@ -19,6 +20,11 @@ interface ScoreboardProps {
   shayneRoster: CharacterSessionUsage[];
   mattRoster: CharacterSessionUsage[];
 }
+
+const GLOW: Record<Player, string> = {
+  Matt: 'rgba(184,187,38,0.14)',
+  Shayne: 'rgba(254,128,25,0.14)',
+};
 
 /** The session characters beyond the one on deck, as small tokens. */
 function RosterStrip({
@@ -119,6 +125,11 @@ export default function Scoreboard({
   shayneRoster,
   mattRoster,
 }: ScoreboardProps) {
+  const { home, away } = useViewer();
+  const cellFor = (p: Player) =>
+    p === 'Shayne'
+      ? { character: shayneChar, score: shayneWins, roster: shayneRoster }
+      : { character: mattChar, score: mattWins, roster: mattRoster };
   return (
     <div
       style={{
@@ -130,17 +141,17 @@ export default function Scoreboard({
         padding: 'clamp(20px, 2.5vw, 34px) clamp(20px, 2.8vw, 38px)',
       }}
     >
-      <div style={{ position: 'absolute', top: '-50%', left: '-8%', width: '46%', height: '200%', background: 'radial-gradient(circle,rgba(184,187,38,0.14),transparent 62%)' }} />
-      <div style={{ position: 'absolute', top: '-50%', right: '-8%', width: '46%', height: '200%', background: 'radial-gradient(circle,rgba(254,128,25,0.14),transparent 62%)' }} />
+      <div style={{ position: 'absolute', top: '-50%', left: '-8%', width: '46%', height: '200%', background: `radial-gradient(circle,${GLOW[home]},transparent 62%)` }} />
+      <div style={{ position: 'absolute', top: '-50%', right: '-8%', width: '46%', height: '200%', background: `radial-gradient(circle,${GLOW[away]},transparent 62%)` }} />
       <div style={{ position: 'relative' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: 'clamp(10px, 1.8vw, 24px)' }}>
-          <PlayerCell player="Matt" character={mattChar} score={mattWins} roster={mattRoster} />
+          <PlayerCell player={home} {...cellFor(home)} />
           <div style={{ textAlign: 'center', padding: '0 6px' }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--faint)', fontWeight: 600, letterSpacing: 2 }}>VS</div>
             <div style={{ width: 1, height: 56, background: 'linear-gradient(#3c3836,transparent,#3c3836)', margin: '10px auto' }} />
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--faint)' }}>GAME {gameNumber}</div>
           </div>
-          <PlayerCell player="Shayne" character={shayneChar} score={shayneWins} roster={shayneRoster} mirror />
+          <PlayerCell player={away} {...cellFor(away)} mirror />
         </div>
 
         <div style={{ marginTop: 28, paddingTop: 22, borderTop: '1px solid var(--line-2)' }}>

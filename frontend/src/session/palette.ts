@@ -41,13 +41,18 @@ export function winnerColorVar(winner: string): string {
 }
 
 /** Session-lead label + color from each player's win count.
- *  Matt-denominated: positive lead = Matt ahead. */
+ *  Viewer-denominated: positive lead = the home (logged-in) player ahead. */
 export function sessionLead(
   shayneWins: number,
   mattWins: number,
+  home: Player = 'Matt',
 ): { lead: number; label: string; color: string } {
-  const lead = mattWins - shayneWins;
-  const label = lead === 0 ? 'Even' : lead > 0 ? `Matt +${lead}` : `Shayne +${-lead}`;
-  const color = lead === 0 ? 'var(--gray)' : lead > 0 ? 'var(--matt)' : 'var(--shayne)';
+  const away: Player = home === 'Matt' ? 'Shayne' : 'Matt';
+  const homeWins = home === 'Matt' ? mattWins : shayneWins;
+  const awayWins = home === 'Matt' ? shayneWins : mattWins;
+  const lead = homeWins - awayWins;
+  const label = lead === 0 ? 'Even' : lead > 0 ? `${home} +${lead}` : `${away} +${-lead}`;
+  const color =
+    lead === 0 ? 'var(--gray)' : lead > 0 ? PLAYER_COLOR_VAR[home] : PLAYER_COLOR_VAR[away];
   return { lead, label, color };
 }

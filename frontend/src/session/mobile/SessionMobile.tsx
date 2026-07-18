@@ -54,7 +54,7 @@ function HeroSwitcher({ hero, onPick }: { hero: Hero; onPick: (h: Hero) => void 
               fontSize: 12,
               fontWeight: 600,
               transition: 'all 0.15s',
-              background: active ? 'var(--matt)' : 'transparent',
+              background: active ? 'var(--home)' : 'transparent',
               color: active ? '#1b1817' : 'var(--gray)',
             }}
           >
@@ -99,7 +99,7 @@ function SessionTab({
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
         <button
           onClick={onLog}
-          style={{ flex: 1, background: 'var(--matt)', border: 'none', borderRadius: 14, padding: 14, color: '#1b1817', fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+          style={{ flex: 1, background: 'var(--home)', border: 'none', borderRadius: 14, padding: 14, color: '#1b1817', fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
         >
           + Log match
         </button>
@@ -137,9 +137,9 @@ function BottomNav({ tab, onPick }: { tab: Tab; onPick: (t: Tab) => void }) {
           <button
             key={t.key}
             onClick={() => onPick(t.key)}
-            style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: 4, color: active ? 'var(--matt)' : 'var(--faint)' }}
+            style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: 4, color: active ? 'var(--home)' : 'var(--faint)' }}
           >
-            <div style={{ width: 20, height: 20, borderRadius: 6, background: active ? 'var(--matt)' : 'var(--line)' }} />
+            <div style={{ width: 20, height: 20, borderRadius: 6, background: active ? 'var(--home)' : 'var(--line)' }} />
             <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: active ? 600 : 400 }}>{t.label}</span>
           </button>
         );

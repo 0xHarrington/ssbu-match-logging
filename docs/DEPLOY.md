@@ -21,8 +21,11 @@ flowchart LR
 
 - **One service, no CORS**: Flask serves `frontend/dist` (copied to `backend/static`
   in the Docker build) and falls back to `index.html` for client-side routes.
-- **Auth**: the whole app sits behind HTTP Basic auth when the `SITE_PASSWORD`
-  secret is set. This is the staging gate until real multi-user auth ships.
+- **Auth**: the whole app sits behind HTTP Basic auth. Per-user logins come from
+  the `SITE_USERS` secret (`user:pass,user2:pass2`; usernames case-insensitive);
+  the username maps to the player the UI denominates around (`/api/me`). The
+  legacy `SITE_PASSWORD` secret (any username + shared password) still gates the
+  app when `SITE_USERS` is unset.
 - **Data**: `DATA_DIR=/data` puts `game_results.csv` and `backups/` on the volume.
   The image never contains match data.
 - **Vision (optional)**: auto-capture (`/capture`, plans/010) needs the
@@ -38,7 +41,7 @@ cd ~/Dev/ssbu-match-logging
 
 fly launch --no-deploy --copy-config           # accept app name from fly.toml
 fly volumes create ssbu_data --region ewr --size 1
-fly secrets set SITE_PASSWORD='<shared password for you + Shayne>'
+fly secrets set SITE_USERS='matt:<matt pw>,shayne:<shayne pw>'
 fly secrets set ANTHROPIC_API_KEY='<key>'      # optional: enables /capture auto-logging
 fly deploy --remote-only --ha=false
 ```

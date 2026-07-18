@@ -1101,24 +1101,81 @@ vision_service = create_vision_service(data_manager, DATA_DIR)
 app.register_blueprint(vision_service.blueprint)
 
 
-@app.before_request
-def require_site_password() -> Response | None:
-    """Gate the whole app behind HTTP Basic auth when SITE_PASSWORD is set.
+# Basic-auth usernames -> canonical player names. The frontend denominates the
+# whole UI around the logged-in player (their side reads first everywhere).
+KNOWN_PLAYERS: dict[str, str] = {"matt": "Matt", "shayne": "Shayne"}
 
-    Unset in dev (no-op); required for any non-local deployment until real
-    multi-user auth ships.
+
+def _configured_users() -> dict[str, str]:
+    """Per-user credentials from SITE_USERS ('user:pass,user2:pass2').
+
+    Empty when SITE_USERS is unset (dev, or legacy SITE_PASSWORD deployments).
+    Usernames are case-insensitive; passwords may contain ':' but not ','.
     """
-    site_password = os.environ.get("SITE_PASSWORD")
-    if not site_password:
-        return None
+    users: dict[str, str] = {}
+    for pair in os.environ.get("SITE_USERS", "").split(","):
+        pair = pair.strip()
+        if ":" not in pair:
+            continue
+        username, password = pair.split(":", 1)
+        if username.strip() and password:
+            users[username.strip().lower()] = password
+    return users
+
+
+def _authed_username() -> str | None:
+    """The verified Basic-auth username, or None if the request isn't authed.
+
+    Three modes:
+    - SITE_USERS set: username+password must match a configured user.
+    - Legacy SITE_PASSWORD only: any/blank username, shared password ('' when
+      no username was sent).
+    - Neither (dev): every request passes as DEV_USER (default 'matt').
+    """
+    users = _configured_users()
+    legacy_password = os.environ.get("SITE_PASSWORD")
     auth = request.authorization
-    if auth and auth.password and hmac.compare_digest(auth.password, site_password):
+    if users:
+        if not auth or not auth.username or not auth.password:
+            return None
+        expected = users.get(auth.username.strip().lower())
+        if expected is not None and hmac.compare_digest(auth.password, expected):
+            return auth.username.strip().lower()
+        return None
+    if legacy_password:
+        password = auth.password if auth else None
+        if password and hmac.compare_digest(password, legacy_password):
+            return (auth.username or "").strip().lower()
+        return None
+    return os.environ.get("DEV_USER", "matt").strip().lower()
+
+
+@app.before_request
+def require_site_auth() -> Response | None:
+    """Gate the whole app behind HTTP Basic auth when credentials are configured.
+
+    SITE_USERS gives per-user logins; SITE_PASSWORD is the legacy shared gate.
+    Both unset in dev (no-op via _authed_username's DEV_USER fallback).
+    """
+    if _authed_username() is not None:
         return None
     return Response(
         "Authentication required",
         401,
         {"WWW-Authenticate": 'Basic realm="ssbu-match-logger"'},
     )
+
+
+@app.route("/api/me")
+def get_me():
+    """Who is logged in, as the frontend's home player.
+
+    Unknown usernames (legacy shared-password logins, dev overrides) fall back
+    to Matt so the UI always has a home player.
+    """
+    username = _authed_username() or ""
+    player = KNOWN_PLAYERS.get(username, "Matt")
+    return jsonify({"success": True, "username": username, "player": player})
 
 
 @app.route("/log_game", methods=["POST"])
