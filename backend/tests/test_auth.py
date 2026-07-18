@@ -29,13 +29,18 @@ class TestDevMode:
 class TestSiteUsers:
     USERS = "matt:pw-matt,shayne:pw-shayne"
 
-    def test_valid_user_passes_and_identifies(self, client, monkeypatch: pytest.MonkeyPatch):
+    def test_valid_user_passes_and_identifies(
+        self, client, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.setenv("SITE_USERS", self.USERS)
         resp = client.get("/api/me", headers=_basic("shayne", "pw-shayne"))
         assert resp.status_code == 200
-        assert resp.get_json() == {"success": True, "username": "shayne", "player": "Shayne"}
+        expected = {"success": True, "username": "shayne", "player": "Shayne"}
+        assert resp.get_json() == expected
 
-    def test_other_user_identifies_as_matt(self, client, monkeypatch: pytest.MonkeyPatch):
+    def test_other_user_identifies_as_matt(
+        self, client, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.setenv("SITE_USERS", self.USERS)
         resp = client.get("/api/me", headers=_basic("matt", "pw-matt"))
         assert resp.get_json()["player"] == "Matt"
@@ -74,22 +79,33 @@ class TestSiteUsers:
 
 
 class TestLegacySitePassword:
-    def test_shared_password_any_username(self, client, monkeypatch: pytest.MonkeyPatch):
+    def test_shared_password_any_username(
+        self, client, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.setenv("SITE_PASSWORD", "shared-pw")
-        assert client.get("/api/me", headers=_basic("whoever", "shared-pw")).status_code == 200
-        assert client.get("/api/me", headers=_basic("", "shared-pw")).status_code == 200
+        for username in ("whoever", ""):
+            resp = client.get("/api/me", headers=_basic(username, "shared-pw"))
+            assert resp.status_code == 200
 
-    def test_unknown_username_falls_back_to_matt(self, client, monkeypatch: pytest.MonkeyPatch):
+    def test_unknown_username_falls_back_to_matt(
+        self, client, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.setenv("SITE_PASSWORD", "shared-pw")
         data = client.get("/api/me", headers=_basic("whoever", "shared-pw")).get_json()
         assert data["player"] == "Matt"
 
-    def test_wrong_shared_password_rejected(self, client, monkeypatch: pytest.MonkeyPatch):
+    def test_wrong_shared_password_rejected(
+        self, client, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.setenv("SITE_PASSWORD", "shared-pw")
         assert client.get("/api/me", headers=_basic("matt", "nope")).status_code == 401
 
-    def test_site_users_supersedes_shared_password(self, client, monkeypatch: pytest.MonkeyPatch):
+    def test_site_users_supersedes_shared_password(
+        self, client, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.setenv("SITE_PASSWORD", "shared-pw")
         monkeypatch.setenv("SITE_USERS", "matt:pw-matt")
-        assert client.get("/api/me", headers=_basic("matt", "shared-pw")).status_code == 401
-        assert client.get("/api/me", headers=_basic("matt", "pw-matt")).status_code == 200
+        shared = client.get("/api/me", headers=_basic("matt", "shared-pw"))
+        assert shared.status_code == 401
+        per_user = client.get("/api/me", headers=_basic("matt", "pw-matt"))
+        assert per_user.status_code == 200

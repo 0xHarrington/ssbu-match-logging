@@ -1136,7 +1136,8 @@ def _authed_username() -> str | None:
             return auth.username.strip().lower()
         return None
     if legacy_password:
-        if auth and auth.password and hmac.compare_digest(auth.password, legacy_password):
+        password = auth.password if auth else None
+        if password and hmac.compare_digest(password, legacy_password):
             return (auth.username or "").strip().lower()
         return None
     return os.environ.get("DEV_USER", "matt").strip().lower()
