@@ -9,10 +9,12 @@ import { matchTime, parseStocks } from '../format';
 import { deleteMatch, updateMatch } from '../../lib/api';
 import { PLAYER_HEX } from '../palette';
 import type { Match, Player } from '../../types';
+import type { CharacterUsage } from '../characterOrder';
 
 interface EditMatchModalProps {
   match: Match;
   characters: string[];
+  charUsage: CharacterUsage;
   onClose: () => void;
   onSaved: () => void;
   onDeleted: () => void;
@@ -22,7 +24,7 @@ function initialStocks(match: Match): number | null {
   return parseStocks(match.stocks_remaining);
 }
 
-export default function EditMatchModal({ match, characters, onClose, onSaved, onDeleted }: EditMatchModalProps) {
+export default function EditMatchModal({ match, characters, charUsage, onClose, onSaved, onDeleted }: EditMatchModalProps) {
   const [shayneChar, setShayneChar] = useState(match.shayne_character);
   const [mattChar, setMattChar] = useState(match.matt_character);
   const [winner, setWinner] = useState<Player | null>(
@@ -93,6 +95,7 @@ export default function EditMatchModal({ match, characters, onClose, onSaved, on
               pickerFor === p ? (
                 <CharacterPicker
                   characters={characters}
+                  usage={charUsage[p]}
                   current={p === 'Shayne' ? shayneChar : mattChar}
                   accent={PLAYER_HEX[p]}
                   onSelect={(c) => (p === 'Shayne' ? setShayneChar(c) : setMattChar(c))}

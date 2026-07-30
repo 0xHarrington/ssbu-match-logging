@@ -10,6 +10,7 @@ import { useLiveSession } from '../hooks/useLiveSession';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { getCharacters, undoLastGame } from '../lib/api';
 import { useLogForm, type OnDeckSeed } from './useLogForm';
+import { EMPTY_USAGE, type CharacterUsage } from './characterOrder';
 import SessionDesktop, { type SessionDesktopHandle } from './SessionDesktop';
 import SessionMobile, { type SessionMobileHandle } from './mobile/SessionMobile';
 import LogRail from './components/LogRail';
@@ -25,6 +26,7 @@ export default function SessionPage() {
   const { data: live, loading, error, empty, refresh } = useLiveSession();
   const isMobile = useIsMobile();
   const [characters, setCharacters] = useState<string[]>([]);
+  const [charUsage, setCharUsage] = useState<CharacterUsage>(EMPTY_USAGE);
   const [modal, setModal] = useState<'all' | null>(null);
   const [editMatch, setEditMatch] = useState<Match | null>(null);
   const [showAuto, setShowAuto] = useState(false);
@@ -33,11 +35,22 @@ export default function SessionPage() {
   const mobileRef = useRef<SessionMobileHandle>(null);
   const desktopRef = useRef<SessionDesktopHandle>(null);
 
+  // Fetched once: the pick counts order each picker's list, and holding them
+  // steady for the session means an open popover never reshuffles under the
+  // cursor as matches are logged.
   useEffect(() => {
     let active = true;
     getCharacters()
-      .then((r) => active && setCharacters(r.all_characters ?? []))
-      .catch(() => active && setCharacters([]));
+      .then((r) => {
+        if (!active) return;
+        setCharacters(r.all_characters ?? []);
+        setCharUsage({ Shayne: r.shayne ?? {}, Matt: r.matt ?? {} });
+      })
+      .catch(() => {
+        if (!active) return;
+        setCharacters([]);
+        setCharUsage(EMPTY_USAGE);
+      });
     return () => {
       active = false;
     };
@@ -100,6 +113,7 @@ export default function SessionPage() {
           live={empty ? null : live}
           form={form}
           characters={characters}
+          charUsage={charUsage}
           onAutoDetect={() => setShowAuto(true)}
         />
         {showAuto && (
@@ -129,7 +143,7 @@ export default function SessionPage() {
             Log your first match in the rail to start a new session. It'll come to life here — scoreboard, momentum, and the on-deck matchup.
           </div>
         </div>
-        <LogRail form={form} characters={characters} />
+        <LogRail form={form} characters={characters} charUsage={charUsage} />
         {undo && <UndoToast winner={undo.winner} onUndo={handleUndo} />}
       </div>
     );
@@ -142,6 +156,7 @@ export default function SessionPage() {
         live={live}
         form={form}
         characters={characters}
+        charUsage={charUsage}
         onSeeAll={() => setModal('all')}
         onEditMatch={setEditMatch}
         onAutoDetect={() => setShowAuto(true)}
@@ -163,6 +178,7 @@ export default function SessionPage() {
         <EditMatchModal
           match={editMatch}
           characters={characters}
+          charUsage={charUsage}
           onClose={() => setEditMatch(null)}
           onSaved={handleEditSaved}
           onDeleted={handleEditSaved}

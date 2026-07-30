@@ -10,6 +10,7 @@ import HistoryTab from './HistoryTab';
 import { SessionIcon } from '../../components/shell/icons';
 import type { LiveSession } from '../../hooks/useLiveSession';
 import type { LogFormState } from '../useLogForm';
+import type { CharacterUsage } from '../characterOrder';
 import { formatDuration } from '../format';
 
 type Tab = 'session' | 'log' | 'stats' | 'history';
@@ -32,6 +33,7 @@ interface SessionMobileProps {
   live: LiveSession | null;
   form: LogFormState;
   characters: string[];
+  charUsage: CharacterUsage;
   onAutoDetect: () => void;
 }
 
@@ -155,7 +157,7 @@ export interface SessionMobileHandle {
 }
 
 const SessionMobile = forwardRef<SessionMobileHandle, SessionMobileProps>(function SessionMobile(
-  { live, form, characters, onAutoDetect },
+  { live, form, characters, charUsage, onAutoDetect },
   ref,
 ) {
   const [tab, setTab] = useState<Tab>('session');
@@ -175,7 +177,7 @@ const SessionMobile = forwardRef<SessionMobileHandle, SessionMobileProps>(functi
         ) : (
           <EmptyMobile />
         ))}
-      {tab === 'log' && <LogTab form={form} characters={characters} />}
+      {tab === 'log' && <LogTab form={form} characters={characters} charUsage={charUsage} />}
       {tab === 'stats' && <StatsTab />}
       {tab === 'history' && <HistoryTab />}
       <BottomNav tab={tab} onPick={setTab} />

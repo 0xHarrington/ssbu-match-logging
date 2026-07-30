@@ -6,6 +6,7 @@ import { WinnerPicker, StageGrid, StocksPicker } from '../components/formControl
 import { ACTIVE_STAGES, type LogFormState } from '../useLogForm';
 import { PLAYER_HEX } from '../palette';
 import type { Player } from '../../types';
+import type { CharacterUsage } from '../characterOrder';
 
 const MonoLabel = ({ children }: { children: React.ReactNode }) => (
   <div style={{ fontSize: 11, color: 'var(--gray)', fontFamily: 'var(--font-mono)', marginBottom: 9 }}>{children}</div>
@@ -14,9 +15,11 @@ const MonoLabel = ({ children }: { children: React.ReactNode }) => (
 export default function LogTab({
   form,
   characters,
+  charUsage,
 }: {
   form: LogFormState;
   characters: string[];
+  charUsage: CharacterUsage;
 }) {
   const [pickerFor, setPickerFor] = useState<Player | null>(null);
   const [stageOpen, setStageOpen] = useState(false);
@@ -44,6 +47,7 @@ export default function LogTab({
             pickerFor === p ? (
               <CharacterPicker
                 characters={characters}
+                usage={charUsage[p]}
                 current={p === 'Shayne' ? form.shayneChar : form.mattChar}
                 accent={PLAYER_HEX[p]}
                 onSelect={(c) => (p === 'Shayne' ? form.setShayneChar(c) : form.setMattChar(c))}

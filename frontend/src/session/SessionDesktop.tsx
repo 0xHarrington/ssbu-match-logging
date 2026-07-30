@@ -12,11 +12,13 @@ import LogRail from './components/LogRail';
 import type { LiveSession } from '../hooks/useLiveSession';
 import type { LogFormState } from './useLogForm';
 import type { Match } from '../types';
+import type { CharacterUsage } from './characterOrder';
 
 interface SessionDesktopProps {
   live: LiveSession;
   form: LogFormState;
   characters: string[];
+  charUsage: CharacterUsage;
   onSeeAll: () => void;
   onEditMatch: (m: Match) => void;
   onAutoDetect: () => void;
@@ -29,7 +31,7 @@ export interface SessionDesktopHandle {
 }
 
 const SessionDesktop = forwardRef<SessionDesktopHandle, SessionDesktopProps>(function SessionDesktop(
-  { live, form, characters, onSeeAll, onEditMatch, onAutoDetect },
+  { live, form, characters, charUsage, onSeeAll, onEditMatch, onAutoDetect },
   ref,
 ) {
   const railRef = useRef<HTMLDivElement>(null);
@@ -60,7 +62,7 @@ const SessionDesktop = forwardRef<SessionDesktopHandle, SessionDesktopProps>(fun
         </div>
       </div>
       <div ref={railRef}>
-        <LogRail form={form} characters={characters} />
+        <LogRail form={form} characters={characters} charUsage={charUsage} />
       </div>
     </div>
   );

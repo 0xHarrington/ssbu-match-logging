@@ -1,14 +1,18 @@
 // CharacterPicker — a compact searchable roster popover.
 //
 // Opens from a player token to let the log/edit forms change fighters: a
-// filterable icon list backed by /api/characters' all_characters.
+// filterable icon list backed by /api/characters' all_characters, ordered by
+// the token owner's all-time pick counts so their mains sit at the top.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCharacterIconUrl } from '../../components/CharacterDisplay';
+import { byUsage, type UsageCounts } from '../characterOrder';
 
 interface CharacterPickerProps {
   characters: string[];
   current?: string;
   accent: string;
+  /** Pick counts for the player this picker belongs to. Omit for roster order. */
+  usage?: UsageCounts;
   onSelect: (character: string) => void;
   onClose: () => void;
 }
@@ -17,6 +21,7 @@ export default function CharacterPicker({
   characters,
   current,
   accent,
+  usage,
   onSelect,
   onClose,
 }: CharacterPickerProps) {
@@ -52,11 +57,14 @@ export default function CharacterPicker({
     };
   }, []);
 
+  // Most-played first; searching narrows that order rather than replacing it.
+  const ordered = useMemo(() => byUsage(characters, usage), [characters, usage]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return characters;
-    return characters.filter((c) => c.toLowerCase().includes(q));
-  }, [characters, query]);
+    if (!q) return ordered;
+    return ordered.filter((c) => c.toLowerCase().includes(q));
+  }, [ordered, query]);
 
   return (
     <div
