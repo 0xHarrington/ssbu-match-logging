@@ -71,7 +71,11 @@ flowchart LR
   takes their player color.
 - **Match logging**: fighter pickers pre-filled from the on-deck matchup, sticky
   stage, winner + stocks, and a one-tap undo toast after each log; logging
-  refreshes the dashboard in place (no full-page reload)
+  refreshes the dashboard in place (no full-page reload). Every fighter picker
+  (log rail, mobile log tab, match editors, capture confirm cards) lists that
+  player's most-played fighters first — all-time pick counts from
+  `/api/characters`, ties falling back to fighter-number order — so mains sit at
+  the top instead of Mario
 - **Match editor**: fix mislogged matches (characters, winner, stage, stocks) or
   delete bogus rows from the session feed's see-all/edit modals; every edit is
   recorded in an audit log (`edit_log.csv`)
@@ -170,7 +174,8 @@ backend/
 frontend/src/
   App.tsx               # router (routes are code-split); wraps pages in AppShell
   session/              # Session command center: SessionPage + Desktop/Mobile
-                        #   layouts, components/, mobile/, useLogForm, format
+                        #   layouts, components/, mobile/, useLogForm, format,
+                        #   characterOrder (per-player fighter picker ordering)
   hooks/                # useLiveSession (derives the live session), useMediaQuery
   lib/api.ts            # typed API client (new screens); lib/stages.ts stage map
   types.ts              # shared domain types for the redesign

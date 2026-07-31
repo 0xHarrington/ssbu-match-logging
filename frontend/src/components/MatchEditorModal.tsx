@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CharacterDisplay, { getCharacterIconUrl } from './CharacterDisplay';
 import { stageImages } from '../lib/stages';
+import { byUsage, EMPTY_USAGE, type CharacterUsage, type UsageCounts } from '../session/characterOrder';
 
 // Shape shared by /api/matches rows and /api/recent_games rows (the latter may
 // omit session_id/timestamp, hence optional).
@@ -31,6 +32,8 @@ interface ApiEnvelope {
 
 interface CharactersResponse {
   all_characters?: string[];
+  shayne?: UsageCounts;
+  matt?: UsageCounts;
 }
 
 type Stocks = 1 | 2 | 3 | null;
@@ -55,12 +58,14 @@ const parseJson = async (res: Response): Promise<ApiEnvelope> => {
 const errorMessage = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
 
-function CharacterPicker({ label, accent, value, onChange, roster }: {
+function CharacterPicker({ label, accent, value, onChange, roster, usage }: {
   label: string;
   accent: string;
   value: string;
   onChange: (character: string) => void;
   roster: string[];
+  /** Pick counts for this player, so their mains lead the list. */
+  usage?: UsageCounts;
 }) {
   const [search, setSearch] = useState(value);
   const [open, setOpen] = useState(false);
@@ -82,7 +87,8 @@ function CharacterPicker({ label, accent, value, onChange, roster }: {
     return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [value]);
 
-  const filtered = roster.filter(char =>
+  // Most-played first; typing narrows that order rather than replacing it.
+  const filtered = byUsage(roster, usage).filter(char =>
     char.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -194,6 +200,7 @@ export interface MatchEditorModalProps {
 
 function MatchEditorModal({ match, onClose, onSaved }: MatchEditorModalProps) {
   const [roster, setRoster] = useState<string[]>([]);
+  const [usage, setUsage] = useState<CharacterUsage>(EMPTY_USAGE);
   const [shayneCharacter, setShayneCharacter] = useState(match.shayne_character);
   const [mattCharacter, setMattCharacter] = useState(match.matt_character);
   const [stage, setStage] = useState(match.stage || '');
@@ -211,6 +218,7 @@ function MatchEditorModal({ match, onClose, onSaved }: MatchEditorModalProps) {
       .then((data: CharactersResponse) => {
         if (!cancelled && Array.isArray(data.all_characters)) {
           setRoster(data.all_characters);
+          setUsage({ Shayne: data.shayne ?? {}, Matt: data.matt ?? {} });
         }
       })
       .catch(() => {
@@ -394,6 +402,7 @@ function MatchEditorModal({ match, onClose, onSaved }: MatchEditorModalProps) {
             value={shayneCharacter}
             onChange={setShayneCharacter}
             roster={roster}
+            usage={usage.Shayne}
           />
           <CharacterPicker
             label="Matt"
@@ -401,6 +410,7 @@ function MatchEditorModal({ match, onClose, onSaved }: MatchEditorModalProps) {
             value={mattCharacter}
             onChange={setMattCharacter}
             roster={roster}
+            usage={usage.Matt}
           />
         </div>
 

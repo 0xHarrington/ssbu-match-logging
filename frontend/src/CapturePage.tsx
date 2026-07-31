@@ -20,6 +20,7 @@ import {
 import { ACTIVE_STAGES } from './lib/stages';
 import { StageGrid, StocksPicker, WinnerPicker } from './session/components/formControls';
 import CharacterPicker from './session/components/CharacterPicker';
+import { EMPTY_USAGE, type CharacterUsage } from './session/characterOrder';
 import { PLAYER_HEX } from './session/palette';
 import type { Player, VisionPendingMatch } from './types';
 
@@ -84,6 +85,7 @@ export default function CapturePage() {
   const [uploading, setUploading] = useState(false);
   const [pending, setPending] = useState<VisionPendingMatch[]>([]);
   const [characters, setCharacters] = useState<string[]>([]);
+  const [charUsage, setCharUsage] = useState<CharacterUsage>(EMPTY_USAGE);
   const [mattSide, setMattSide] = useState<MattSide>(
     () => (localStorage.getItem('capture.mattSide') as MattSide) || 'left',
   );
@@ -95,11 +97,18 @@ export default function CapturePage() {
     localStorage.setItem('capture.mattSide', mattSide);
   }, [mattSide]);
 
-  // Roster for the confirm card's character pickers.
+  // Roster + per-player pick counts for the confirm card's character pickers,
+  // which list each player's most-played fighters first.
   useEffect(() => {
     getCharacters()
-      .then((r) => setCharacters(r.all_characters))
-      .catch(() => setCharacters([]));
+      .then((r) => {
+        setCharacters(r.all_characters);
+        setCharUsage({ Shayne: r.shayne ?? {}, Matt: r.matt ?? {} });
+      })
+      .catch(() => {
+        setCharacters([]);
+        setCharUsage(EMPTY_USAGE);
+      });
   }, []);
 
   const refreshPending = useCallback(() => {
@@ -469,6 +478,7 @@ export default function CapturePage() {
           key={active.id}
           item={active}
           characters={characters}
+          charUsage={charUsage}
           onDone={refreshPending}
         />
       )}
@@ -483,10 +493,11 @@ export default function CapturePage() {
 interface ConfirmCardProps {
   item: VisionPendingMatch;
   characters: string[];
+  charUsage: CharacterUsage;
   onDone: () => void;
 }
 
-function ConfirmCard({ item, characters, onDone }: ConfirmCardProps) {
+function ConfirmCard({ item, characters, charUsage, onDone }: ConfirmCardProps) {
   const [shayneChar, setShayneChar] = useState(item.shayneCharacter ?? '');
   const [mattChar, setMattChar] = useState(item.mattCharacter ?? '');
   const [winner, setWinner] = useState<Player | null>(item.winner);
@@ -604,6 +615,7 @@ function ConfirmCard({ item, characters, onDone }: ConfirmCardProps) {
           {pickerFor && (
             <CharacterPicker
               characters={characters}
+              usage={charUsage[pickerFor]}
               current={pickerFor === 'Matt' ? mattChar : shayneChar}
               accent={PLAYER_HEX[pickerFor]}
               onSelect={(c) => {

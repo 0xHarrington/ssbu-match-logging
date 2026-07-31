@@ -5,10 +5,12 @@ import { WinnerPicker, StageGrid, StocksPicker } from './formControls';
 import { ACTIVE_STAGES, type LogFormState } from '../useLogForm';
 import { PLAYER_HEX } from '../palette';
 import type { Player } from '../../types';
+import type { CharacterUsage } from '../characterOrder';
 
 interface LogRailProps {
   form: LogFormState;
   characters: string[];
+  charUsage: CharacterUsage;
 }
 
 const MonoLabel = ({ children }: { children: React.ReactNode }) => (
@@ -17,7 +19,7 @@ const MonoLabel = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-export default function LogRail({ form, characters }: LogRailProps) {
+export default function LogRail({ form, characters, charUsage }: LogRailProps) {
   const [pickerFor, setPickerFor] = useState<Player | null>(null);
 
   return (
@@ -51,6 +53,7 @@ export default function LogRail({ form, characters }: LogRailProps) {
             pickerFor === p ? (
               <CharacterPicker
                 characters={characters}
+                usage={charUsage[p]}
                 current={p === 'Shayne' ? form.shayneChar : form.mattChar}
                 accent={PLAYER_HEX[p]}
                 onSelect={(c) => (p === 'Shayne' ? form.setShayneChar(c) : form.setMattChar(c))}
