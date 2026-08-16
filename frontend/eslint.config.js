@@ -5,7 +5,8 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist', '.vite'] },
+  // tools/ holds the vendored anti-slop Oxlint plugin, linted by its own toolchain
+  { ignores: ['dist', '.vite', 'tools'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
