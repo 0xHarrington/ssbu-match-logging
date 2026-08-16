@@ -192,6 +192,12 @@ Remaining UX backlog, ordered by leverage-per-effort:
 2. **Extend the typed API layer** to the older stats/tearsheet pages and clear
    the remaining `no-explicit-any` warnings, then re-promote that ESLint rule
    to `error` (`frontend/eslint.config.js`).
+3. **Burn down the anti-slop baseline**: `npm run lint:slop` reports 81 findings
+   across 31 files (installed 2026-08-16; top rules:
+   `require-safety-comment-for-type-assertion` 27, `no-known-value-widening` 23,
+   `no-runtime-typeof` 16). Overlaps heavily with item 2 — the widening and
+   assertion findings mostly resolve via `satisfies` and the typed API layer.
+   Once clean, chain `lint:slop` into the `lint` script so CI gates it.
 
 ## 5. Dither-kit adoption — SHIPPED 2026-07-14
 

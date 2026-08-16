@@ -216,6 +216,10 @@ Authoritative column list: `GameDataManager.columns` in `backend/app.py`.
 - **Keep gunicorn at `--workers 1`**: the CSV write lock is in-process, so multiple
   workers would reintroduce lost-write races. Lift this only after the data layer
   moves to SQLite/Postgres (see [docs/ROADMAP.md](docs/ROADMAP.md)).
+- `npm run lint:slop` (from `frontend/`) runs [anti-slop](https://github.com/dmmulroy/anti-slop),
+  an opinionated Oxlint rule set vendored at `frontend/tools/oxlint/anti-slop/` and
+  configured in `frontend/.oxlintrc.json`. It currently reports a known baseline of
+  findings in older code and is not yet a CI gate (see docs/ROADMAP.md §4 backlog).
 - CI gates every push/PR (frontend lint + vitest + `tsc` + `vite build`; backend
   `ruff check` + `black --check` + pytest with `--cov=app` coverage reporting,
   plus a compile/import smoke test; full Docker build). It never deploys —
