@@ -203,7 +203,7 @@ export function useLiveSession(): UseLiveSessionResult {
         const [session, matchesData, sessions] = await Promise.all([
           getSession(sessionId),
           fetchAllSessionMatches(sessionId),
-          getSessions().catch(() => [] as SessionSummary[]),
+          getSessions().catch((): SessionSummary[] => []),
         ]);
 
         const matches = matchesData.matches;

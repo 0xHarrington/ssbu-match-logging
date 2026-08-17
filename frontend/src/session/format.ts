@@ -36,8 +36,13 @@ export function sessionDisplayName(startTime: string | null): string {
   return `${weekday} ${part} Set`;
 }
 
+export interface MonthDayParts {
+  mon: string;
+  day: string;
+}
+
 /** "DEC" / "11" stack parts for a session date. */
-export function monthDay(startTime: string | null): { mon: string; day: string } {
+export function monthDay(startTime: string | null): MonthDayParts {
   const d = parseDate(startTime);
   if (!d) return { mon: '', day: '' };
   return { mon: d.toLocaleDateString(undefined, { month: 'short' }).toUpperCase(), day: String(d.getDate()) };
@@ -45,7 +50,7 @@ export function monthDay(startTime: string | null): { mon: string; day: string }
 
 /** Coerce a possibly-string/nullable stocks value to a finite number, or null. */
 export function parseStocks(stocks: Match['stocks_remaining']): number | null {
-  const n = typeof stocks === 'string' ? parseFloat(stocks) : stocks;
+  const n = stocks === null ? NaN : parseFloat(String(stocks));
   return Number.isFinite(n) ? n : null;
 }
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useChartPart } from "./chart-context"
+import type { RowValue } from "./row"
 
 export function XAxis({
   dataKey,
@@ -9,7 +10,7 @@ export function XAxis({
   maxTicks = 8,
 }: {
   dataKey?: string
-  tickFormatter?: (value: unknown, index: number) => string
+  tickFormatter?: (value: RowValue, index: number) => string
   tickMargin?: number
   maxTicks?: number
 }) {

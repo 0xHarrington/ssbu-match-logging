@@ -114,12 +114,16 @@ export function StatTile({
   );
 }
 
-const TIER_COLOR: Record<string, string> = {
+const TIER_COLOR = {
   S: '#fabd2f',
   A: '#8ec07c',
   B: '#83a598',
   C: '#665c54',
-};
+} satisfies Record<string, string>;
+
+const isTier = (tier: string): tier is keyof typeof TIER_COLOR => tier in TIER_COLOR;
+
+const tierColor = (tier: string): string => (isTier(tier) ? TIER_COLOR[tier] : 'var(--faint)');
 
 /** Win-rate tier badge (S/A/B/C). */
 export function TierBadge({ tier }: { tier: string }) {
@@ -132,7 +136,7 @@ export function TierBadge({ tier }: { tier: string }) {
         padding: '2px 7px',
         borderRadius: 6,
         color: '#1b1817',
-        background: TIER_COLOR[tier] ?? 'var(--faint)',
+        background: tierColor(tier),
       }}
     >
       {tier}

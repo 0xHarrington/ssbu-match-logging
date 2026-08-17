@@ -14,7 +14,7 @@ import {
   type DitherHeatmapCell,
 } from './components/dither';
 import { LoadingState, ErrorState } from './components/Feedback';
-import { stageImages } from './lib/stages';
+import { stageImage } from './lib/stages';
 
 interface CharacterUsage {
   character: string;
@@ -829,7 +829,7 @@ function PlayerTearsheet() {
                 <div 
                   key={stat.stage}
                   style={{
-                    backgroundImage: stageImages[stat.stage] ? `url(${stageImages[stat.stage]})` : 'none',
+                    backgroundImage: stageImage(stat.stage) ? `url(${stageImage(stat.stage)})` : 'none',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     borderRadius: '12px',

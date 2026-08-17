@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import styles from './UserStats.module.css';
 import CharacterDisplay from '../CharacterDisplay';
 import { LoadingState, ErrorState } from '../Feedback';
-import { stageImages } from '../../lib/stages';
+import { stageImage } from '../../lib/stages';
 import {
   ActiveDot,
   Bar,
@@ -581,7 +581,7 @@ export const UserStats: React.FC = () => {
                 <div 
                   key={stat.stage}
                   style={{
-                    backgroundImage: stageImages[stat.stage] ? `url(${stageImages[stat.stage]})` : 'none',
+                    backgroundImage: stageImage(stat.stage) ? `url(${stageImage(stat.stage)})` : 'none',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     borderRadius: '12px',

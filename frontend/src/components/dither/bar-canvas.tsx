@@ -11,6 +11,10 @@ import {
   prefersReducedMotion,
 } from "./dither-paint"
 
+// A unique "not yet seen" sentinel, distinct from every real value the
+// comparisons below can produce (including null/undefined).
+const UNSET = Symbol("unset")
+
 type Bars = { top: number[]; base: number[] } // per data index, in backing rows
 
 // Fraction of the timeline spent staggering bar starts — the rest is each bar's
@@ -129,8 +133,8 @@ export function BarCanvas() {
     let intensity = 0
     let needsFill = true
     let lastPaintSig = ""
-    let lastSelected: string | null | undefined = Symbol() as never
-    let lastHover: number | null | undefined = Symbol() as never
+    let lastSelected: string | null | undefined | typeof UNSET = UNSET
+    let lastHover: number | null | undefined | typeof UNSET = UNSET
 
     const draw = (now: number) => {
       raf = requestAnimationFrame(draw)

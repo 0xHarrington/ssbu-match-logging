@@ -6,10 +6,9 @@ import { stack as d3Stack, stackOffsetExpand } from "d3-shape"
 
 export type StackType = "default" | "stacked" | "percent"
 
-type Row = Record<string, unknown>
+import { isFiniteRowNumber, type Row, type RowValue } from "./row"
 
-const num = (v: unknown) =>
-  typeof v === "number" && Number.isFinite(v) ? v : 0
+const num = (v: RowValue) => (isFiniteRowNumber(v) ? v : 0)
 
 /**
  * Per-series [y0, y1] bands for every row. For `default` every series sits on
@@ -17,11 +16,16 @@ const num = (v: unknown) =>
  * via d3's stack layout. The shape `bands[key][i] = [y0, y1]` is what both the
  * SVG area paths and the canvas overlay read from.
  */
+export type SeriesBands = {
+  bands: Record<string, [number, number][]>
+  max: number
+}
+
 export function computeBands(
   data: Row[],
   keys: string[],
   stackType: StackType
-): { bands: Record<string, [number, number][]>; max: number } {
+): SeriesBands {
   if (stackType === "default") {
     const bands: Record<string, [number, number][]> = {}
     let max = 0
@@ -35,12 +39,11 @@ export function computeBands(
     return { bands: bands, max: max || 1 }
   }
 
-  const series = d3Stack<Row>()
+  const stackGenerator = d3Stack<Row>()
     .keys(keys)
     .value((row, key) => num(row[key]))
-    .offset(stackType === "percent" ? stackOffsetExpand : (undefined as never))(
-    data
-  )
+  if (stackType === "percent") stackGenerator.offset(stackOffsetExpand)
+  const series = stackGenerator(data)
 
   const bands: Record<string, [number, number][]> = {}
   let max = 0

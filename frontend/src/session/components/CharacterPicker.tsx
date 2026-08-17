@@ -45,7 +45,7 @@ export default function CharacterPicker({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCloseRef.current();
     const onClick = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) onCloseRef.current();
+      if (rootRef.current && e.target instanceof Node && !rootRef.current.contains(e.target)) onCloseRef.current();
     };
     document.addEventListener('keydown', onKey);
     // Defer so the opening click doesn't immediately close it.

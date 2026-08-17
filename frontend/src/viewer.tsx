@@ -24,10 +24,10 @@ export interface Viewer {
 
 const DEFAULT_VIEWER: Viewer = { home: 'Matt', away: 'Shayne', username: '' };
 
-const HOME_SOFT: Record<Player, string> = {
+const HOME_SOFT = {
   Matt: 'rgba(184, 187, 38, 0.08)',
   Shayne: 'rgba(254, 128, 25, 0.08)',
-};
+} satisfies Record<Player, string>;
 
 const ViewerContext = createContext<Viewer>(DEFAULT_VIEWER);
 
@@ -46,7 +46,7 @@ export function ViewerProvider({ children }: { children: ReactNode }) {
         setViewer({
           home,
           away: home === 'Matt' ? 'Shayne' : 'Matt',
-          username: typeof data.username === 'string' ? data.username : '',
+          username: data.username ?? '',
         });
       })
       .catch(() => active && setViewer(DEFAULT_VIEWER));

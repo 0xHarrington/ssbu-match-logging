@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CharacterDisplay, { getCharacterIconUrl } from './CharacterDisplay';
-import { stageImages } from '../lib/stages';
+import { stageImage, stageNames } from '../lib/stages';
 import { byUsage, EMPTY_USAGE, type CharacterUsage, type UsageCounts } from '../session/characterOrder';
 
 // Shape shared by /api/matches rows and /api/recent_games rows (the latter may
@@ -43,20 +43,22 @@ const MATT_COLOR = '#b8bb26';
 
 const normalizeStocks = (value: EditableMatch['stocks_remaining']): Stocks => {
   if (value === null || value === undefined || value === '') return null;
-  const n = typeof value === 'number' ? value : Number(value);
-  return n === 1 || n === 2 || n === 3 ? (n as 1 | 2 | 3) : null;
+  const n = Number(value);
+  return n === 1 || n === 2 || n === 3 ? n : null;
 };
 
 const parseJson = async (res: Response): Promise<ApiEnvelope> => {
   try {
+    // SAFETY: our Flask backend is the only producer of these payloads; every
+    // response body is the {success, ...} envelope ApiEnvelope describes.
     return (await res.json()) as ApiEnvelope;
   } catch {
     throw new Error('Server returned an invalid response.');
   }
 };
 
-const errorMessage = (err: unknown): string =>
-  err instanceof Error ? err.message : String(err);
+const errorMessage = (cause: unknown): string =>
+  cause instanceof Error ? cause.message : String(cause);
 
 function CharacterPicker({ label, accent, value, onChange, roster, usage }: {
   label: string;
@@ -78,7 +80,7 @@ function CharacterPicker({ label, accent, value, onChange, roster, usage }: {
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (containerRef.current && e.target instanceof Node && !containerRef.current.contains(e.target)) {
         setOpen(false);
         setSearch(value);
       }
@@ -327,7 +329,7 @@ function MatchEditorModal({ match, onClose, onSaved }: MatchEditorModalProps) {
     transition: 'all 0.15s'
   });
 
-  const stageOptions = Object.keys(stageImages);
+  const stageOptions = stageNames;
 
   return (
     <div
@@ -430,7 +432,7 @@ function MatchEditorModal({ match, onClose, onSaved }: MatchEditorModalProps) {
                   key={s}
                   onClick={() => setStage(s)}
                   style={{
-                    backgroundImage: `url(${stageImages[s]})`,
+                    backgroundImage: `url(${stageImage(s)})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     position: 'relative',

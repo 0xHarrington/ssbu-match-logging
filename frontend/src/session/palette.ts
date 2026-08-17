@@ -4,18 +4,18 @@
 // needed.
 import type { Player } from '../types';
 
-export const PLAYER_COLOR_VAR: Record<Player, string> = {
+export const PLAYER_COLOR_VAR = {
   Shayne: 'var(--shayne)',
   Matt: 'var(--matt)',
-};
+} satisfies Record<Player, string>;
 
-export const PLAYER_HEX: Record<Player, string> = {
+export const PLAYER_HEX = {
   Shayne: '#fe8019',
   Matt: '#b8bb26',
-};
+} satisfies Record<Player, string>;
 
 /** Panel gradient + border used by the scoreboard player panels. */
-export const PLAYER_PANEL: Record<Player, { bg: string; border: string; glow: string }> = {
+export const PLAYER_PANEL = {
   Shayne: {
     bg: 'linear-gradient(160deg,#2a1c0e,#1f1712)',
     border: '#5a3410',
@@ -26,13 +26,13 @@ export const PLAYER_PANEL: Record<Player, { bg: string; border: string; glow: st
     border: '#4a5410',
     glow: 'rgba(184,187,38,0.18)',
   },
-};
+} satisfies Record<Player, { bg: string; border: string; glow: string }>;
 
 /** Selected-state background for a player's pick button (log/edit forms). */
-export const PLAYER_PICK_BG: Record<Player, string> = {
+export const PLAYER_PICK_BG = {
   Shayne: '#2a1c0e',
   Matt: '#1e2410',
-};
+} satisfies Record<Player, string>;
 
 export function winnerColorVar(winner: string): string {
   if (winner === 'Shayne') return PLAYER_COLOR_VAR.Shayne;
@@ -42,11 +42,17 @@ export function winnerColorVar(winner: string): string {
 
 /** Session-lead label + color from each player's win count.
  *  Viewer-denominated: positive lead = the home (logged-in) player ahead. */
+export interface SessionLead {
+  lead: number;
+  label: string;
+  color: string;
+}
+
 export function sessionLead(
   shayneWins: number,
   mattWins: number,
   home: Player = 'Matt',
-): { lead: number; label: string; color: string } {
+): SessionLead {
   const away: Player = home === 'Matt' ? 'Shayne' : 'Matt';
   const homeWins = home === 'Matt' ? mattWins : shayneWins;
   const awayWins = home === 'Matt' ? shayneWins : mattWins;

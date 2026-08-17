@@ -17,7 +17,7 @@ import {
   postVisionKeyframe,
   ApiError,
 } from './lib/api';
-import { ACTIVE_STAGES } from './lib/stages';
+import { ACTIVE_STAGES, isActiveStage } from './lib/stages';
 import { StageGrid, StocksPicker, WinnerPicker } from './session/components/formControls';
 import CharacterPicker from './session/components/CharacterPicker';
 import { EMPTY_USAGE, type CharacterUsage } from './session/characterOrder';
@@ -38,12 +38,12 @@ const PENDING_POLL_MS = 3000;
 
 type MattSide = 'left' | 'right';
 
-const REVIEW_LABELS: Record<string, string> = {
-  left_character: 'fighters',
-  right_character: 'fighters',
-  stage: 'stage',
-  stocksRemaining: 'stocks',
-};
+const REVIEW_LABELS = new Map<string, string>([
+  ['left_character', 'fighters'],
+  ['right_character', 'fighters'],
+  ['stage', 'stage'],
+  ['stocksRemaining', 'stocks'],
+]);
 
 function meanAbsDiff(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
   let sum = 0;
@@ -72,9 +72,7 @@ export default function CapturePage() {
   const retryQueueRef = useRef<Blob[]>([]);
   const wakeLockRef = useRef<WakeLockSentinelLike | null>(null);
   const captureSessionIdRef = useRef(
-    typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `cap-${Date.now()}`,
+    'randomUUID' in crypto ? crypto.randomUUID() : `cap-${Date.now()}`,
   );
 
   const [running, setRunning] = useState(false);
@@ -86,9 +84,10 @@ export default function CapturePage() {
   const [pending, setPending] = useState<VisionPendingMatch[]>([]);
   const [characters, setCharacters] = useState<string[]>([]);
   const [charUsage, setCharUsage] = useState<CharacterUsage>(EMPTY_USAGE);
-  const [mattSide, setMattSide] = useState<MattSide>(
-    () => (localStorage.getItem('capture.mattSide') as MattSide) || 'left',
-  );
+  const [mattSide, setMattSide] = useState<MattSide>(() => {
+    // Parse rather than assert: localStorage is an external boundary.
+    return localStorage.getItem('capture.mattSide') === 'right' ? 'right' : 'left';
+  });
 
   const mattSideRef = useRef(mattSide);
   mattSideRef.current = mattSide;
@@ -225,6 +224,8 @@ export default function CapturePage() {
 
   const acquireWakeLock = useCallback(async () => {
     try {
+      // SAFETY: WakeLockNavigator only adds an optional wakeLock member;
+      // browsers without the API fall through the ?. below.
       const nav = navigator as WakeLockNavigator;
       wakeLockRef.current = (await nav.wakeLock?.request('screen')) ?? null;
     } catch {
@@ -235,6 +236,8 @@ export default function CapturePage() {
   const stop = useCallback(() => {
     setRunning(false);
     const video = videoRef.current;
+    // SAFETY: this component only ever assigns getUserMedia streams (or null)
+    // to video.srcObject, so the MediaProvider is always a MediaStream here.
     const stream = video?.srcObject as MediaStream | null;
     stream?.getTracks().forEach((t) => t.stop());
     if (video) video.srcObject = null;
@@ -508,11 +511,11 @@ function ConfirmCard({ item, characters, charUsage, onDone }: ConfirmCardProps) 
   const [error, setError] = useState<string | null>(null);
 
   const stages: string[] =
-    item.stage && !ACTIVE_STAGES.includes(item.stage as (typeof ACTIVE_STAGES)[number])
+    item.stage && !isActiveStage(item.stage)
       ? [item.stage, ...ACTIVE_STAGES]
       : [...ACTIVE_STAGES];
 
-  const reviewHints = [...new Set(item.needsReview.map((k) => REVIEW_LABELS[k] ?? k))];
+  const reviewHints = [...new Set(item.needsReview.map((k) => REVIEW_LABELS.get(k) ?? k))];
   const ready = Boolean(shayneChar && mattChar && winner && stocks && stage);
 
   const confirm = async () => {

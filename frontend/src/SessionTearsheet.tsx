@@ -4,7 +4,7 @@ import html2canvas from 'html2canvas';
 import CharacterDisplay from './components/CharacterDisplay';
 import CharToken from './session/components/CharToken';
 import { LoadingState, ErrorState } from './components/Feedback';
-import { stageImages } from './lib/stages';
+import { stageImage } from './lib/stages';
 
 interface CharacterUsage {
   [character: string]: number;
@@ -24,6 +24,9 @@ interface MatchupStat {
 }
 
 interface SessionStatsData {
+  /** Present on per-session payloads; absent on the all-time variant. */
+  start_time?: string;
+  end_time?: string;
   total_games: number;
   shayne_wins: number;
   matt_wins: number;
@@ -241,9 +244,9 @@ function SessionTearsheet() {
   }
 
   const getSessionDateDisplay = () => {
-    if (stats && 'start_time' in stats && 'end_time' in stats) {
-      const start = new Date((stats as unknown as { start_time: string }).start_time);
-      const end = new Date((stats as unknown as { end_time: string }).end_time);
+    if (stats.start_time && stats.end_time) {
+      const start = new Date(stats.start_time);
+      const end = new Date(stats.end_time);
       const sameDay = start.toDateString() === end.toDateString();
       if (sameDay) {
         return start.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -428,7 +431,7 @@ function SessionTearsheet() {
               <div style={{ fontSize: 14, fontWeight: 700, color: HEX.fgLight, marginBottom: 12, fontFamily: display }}>Stage breakdown</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
                 {stats.stage_stats.slice(0, 4).map((st) => (
-                  <div key={st.stage} style={{ position: 'relative', overflow: 'hidden', borderRadius: 12, border: `1px solid ${HEX.line2}`, minHeight: 88, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 12, backgroundImage: stageImages[st.stage] ? `url(${stageImages[st.stage]})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                  <div key={st.stage} style={{ position: 'relative', overflow: 'hidden', borderRadius: 12, border: `1px solid ${HEX.line2}`, minHeight: 88, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 12, backgroundImage: stageImage(st.stage) ? `url(${stageImage(st.stage)})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' }}>
                     <div style={{ position: 'absolute', inset: 0, background: 'rgba(12,10,9,0.58)' }} />
                     <div style={{ position: 'relative', fontSize: 11, color: HEX.fgLight, fontWeight: 600, textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>{st.stage}</div>
                     <div style={{ position: 'relative', fontFamily: mono, fontSize: 24, fontWeight: 700, color: HEX.blue, textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>{st.count}</div>

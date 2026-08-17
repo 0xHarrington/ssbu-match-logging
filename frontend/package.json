@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "eslint . && oxlint",
     "lint:slop": "oxlint",
     "preview": "vite preview",
     "test": "vitest run"

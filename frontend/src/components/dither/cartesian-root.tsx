@@ -4,6 +4,7 @@ import {
   Children,
   type ComponentType,
   isValidElement,
+  type ReactElement,
   type ReactNode,
 } from "react"
 import {
@@ -17,6 +18,7 @@ import { CommonChartContext } from "./common-context"
 import type { BloomInput } from "./dither-paint"
 import { cn } from "./lib"
 import "./dither.css"
+import type { Row as EngineRow } from "./row"
 import type { StackType } from "./scales"
 import { useChartDimensions } from "./use-chart-dimensions"
 
@@ -60,9 +62,14 @@ export type CartesianChartProps<TData extends Row> = {
   onSelectionChange?: (key: string | null) => void
 }
 
+const isDomTag = (type: ReactElement["type"]): type is string =>
+  typeof type === "string"
+
 /** Which render layer a composed part targets — defaults to the front SVG. */
 function layerOf(node: ReactNode): "back" | "dom" | "svg" {
-  if (!isValidElement(node) || typeof node.type === "string") return "svg"
+  if (!isValidElement(node) || isDomTag(node.type)) return "svg"
+  // SAFETY: chart parts opt into a layer via a static `chartLayer` field on the
+  // component function; components without one fall through to the front SVG.
   return (node.type as { chartLayer?: "back" | "dom" }).chartLayer ?? "svg"
 }
 
@@ -104,8 +111,9 @@ export function CartesianRoot<TData extends Row>({
 
   const ctx = useChartController({
     chartType,
-    // Safe: the controller only reads row[key] for the configured series keys.
-    data: data as Record<string, unknown>[],
+    // SAFETY: the controller only reads row[key] for the configured series
+    // keys, and interface-typed rows lack the index signature EngineRow spells out.
+    data: data as EngineRow[],
     config,
     stackType,
     dimensions: size,

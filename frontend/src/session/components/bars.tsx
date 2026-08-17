@@ -15,8 +15,8 @@ interface SplitBarProps {
 export function SplitBar({ shayne, matt, height = 8, radius = 5 }: SplitBarProps) {
   const { home } = useViewer();
   const empty = shayne <= 0 && matt <= 0;
-  const mattSeg = { player: 'Matt' as Player, value: matt, color: 'var(--matt)' };
-  const shayneSeg = { player: 'Shayne' as Player, value: shayne, color: 'var(--shayne)' };
+  const mattSeg = { player: 'Matt' as const, value: matt, color: 'var(--matt)' };
+  const shayneSeg = { player: 'Shayne' as const, value: shayne, color: 'var(--shayne)' };
   const segments = home === 'Matt' ? [mattSeg, shayneSeg] : [shayneSeg, mattSeg];
   return (
     <div

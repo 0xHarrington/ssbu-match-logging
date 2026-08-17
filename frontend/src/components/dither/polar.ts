@@ -1,7 +1,7 @@
 // Polar geometry for pie + radar dither charts. Angles start at the top
 // (−90°) and run clockwise, matching how the slices/axes read on screen.
 
-type Row = Record<string, unknown>
+import type { Row } from "./row"
 
 const TOP = -Math.PI / 2
 const TAU = Math.PI * 2

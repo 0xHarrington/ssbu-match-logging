@@ -18,7 +18,7 @@ export type DitherColor =
 export type Seed = { fill: Rgb; line: Rgb; star: Rgb }
 
 // Each seed: the area-fill hue, the bright series line, and the star sparkle.
-export const PALETTE: Record<DitherColor, Seed> = {
+export const PALETTE = {
   // Gruvbox retune (vendored change): fills sit on the gruvbox accents so
   // every chart reads in-theme; line/star are progressively brighter tints.
   green: { fill: [184, 187, 38], line: [215, 219, 90], star: [235, 238, 150] },
@@ -31,12 +31,12 @@ export const PALETTE: Record<DitherColor, Seed> = {
   aqua: { fill: [142, 192, 124], line: [180, 220, 162], star: [216, 240, 202] },
   // No-data: muted gruvbox gray so empty metrics read as "nothing here".
   grey: { fill: [146, 131, 116], line: [175, 162, 144], star: [205, 196, 180] },
-}
+} satisfies Record<DitherColor, Seed>
 
 export const rgb = ([r, g, b]: Rgb, k = 1, a = 1) =>
   `rgba(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)},${a})`
 
 export const seedOfColor = (color: DitherColor): Seed => PALETTE[color]
 
-export const isDitherColor = (value: unknown): value is DitherColor =>
-  typeof value === "string" && value in PALETTE
+export const isDitherColor = (value: string): value is DitherColor =>
+  value in PALETTE

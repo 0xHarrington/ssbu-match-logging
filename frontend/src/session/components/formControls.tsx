@@ -2,7 +2,7 @@
 // Selected-state colors mirror the prototype exactly.
 import type { ReactNode } from 'react';
 import CharToken from './CharToken';
-import { stageImages } from '../../lib/stages';
+import { stageImage } from '../../lib/stages';
 import { PLAYER_HEX, PLAYER_PICK_BG } from '../palette';
 import { useViewer } from '../../viewer';
 import type { Player } from '../../types';
@@ -34,7 +34,7 @@ export function WinnerPicker({
 }: WinnerPickerProps) {
   const { home, away } = useViewer();
   const players: Player[] = [home, away];
-  const chars: Record<Player, string> = { Shayne: shayneChar, Matt: mattChar };
+  const chars = { Shayne: shayneChar, Matt: mattChar } satisfies Record<Player, string>;
 
   return (
     <div
@@ -146,7 +146,7 @@ export function StageGrid({ stages, value, onChange, variant = 'tile' }: StageGr
             </button>
           );
         }
-        const art = stageImages[stage];
+        const art = stageImage(stage);
         return (
           <button
             key={stage}

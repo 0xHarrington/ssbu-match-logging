@@ -4,7 +4,7 @@ import { PieChart, Pie } from './components/dither';
 import CharacterDisplay from './components/CharacterDisplay';
 import MatchEditorModal, { type EditableMatch } from './components/MatchEditorModal';
 import { LoadingState, ErrorState } from './components/Feedback';
-import { stageImages } from './lib/stages';
+import { stageImage } from './lib/stages';
 import { PageColumn, SectionTitle, Card, GlowPanel } from './components/ui';
 import { sessionDisplayName, formatDuration, matchTime, stocksLabel } from './session/format';
 
@@ -324,7 +324,7 @@ function SessionDetail() {
           <SectionTitle>Stage breakdown</SectionTitle>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12 }}>
             {stats.stage_stats.map((stat) => {
-              const img = stageImages[stat.stage];
+              const img = stageImage(stat.stage);
               return (
                 <div
                   key={stat.stage}

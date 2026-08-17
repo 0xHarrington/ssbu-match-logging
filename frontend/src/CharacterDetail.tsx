@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import CharacterDisplay from './components/CharacterDisplay';
 import { PerformanceHeatmap } from './components/PerformanceHeatmap';
 import { LoadingState, ErrorState } from './components/Feedback';
-import { stageImages } from './lib/stages';
+import { stageImage } from './lib/stages';
 import {
   BarChart,
   Bar,
@@ -610,7 +610,7 @@ const CharacterDetail: React.FC = () => {
                   <div 
                     key={stage.stage}
                     style={{
-                      backgroundImage: stageImages[stage.stage] ? `url(${stageImages[stage.stage]})` : 'none',
+                      backgroundImage: stageImage(stage.stage) ? `url(${stageImage(stage.stage)})` : 'none',
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
                       borderRadius: '12px',

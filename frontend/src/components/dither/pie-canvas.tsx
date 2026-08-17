@@ -13,6 +13,10 @@ import { rgb } from "./palette"
 import { sliceAtAngle } from "./polar"
 import { usePolarChart } from "./polar-context"
 
+// A unique "not yet seen" sentinel, distinct from every real value the
+// comparisons below can produce (including null/undefined).
+const UNSET = Symbol("unset")
+
 const TOP = -Math.PI / 2
 const TAU = Math.PI * 2
 const POP = 6 // px the hovered slice bulges outward
@@ -65,8 +69,8 @@ export function PieCanvas() {
     let popEase = 0 // eases the hovered slice's outward bulge
     let needsFill = true
     let lastPaintSig = ""
-    let lastSelected: string | null | undefined = Symbol() as never
-    let lastHover: number | null | undefined = Symbol() as never
+    let lastSelected: string | null | undefined | typeof UNSET = UNSET
+    let lastHover: number | null | undefined | typeof UNSET = UNSET
 
     const paint = (prog: number) => {
       const s = state.current

@@ -146,7 +146,12 @@ interface HeatmapCell {
   game_count: number;
 }
 
-const TOOLTIPS: Record<string, { title: string; body: React.ReactNode }> = {
+interface MetricTooltip {
+  title: string;
+  body: React.ReactNode;
+}
+
+const TOOLTIPS = {
   close: {
     title: '1-Stock Victory Percentages',
     body: (
@@ -182,7 +187,13 @@ const TOOLTIPS: Record<string, { title: string; body: React.ReactNode }> = {
     title: 'Consistency',
     body: 'Win-rate volatility — the standard deviation of performance across rolling 20-game windows. Lower is steadier.',
   },
-};
+} satisfies Record<string, MetricTooltip>;
+
+const isTooltipKey = (key: string): key is keyof typeof TOOLTIPS => key in TOOLTIPS;
+
+/** Tooltip copy for a metric card; undefined for cards without one (e.g. avg). */
+const metricTooltip = (key: string): MetricTooltip | undefined =>
+  isTooltipKey(key) ? TOOLTIPS[key] : undefined;
 
 // ===== MAIN COMPONENT =====
 const StatsPage: React.FC = () => {
@@ -198,6 +209,7 @@ const StatsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const activeTip = activeTooltip ? metricTooltip(activeTooltip) : undefined;
 
   const fetchStats = React.useCallback(async () => {
     setLoading(true);
@@ -413,7 +425,7 @@ const StatsPage: React.FC = () => {
         <SectionTitle>Advanced metrics</SectionTitle>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
           {metricCards.map((c) => {
-            const tip = TOOLTIPS[c.key];
+            const tip = metricTooltip(c.key);
             return (
               <Card key={c.key} padding={18} style={{ borderRadius: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -556,10 +568,10 @@ const StatsPage: React.FC = () => {
       </div>
 
       {/* metric tooltips */}
-      {activeTooltip && TOOLTIPS[activeTooltip] && createPortal(
+      {activeTip && createPortal(
         <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', background: 'var(--deep2)', border: '1px solid var(--border-light)', borderRadius: 10, padding: 14, width: 280, fontSize: 12, color: 'var(--fg)', lineHeight: 1.5, zIndex: 9999, boxShadow: '0 8px 24px rgba(0,0,0,0.8)', pointerEvents: 'none' }}>
-          <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--yellow)' }}>{TOOLTIPS[activeTooltip].title}</div>
-          {TOOLTIPS[activeTooltip].body}
+          <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--yellow)' }}>{activeTip.title}</div>
+          {activeTip.body}
         </div>,
         document.body,
       )}

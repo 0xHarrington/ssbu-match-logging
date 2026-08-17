@@ -21,10 +21,10 @@ interface ScoreboardProps {
   mattRoster: CharacterSessionUsage[];
 }
 
-const GLOW: Record<Player, string> = {
+const GLOW = {
   Matt: 'rgba(184,187,38,0.14)',
   Shayne: 'rgba(254,128,25,0.14)',
-};
+} satisfies Record<Player, string>;
 
 /** The session characters beyond the one on deck, as small tokens. */
 function RosterStrip({

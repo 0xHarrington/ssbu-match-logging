@@ -4,6 +4,7 @@ import {
   Children,
   type ComponentType,
   isValidElement,
+  type ReactElement,
   type ReactNode,
 } from "react"
 import type { ChartConfig, Margins } from "./chart-context"
@@ -12,6 +13,7 @@ import type { BloomInput } from "./dither-paint"
 import { cn } from "./lib"
 import "./dither.css"
 import { axisAtAngle, sliceAtAngle } from "./polar"
+import type { Row as EngineRow } from "./row"
 import { PolarChartContext, usePolarController } from "./polar-context"
 import { useChartDimensions } from "./use-chart-dimensions"
 
@@ -27,8 +29,13 @@ const DEFAULT_POLAR_MARGINS: Margins = {
   left: 14,
 }
 
+const isDomTag = (type: ReactElement["type"]): type is string =>
+  typeof type === "string"
+
 function layerOf(node: ReactNode): "back" | "dom" | "svg" {
-  if (!isValidElement(node) || typeof node.type === "string") return "svg"
+  if (!isValidElement(node) || isDomTag(node.type)) return "svg"
+  // SAFETY: chart parts opt into a layer via a static `chartLayer` field on the
+  // component function; components without one fall through to the front SVG.
   return (node.type as { chartLayer?: "back" | "dom" }).chartLayer ?? "svg"
 }
 
@@ -80,8 +87,9 @@ export function PolarRoot<TData extends Row>({
 
   const ctx = usePolarController({
     chartType,
-    // Safe: the controller only reads row[key] for the configured keys.
-    data: data as Record<string, unknown>[],
+    // SAFETY: the controller only reads row[key] for the configured keys, and
+    // interface-typed rows lack the index signature EngineRow spells out.
+    data: data as EngineRow[],
     config,
     dataKey,
     nameKey,

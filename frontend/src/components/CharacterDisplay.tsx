@@ -9,26 +9,26 @@ const characterIcons = import.meta.glob<string>('../assets/characters/*.png', {
 });
 
 // Handle special cases where the character name in the data doesn't match the filename
-const specialCases: { [key: string]: string } = {
-  'Mr. Game & Watch': 'MrGameWatch',
-  'Rosalina & Luma': 'Rosalina',
-  'Banjo & Kazooie': 'BanjoKazooie',
-  'Pyra/Mythra': 'Pyra',
-  'R.O.B.': 'ROB',
-  'Dr. Mario': 'DrMario',
-  'Zero Suit Samus': 'ZeroSuitSamus',
-  'Mii Brawler': 'MiiFighter',
-  'Mii Swordfighter': 'MiiSwordfighter',
-  'Mii Gunner': 'MiiGunner',
-  'Pokemon Trainer': 'PokemonTrainer',
-  'King K. Rool': 'KingKRool',
-  'Bowser Jr.': 'BowserJr',
-  'Duck Hunt': 'DuckHunt',
-  'Pac-Man': 'Pac-Man',
-};
+const specialCases = new Map<string, string>([
+  ['Mr. Game & Watch', 'MrGameWatch'],
+  ['Rosalina & Luma', 'Rosalina'],
+  ['Banjo & Kazooie', 'BanjoKazooie'],
+  ['Pyra/Mythra', 'Pyra'],
+  ['R.O.B.', 'ROB'],
+  ['Dr. Mario', 'DrMario'],
+  ['Zero Suit Samus', 'ZeroSuitSamus'],
+  ['Mii Brawler', 'MiiFighter'],
+  ['Mii Swordfighter', 'MiiSwordfighter'],
+  ['Mii Gunner', 'MiiGunner'],
+  ['Pokemon Trainer', 'PokemonTrainer'],
+  ['King K. Rool', 'KingKRool'],
+  ['Bowser Jr.', 'BowserJr'],
+  ['Duck Hunt', 'DuckHunt'],
+  ['Pac-Man', 'Pac-Man'],
+]);
 
 export function getCharacterIconUrl(char: string): string | undefined {
-  const fileName = specialCases[char] || char.replace(/[^a-zA-Z]/g, '');
+  const fileName = specialCases.get(char) ?? char.replace(/[^a-zA-Z]/g, '');
   return characterIcons[`../assets/characters/${fileName}.png`];
 }
 

@@ -12,6 +12,10 @@ import {
 } from "./dither-paint"
 import { rgb } from "./palette"
 
+// A unique "not yet seen" sentinel, distinct from every real value the
+// comparisons below can produce (including null/undefined).
+const UNSET = Symbol("unset")
+
 type Star = { key: string; xi: number; depth: number; phase: number }
 type Surface = { top: number[]; floor: number[] }
 
@@ -107,7 +111,7 @@ function startCartesianLoop({
   let intensity = 0
   let needsFill = true
   let lastPaintSig = ""
-  let lastSelected: string | null | undefined = Symbol() as never
+  let lastSelected: string | null | undefined | typeof UNSET = UNSET
 
   const draw = (now: number) => {
     raf = requestAnimationFrame(draw)

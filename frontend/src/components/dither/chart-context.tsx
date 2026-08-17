@@ -16,6 +16,7 @@ import {
   type StackType,
 } from "./scales"
 import type { Dimensions } from "./use-chart-dimensions"
+import { isRowNumber, type Row } from "./row"
 
 /** Which chart root a part is composed under — drives the boundary guards. */
 export type ChartType = "area" | "bar" | "line" | "pie" | "radar"
@@ -28,8 +29,6 @@ export type Margins = {
   bottom: number
   left: number
 }
-
-type Row = Record<string, unknown>
 
 export type AreaVariant = "gradient" | "dotted" | "hatched" | "solid"
 export type StrokeVariant = "solid" | "dashed"
@@ -106,13 +105,13 @@ export type ChartContextValue = {
 
 const ChartContext = createContext<ChartContextValue | null>(null)
 
-const ROOT_OF: Record<ChartType, string> = {
+export const ROOT_OF = {
   area: "<AreaChart />",
   bar: "<BarChart />",
   line: "<LineChart />",
   pie: "<PieChart />",
   radar: "<RadarChart />",
-}
+} satisfies Record<ChartType, string>
 
 /** Generic accessor for internal layers (canvas/overlay) that work for any root. */
 export function useChart() {
@@ -161,7 +160,7 @@ export { ChartContext }
  * render pattern (https://react.dev/reference/react/useState) instead of a ref:
  * the revision is derived purely from render inputs, so it stays consistent
  * across the memoized values below rather than lagging a render behind. */
-export function useRevision(data: unknown, token: number) {
+export function useRevision(data: readonly Row[], token: number) {
   const [prev, setPrev] = useState({ data, token, revision: 0 })
   if (prev.data !== data || prev.token !== token) {
     const next = { data, token, revision: prev.revision + 1 }
@@ -383,7 +382,7 @@ export function useChartController({
         return {
           name,
           label: config[name]?.label ?? name,
-          value: typeof raw === "number" ? raw : 0,
+          value: isRowNumber(raw) ? raw : 0,
           seed: seedOf(name),
           dimmed: (() => {
             const emphasis = selectedDataKey ?? focusDataKey

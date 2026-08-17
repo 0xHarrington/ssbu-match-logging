@@ -20,6 +20,12 @@ import type {
   VisionPendingMatch,
 } from '../types';
 
+/** The Flask error envelope: failed handlers reply {message} or {error}. */
+interface ErrorBody {
+  message?: string;
+  error?: string;
+}
+
 /** Thrown for any non-2xx response or network failure. */
 export class ApiError extends Error {
   status: number;
@@ -35,7 +41,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(path, {
       ...init,
-      headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+      headers: { 'Content-Type': 'application/json', ...init?.headers },
     });
   } catch (err) {
     // Network-level failure (server down, offline, CORS).
@@ -48,14 +54,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // Prefer a server-supplied message when the body is JSON.
     let detail = `Request failed (${res.status})`;
     try {
-      const body = await res.json();
-      if (body && typeof body.message === 'string') detail = body.message;
-      else if (body && typeof body.error === 'string') detail = body.error;
+      const body: ErrorBody | null = await res.json();
+      detail = body?.message ?? body?.error ?? detail;
     } catch {
       /* non-JSON error body — keep the generic message */
     }
     throw new ApiError(detail, res.status);
   }
+  // SAFETY: our Flask backend is the only producer of these payloads; each
+  // caller of request<T> declares the known envelope of its endpoint.
   return (await res.json()) as T;
 }
 
@@ -176,13 +183,15 @@ export async function postVisionKeyframe(
   if (!res.ok) {
     let detail = `Request failed (${res.status})`;
     try {
-      const body = await res.json();
-      if (body && typeof body.message === 'string') detail = body.message;
+      const body: ErrorBody | null = await res.json();
+      detail = body?.message ?? detail;
     } catch {
       /* non-JSON error body */
     }
     throw new ApiError(detail, res.status);
   }
+  // SAFETY: same trust boundary as request<T> — the keyframe endpoint's
+  // envelope is defined by our own Flask handler.
   return (await res.json()) as VisionKeyframeResult;
 }
 

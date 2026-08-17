@@ -6,6 +6,7 @@ import {
   type ChartConfig,
   type ChartType,
   type Margins,
+  ROOT_OF,
   useRevision,
 } from "./chart-context"
 import type { CommonChart } from "./common-context"
@@ -15,12 +16,7 @@ import { seedOfColor } from "./palette"
 import { type PieSlice, pieSlices, type RadarAxis, radarAxes } from "./polar"
 import type { Dimensions } from "./use-chart-dimensions"
 
-type Row = Record<string, unknown>
-
-const ROOT_OF: Record<string, string> = {
-  pie: "<PieChart />",
-  radar: "<RadarChart />",
-}
+import { isRowNumber, type Row } from "./row"
 
 export type PolarChartContextValue = {
   chartType: ChartType
@@ -277,7 +273,7 @@ export function usePolarController({
           return {
             name,
             label: config[name]?.label ?? name,
-            value: typeof raw === "number" ? raw : 0,
+            value: isRowNumber(raw) ? raw : 0,
             seed: seedOf(name),
             dimmed: emphasis !== null && emphasis !== name,
           }
